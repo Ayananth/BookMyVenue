@@ -153,6 +153,9 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
+    def __str__(self) -> str:
+        return self.full_name or self.email
+
 
 class AuthAccount(Base):
     __tablename__ = "auth_accounts"

@@ -6,6 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from app.api import api_router
 from app.core.config import settings
 from app.db import Base, engine
+from app.admin.admin import setup_admin
+
 
 
 @asynccontextmanager
@@ -21,6 +23,8 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+setup_admin(app, engine)
 
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")

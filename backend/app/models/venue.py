@@ -93,6 +93,9 @@ class Location(Base):
         back_populates="location",
     )
 
+    def __str__(self) -> str:
+        return f"{self.city}, {self.district}"
+
 
 class VenueCategory(Base):
     __tablename__ = "venue_categories"
@@ -119,6 +122,9 @@ class VenueCategory(Base):
     venues: Mapped[list["Venue"]] = relationship(
         back_populates="category",
     )
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class Venue(Base):
@@ -222,6 +228,9 @@ class Venue(Base):
         cascade="all, delete-orphan",
     )
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class VenueImage(Base):
     __tablename__ = "venue_images"
@@ -269,6 +278,9 @@ class VenueImage(Base):
     venue: Mapped["Venue"] = relationship(
         back_populates="images",
     )
+
+    def __str__(self) -> str:
+        return f"Image #{self.id}"
 
 
 class VenueSlot(Base):
@@ -350,3 +362,10 @@ class VenueSlot(Base):
     venue: Mapped["Venue"] = relationship(
         back_populates="slots",
     )
+
+    def __str__(self) -> str:
+        return (
+            f"{self.slot_date} "
+            f"{self.start_time.strftime('%H:%M')}-"
+            f"{self.end_time.strftime('%H:%M')}"
+        )
