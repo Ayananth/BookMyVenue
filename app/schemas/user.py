@@ -1,14 +1,28 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
+from app.models import UserRole
 
 
 class UserCreate(BaseModel):
-    name: str
-    email: str
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
 
 
 class UserResponse(BaseModel):
     id: int
-    name: str
-    email: str
+    full_name: str | None
+    email: str | None
+    phone: str | None
+    avatar_url: str | None
+    role: UserRole
+    is_active: bool
+    is_blocked: bool
+    is_email_verified: bool
+    is_phone_verified: bool
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

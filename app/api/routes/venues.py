@@ -14,6 +14,16 @@ router = APIRouter(
 )
 
 
+@router.get("/all", response_model=list[VenueResponse])
+async def list_all_venues(
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await db.execute(
+        select(Venue).order_by(Venue.id)
+    )
+    return result.scalars().all()
+
+
 @router.get("/", response_model=list[VenueResponse])
 async def get_venues(
     db: Annotated[AsyncSession, Depends(get_db)],

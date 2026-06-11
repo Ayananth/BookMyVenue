@@ -24,13 +24,31 @@ async def create_user(
     user_in: UserCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    existing_user = await db.scalar(
-        select(User).where(User.email == user_in.email)
-    )
-    if existing_user is not None:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    if user_in.email is None and user_in.phone is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Email or phone is required",
+        )
 
-    user = User(name=user_in.name, email=user_in.email)
+    if user_in.email is not None:
+        existing_user = await db.scalar(
+            select(User).where(User.email == user_in.email)
+        )
+        if existing_user is not None:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    if user_in.phone is not None:
+        existing_user = await db.scalar(
+            select(User).where(User.phone == user_in.phone)
+        )
+        if existing_user is not None:
+            raise HTTPException(status_code=400, detail="Phone already registered")
+
+    user = User(
+        full_name=user_in.full_name,
+        email=user_in.email,
+        phone=user_in.phone,
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)

@@ -1,4 +1,17 @@
-from app.models.user import User
+from app.models.user import (
+    AuthAccount,
+    AuthProvider,
+    OtpPurpose,
+    OtpRequest,
+    SignupMethod,
+    SignupRequest,
+    User,
+    UserRole,
+    auth_provider_enum,
+    otp_purpose_enum,
+    signup_method_enum,
+    user_role_enum,
+)
 from app.models.venue import (
     Location,
     Venue,
@@ -11,11 +24,22 @@ from app.models.venue import (
 
 __all__ = [
     "Location",
+    "AuthAccount",
+    "AuthProvider",
+    "OtpPurpose",
+    "OtpRequest",
+    "SignupMethod",
+    "SignupRequest",
     "User",
+    "UserRole",
     "Venue",
     "VenueCategory",
     "VenueImage",
     "VenueSlot",
     "VenueStatus",
+    "auth_provider_enum",
+    "otp_purpose_enum",
+    "signup_method_enum",
+    "user_role_enum",
     "venue_status_enum",
 ]
