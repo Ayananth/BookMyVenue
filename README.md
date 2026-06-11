@@ -28,6 +28,31 @@ We are building BookMyVenue iteratively through **4 Phases**:
 - **Phase 2 & 3: Feature & Modularization:** Implementing features module by module and refining the architecture.
 - **Phase 4: Scalability:** Building a fully scalable, cloud-native solution for high traffic.
 
+## 📁 Backend Structure
+
+The FastAPI backend is organized by responsibility:
+
+```text
+app/
+├── api/
+│   ├── router.py
+│   └── routes/
+├── core/
+│   └── config.py
+├── db/
+│   ├── base.py
+│   └── session.py
+├── models/
+├── schemas/
+└── main.py
+```
+
+- `app/api/` contains HTTP routers and route composition.
+- `app/core/` contains shared app configuration.
+- `app/db/` contains SQLAlchemy base and async session setup.
+- `app/models/` contains ORM models split by domain.
+- `app/schemas/` contains Pydantic request and response models.
+
 ## 🤝 How to Contribute
 
 This is a collective effort, and everyone in the WeCode community shares the benefits of what we build! Whether you're a beginner or a pro, we would love your help. 

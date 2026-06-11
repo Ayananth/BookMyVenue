@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.db import get_db
 from app.models import User
 from app.schemas.user import UserCreate, UserResponse
 
@@ -16,8 +16,7 @@ async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     result = await db.execute(select(User).order_by(User.id))
-    users = result.scalars().all()
-    return users
+    return result.scalars().all()
 
 
 @router.post("", response_model=UserResponse, status_code=201)

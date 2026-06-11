@@ -1,10 +1,9 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-from sqlalchemy import JSON
-
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Date,
@@ -23,31 +22,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.database import Base
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
-
-    name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-    )
-
-    email: Mapped[str] = mapped_column(
-        String(255),
-        unique=True,
-        nullable=False,
-    )
-
-    venues: Mapped[list["Venue"]] = relationship(
-        back_populates="owner",
-    )
+from app.db.base import Base
 
 
 class VenueStatus(str, Enum):
@@ -83,38 +58,31 @@ class Location(Base):
         Integer,
         primary_key=True,
     )
-
     city: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
     )
-
     district: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
     )
-
     state: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
     )
-
     latitude: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 7),
         nullable=True,
     )
-
     longitude: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 7),
         nullable=True,
     )
-
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         server_default=text("true"),
     )
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -133,18 +101,15 @@ class VenueCategory(Base):
         Integer,
         primary_key=True,
     )
-
     name: Mapped[str] = mapped_column(
         String(100),
         unique=True,
         nullable=False,
     )
-
     icon_url: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
-
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -184,66 +149,54 @@ class Venue(Base):
         Integer,
         primary_key=True,
     )
-
     owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         nullable=False,
     )
-
     category_id: Mapped[int] = mapped_column(
         ForeignKey("venue_categories.id"),
         nullable=False,
     )
-
     location_id: Mapped[int] = mapped_column(
         ForeignKey("locations.id"),
         nullable=False,
     )
-
     name: Mapped[str] = mapped_column(
         String(200),
         nullable=False,
     )
-
     description: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
-
     address: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
-
     capacity: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
     )
-
     status: Mapped[VenueStatus] = mapped_column(
         venue_status_enum,
         nullable=False,
         server_default=VenueStatus.PENDING_APPROVAL.value,
     )
-
     amenities: Mapped[list[str]] = mapped_column(
         JSON,
         nullable=False,
         default=list,
     )
-
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         server_default=text("true"),
     )
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
-
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -254,20 +207,16 @@ class Venue(Base):
     owner: Mapped["User"] = relationship(
         back_populates="venues",
     )
-
     category: Mapped["VenueCategory"] = relationship(
         back_populates="venues",
     )
-
     location: Mapped["Location"] = relationship(
         back_populates="venues",
     )
-
     images: Mapped[list["VenueImage"]] = relationship(
         back_populates="venue",
         cascade="all, delete-orphan",
     )
-
     slots: Mapped[list["VenueSlot"]] = relationship(
         back_populates="venue",
         cascade="all, delete-orphan",
@@ -290,7 +239,6 @@ class VenueImage(Base):
         Integer,
         primary_key=True,
     )
-
     venue_id: Mapped[int] = mapped_column(
         ForeignKey(
             "venues.id",
@@ -298,24 +246,20 @@ class VenueImage(Base):
         ),
         nullable=False,
     )
-
     image_url: Mapped[str] = mapped_column(
         Text,
         nullable=False,
     )
-
     is_cover: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         server_default=text("false"),
     )
-
     sort_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         server_default=text("0"),
     )
-
     uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -363,7 +307,6 @@ class VenueSlot(Base):
         Integer,
         primary_key=True,
     )
-
     venue_id: Mapped[int] = mapped_column(
         ForeignKey(
             "venues.id",
@@ -371,39 +314,32 @@ class VenueSlot(Base):
         ),
         nullable=False,
     )
-
     slot_date: Mapped[date] = mapped_column(
         Date,
         nullable=False,
     )
-
     start_time: Mapped[time] = mapped_column(
         Time,
         nullable=False,
     )
-
     end_time: Mapped[time] = mapped_column(
         Time,
         nullable=False,
     )
-
     price: Mapped[Decimal] = mapped_column(
         Numeric(10, 2),
         nullable=False,
     )
-
     is_available: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         server_default=text("true"),
     )
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
-
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

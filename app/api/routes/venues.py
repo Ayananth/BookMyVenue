@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.db import get_db
 from app.models import Venue, VenueStatus
-from app.schemas.venue import VenueResponse, VenueCreate
+from app.schemas.venue import VenueResponse
 
 router = APIRouter(
     prefix="/venues",
@@ -24,9 +24,4 @@ async def get_venues(
             Venue.status == VenueStatus.APPROVED,
         )
     )
-
-    venues = result.scalars().all()
-
-    return venues
-
-
+    return result.scalars().all()
