@@ -1,4 +1,10 @@
 import { categories, venues } from "../data/venues"
+import api from "../lib/axios"
+
+export async function fetchAllVenuesHome() {
+  const { data } = await api.get("http://127.0.0.1:8000/venues/all")
+  return data
+}
 
 export function getVenueCategories() {
   return categories

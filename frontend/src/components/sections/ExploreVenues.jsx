@@ -1,8 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
-import { getVenueCategories, getVenues } from "../../apis/venues"
+import { fetchAllVenuesHome, getVenueCategories, getVenues } from "../../apis/venues"
 import Reveal from "../common/Reveal"
 
 export default function ExploreVenues() {
@@ -11,6 +11,12 @@ export default function ExploreVenues() {
   const [liked, setLiked] = useState({})
   const categories = getVenueCategories()
   const venues = getVenues()
+
+  useEffect(() => {
+    fetchAllVenuesHome()
+      .then((data) => console.log(data))
+      .catch((error) => console.error("Failed to fetch venues:", error))
+  }, [])
 
   return (
     <section id="explore" className="px-4 py-24">
