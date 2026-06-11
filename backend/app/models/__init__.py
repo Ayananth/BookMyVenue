@@ -1,4 +1,4 @@
-from BookMyVenue.backend.app.models.user import (
+from app.models.user import (
     AuthAccount,
     AuthProvider,
     OtpPurpose,
@@ -12,7 +12,7 @@ from BookMyVenue.backend.app.models.user import (
     signup_method_enum,
     user_role_enum,
 )
-from BookMyVenue.backend.app.models.venue import (
+from app.models.venue import (
     Location,
     Venue,
     VenueCategory,

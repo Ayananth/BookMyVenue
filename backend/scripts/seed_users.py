@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from BookMyVenue.backend.app.core.config import settings
-from BookMyVenue.backend.app.core.security import hash_password
-from BookMyVenue.backend.app.models import AuthAccount, AuthProvider, User, UserRole
+from app.core.config import settings
+from app.core.security import hash_password
+from app.models import AuthAccount, AuthProvider, User, UserRole
 
 
 SYNC_DATABASE_URL = settings.database_url.replace(

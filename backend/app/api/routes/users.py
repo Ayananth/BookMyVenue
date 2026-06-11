@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from BookMyVenue.backend.app.db import get_db
-from BookMyVenue.backend.app.models import User
-from BookMyVenue.backend.app.schemas.user import UserCreate, UserResponse
+from app.db import get_db
+from app.models import User
+from app.schemas.user import UserCreate, UserResponse
 
 router = APIRouter(prefix="/users", tags=["Users"])
 

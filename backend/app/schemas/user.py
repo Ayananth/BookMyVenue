@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from BookMyVenue.backend.app.models import UserRole
+from app.models import UserRole
 
 
 class UserCreate(BaseModel):

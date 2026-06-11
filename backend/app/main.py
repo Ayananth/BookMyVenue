@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from BookMyVenue.backend.app.api import api_router
-from BookMyVenue.backend.app.core.config import settings
-from BookMyVenue.backend.app.db import Base, engine
+from app.api import api_router
+from app.core.config import settings
+from app.db import Base, engine
 
 
 @asynccontextmanager

@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from BookMyVenue.backend.app.db import get_db
-from BookMyVenue.backend.app.models import Venue, VenueStatus
-from BookMyVenue.backend.app.schemas.venue import VenueResponse
+from app.db import get_db
+from app.repositories import venue_repository
+from app.models import Venue, VenueStatus
+from app.schemas.venue import VenueResponse
 
 router = APIRouter(
     prefix="/venues",
@@ -35,3 +36,14 @@ async def get_venues(
         )
     )
     return result.scalars().all()
+
+
+
+
+
+
+@router.get("/home", response_model=list[VenueResponse])
+async def get_homepage_venues(
+   db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await venue_repository.get_homepage_venues(db)
