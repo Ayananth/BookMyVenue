@@ -57,6 +57,13 @@ class VenueStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
+venue_status_enum = SQLEnum(
+    VenueStatus,
+    name="venuestatus",
+    values_callable=lambda enum_cls: [member.value for member in enum_cls],
+)
+
+
 class Location(Base):
     __tablename__ = "locations"
 
@@ -214,7 +221,7 @@ class Venue(Base):
     )
 
     status: Mapped[VenueStatus] = mapped_column(
-        SQLEnum(VenueStatus),
+        venue_status_enum,
         nullable=False,
         server_default=VenueStatus.PENDING_APPROVAL.value,
     )
