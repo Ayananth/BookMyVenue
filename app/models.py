@@ -1,11 +1,15 @@
+from datetime import date, datetime, time
+from decimal import Decimal
 from enum import Enum
-from uuid import uuid4
+from sqlalchemy import JSON
+
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
+    Enum as SQLEnum,
     ForeignKey,
     Index,
     Integer,
@@ -15,11 +19,35 @@ from sqlalchemy import (
     Time,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False,
+    )
+
+    venues: Mapped[list["Venue"]] = relationship(
+        back_populates="owner",
+    )
 
 
 class VenueStatus(str, Enum):
@@ -42,8 +70,6 @@ class Location(Base):
             name="ck_locations_longitude",
         ),
         Index("ix_locations_city", "city"),
-        # Index("ix_locations_district", "district"),
-        # Index("ix_locations_state", "state"),
     )
 
     id: Mapped[int] = mapped_column(
@@ -66,12 +92,12 @@ class Location(Base):
         nullable=False,
     )
 
-    latitude: Mapped[float | None] = mapped_column(
+    latitude: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 7),
         nullable=True,
     )
 
-    longitude: Mapped[float | None] = mapped_column(
+    longitude: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 7),
         nullable=True,
     )
@@ -79,13 +105,17 @@ class Location(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        server_default="true",
+        server_default=text("true"),
     )
 
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+
+    venues: Mapped[list["Venue"]] = relationship(
+        back_populates="location",
     )
 
 
@@ -111,7 +141,11 @@ class VenueCategory(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        server_default="true",
+        server_default=text("true"),
+    )
+
+    venues: Mapped[list["Venue"]] = relationship(
+        back_populates="category",
     )
 
 
@@ -122,14 +156,6 @@ class Venue(Base):
         CheckConstraint(
             "capacity > 0",
             name="ck_venues_capacity_positive",
-        ),
-        CheckConstraint(
-            "latitude IS NULL OR latitude BETWEEN -90 AND 90",
-            name="ck_venues_latitude",
-        ),
-        CheckConstraint(
-            "longitude IS NULL OR longitude BETWEEN -180 AND 180",
-            name="ck_venues_longitude",
         ),
         Index("ix_venues_owner_id", "owner_id"),
         Index("ix_venues_category_id", "category_id"),
@@ -147,14 +173,12 @@ class Venue(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[int] = mapped_column(
+        Integer,
         primary_key=True,
-        default=uuid4,
     )
 
-    owner_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    owner_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         nullable=False,
     )
@@ -184,30 +208,19 @@ class Venue(Base):
         nullable=False,
     )
 
-    latitude: Mapped[float | None] = mapped_column(
-        Numeric(10, 7),
-        nullable=True,
-    )
-
-    longitude: Mapped[float | None] = mapped_column(
-        Numeric(10, 7),
-        nullable=True,
-    )
-
     capacity: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
     )
 
-    status: Mapped[str] = mapped_column(
-        String(30),
+    status: Mapped[VenueStatus] = mapped_column(
+        SQLEnum(VenueStatus),
         nullable=False,
-        default=VenueStatus.PENDING_APPROVAL.value,
         server_default=VenueStatus.PENDING_APPROVAL.value,
     )
 
     amenities: Mapped[list[str]] = mapped_column(
-        ARRAY(String),
+        JSON,
         nullable=False,
         default=list,
     )
@@ -215,20 +228,42 @@ class Venue(Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        server_default="true",
+        server_default=text("true"),
     )
 
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
 
-    updated_at: Mapped[DateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    owner: Mapped["User"] = relationship(
+        back_populates="venues",
+    )
+
+    category: Mapped["VenueCategory"] = relationship(
+        back_populates="venues",
+    )
+
+    location: Mapped["Location"] = relationship(
+        back_populates="venues",
+    )
+
+    images: Mapped[list["VenueImage"]] = relationship(
+        back_populates="venue",
+        cascade="all, delete-orphan",
+    )
+
+    slots: Mapped[list["VenueSlot"]] = relationship(
+        back_populates="venue",
+        cascade="all, delete-orphan",
     )
 
 
@@ -244,14 +279,12 @@ class VenueImage(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[int] = mapped_column(
+        Integer,
         primary_key=True,
-        default=uuid4,
     )
 
-    venue_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    venue_id: Mapped[int] = mapped_column(
         ForeignKey(
             "venues.id",
             ondelete="CASCADE",
@@ -267,19 +300,23 @@ class VenueImage(Base):
     is_cover: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        server_default="false",
+        server_default=text("false"),
     )
 
     sort_order: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
-        server_default="0",
+        server_default=text("0"),
     )
 
-    uploaded_at: Mapped[DateTime] = mapped_column(
+    uploaded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+
+    venue: Mapped["Venue"] = relationship(
+        back_populates="images",
     )
 
 
@@ -315,14 +352,12 @@ class VenueSlot(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[int] = mapped_column(
+        Integer,
         primary_key=True,
-        default=uuid4,
     )
 
-    venue_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    venue_id: Mapped[int] = mapped_column(
         ForeignKey(
             "venues.id",
             ondelete="CASCADE",
@@ -330,22 +365,22 @@ class VenueSlot(Base):
         nullable=False,
     )
 
-    slot_date: Mapped[Date] = mapped_column(
+    slot_date: Mapped[date] = mapped_column(
         Date,
         nullable=False,
     )
 
-    start_time: Mapped[Time] = mapped_column(
+    start_time: Mapped[time] = mapped_column(
         Time,
         nullable=False,
     )
 
-    end_time: Mapped[Time] = mapped_column(
+    end_time: Mapped[time] = mapped_column(
         Time,
         nullable=False,
     )
 
-    price: Mapped[float] = mapped_column(
+    price: Mapped[Decimal] = mapped_column(
         Numeric(10, 2),
         nullable=False,
     )
@@ -353,18 +388,22 @@ class VenueSlot(Base):
     is_available: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
-        server_default="true",
+        server_default=text("true"),
     )
 
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
 
-    updated_at: Mapped[DateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    venue: Mapped["Venue"] = relationship(
+        back_populates="slots",
     )
