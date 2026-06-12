@@ -94,7 +94,7 @@ export default function VenueDetailsPage() {
 
   return (
     <MainLayout>
-      <main className="pt-8">
+      <main className="pt-28 sm:pt-32">
         {/* Breadcrumb & Header */}
         <div className="container mx-auto px-4 mb-8">
           <button
