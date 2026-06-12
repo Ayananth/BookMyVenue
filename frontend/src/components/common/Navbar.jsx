@@ -4,11 +4,11 @@ import { MapPin, Menu, X } from "lucide-react"
 import AuthModal from "./AuthModal"
 
 const links = [
-  { label: "Explore", href: "#explore" },
-  { label: "Features", href: "#features" },
-  { label: "List your venue", href: "#owners" },
-  { label: "How it works", href: "#how" },
-  { label: "Contact", href: "#contact" },
+  { label: "Explore", href: "/#explore" },
+  { label: "Features", href: "/#features" },
+  { label: "List your venue", href: "/#owners" },
+  { label: "How it works", href: "/#how" },
+  { label: "Contact", href: "/#contact" },
 ]
 
 export default function Navbar() {
@@ -32,7 +32,7 @@ export default function Navbar() {
             : "border-transparent bg-transparent"
         }`}
       >
-        <a href="#top" className="flex items-center gap-2">
+        <a href="/#top" className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <MapPin className="h-5 w-5" />
           </span>
@@ -63,7 +63,7 @@ export default function Navbar() {
             Sign in
           </button>
           <a
-            href="#owners"
+            href="/#owners"
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             Get started
@@ -111,7 +111,7 @@ export default function Navbar() {
               Sign in
             </button>
             <a
-              href="#owners"
+              href="/#owners"
               onClick={() => setOpen(false)}
               className="mt-3 block rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground"
             >
