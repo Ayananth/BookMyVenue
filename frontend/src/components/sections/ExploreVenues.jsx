@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
-import { fetchAllVenuesHome, formatVenuePrice, getVenueCategories } from "../../apis/venues"
+import { fetchAllVenuesHome, fetchVenueCategories, formatVenuePrice } from "../../apis/venues"
 import Reveal from "../common/Reveal"
 
 function matchesCategory(venueType, activeCategory) {
@@ -17,9 +17,9 @@ export default function ExploreVenues() {
   const navigate = useNavigate()
   const [active, setActive] = useState("All venues")
   const [venues, setVenues] = useState([])
+  const [categories, setCategories] = useState(["All venues"])
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState({})
-  const categories = getVenueCategories()
 
   const filteredVenues = useMemo(
     () => venues.filter((venue) => matchesCategory(venue.type, active)),
@@ -27,9 +27,12 @@ export default function ExploreVenues() {
   )
 
   useEffect(() => {
-    fetchAllVenuesHome()
-      .then((data) => setVenues(data))
-      .catch((error) => console.error("Failed to fetch venues:", error))
+    Promise.all([fetchAllVenuesHome(), fetchVenueCategories()])
+      .then(([venueData, categoryData]) => {
+        setVenues(venueData)
+        setCategories(categoryData)
+      })
+      .catch((error) => console.error("Failed to fetch explore data:", error))
       .finally(() => setLoading(false))
   }, [])
 

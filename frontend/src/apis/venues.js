@@ -1,4 +1,4 @@
-import { categories, venues } from "../data/venues"
+import { venues } from "../data/venues"
 import api from "../lib/axios"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
@@ -48,8 +48,9 @@ export async function fetchAllVenuesHome() {
   return data.map(toExploreVenue)
 }
 
-export function getVenueCategories() {
-  return categories
+export async function fetchVenueCategories() {
+  const { data } = await api.get("/venues/categories", { baseURL: API_BASE_URL })
+  return ["All venues", ...data.map((category) => category.name)]
 }
 
 export function getVenues() {
