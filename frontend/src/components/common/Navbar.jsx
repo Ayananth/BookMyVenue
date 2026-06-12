@@ -4,7 +4,7 @@ import { MapPin, Menu, X } from "lucide-react"
 import AuthModal from "./AuthModal"
 
 const links = [
-  { label: "Explore", href: "/#explore" },
+  { label: "Explore", href: "/venues" },
   { label: "Features", href: "/#features" },
   { label: "List your venue", href: "/#owners" },
   { label: "How it works", href: "/#how" },

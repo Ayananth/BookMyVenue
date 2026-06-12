@@ -1,0 +1,422 @@
+import { useEffect, useMemo, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { ArrowRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
+import Reveal from "../components/common/Reveal"
+import MainLayout from "../layouts/MainLayout"
+import { fetchVenues } from "../services/venueExploreService"
+
+const initialFilters = {
+  category: "All",
+  location: "All",
+  price: "All",
+  sort: "recommended",
+}
+
+const filterOptions = {
+  category: [
+    "Wedding Hall",
+    "Convention Center",
+    "Party Hall",
+    "Conference Room",
+    "Sports Venue",
+    "Auditorium",
+  ],
+  location: ["Thrissur", "Kochi", "Calicut", "Trivandrum"],
+  price: ["All", "Below INR 10,000", "INR 10,000 - INR 25,000", "INR 25,000 - INR 50,000", "Above INR 50,000"],
+  sort: [
+    { value: "recommended", label: "Recommended" },
+    { value: "price-low", label: "Price: Low to High" },
+    { value: "price-high", label: "Price: High to Low" },
+    { value: "rating-high", label: "Rating: High to Low" },
+    { value: "rating-low", label: "Rating: Low to High" },
+  ],
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function getVenueLocation(venue) {
+  return [venue.location.city, venue.location.district, venue.location.state].join(", ")
+}
+
+function matchesPriceRange(price, range) {
+  switch (range) {
+    case "Below INR 10,000":
+      return price < 10000
+    case "INR 10,000 - INR 25,000":
+      return price >= 10000 && price <= 25000
+    case "INR 25,000 - INR 50,000":
+      return price > 25000 && price <= 50000
+    case "Above INR 50,000":
+      return price > 50000
+    default:
+      return true
+  }
+}
+
+function FilterSelect({ label, value, options, onChange }) {
+  return (
+    <label className="min-w-0">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-full border border-border bg-card px-4 text-sm font-semibold text-foreground outline-none transition hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+      >
+        {options.map((option) => (
+          <option key={option.value ?? option} value={option.value ?? option}>
+            {option.label ?? option}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function VenueCard({ venue, liked, onToggleLike }) {
+  return (
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 16 }}
+      transition={{ duration: 0.45 }}
+      className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
+    >
+      <div className="relative overflow-hidden">
+        <img
+          src={venue.image || "/placeholder.svg"}
+          alt={venue.name}
+          className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <span className="absolute left-3 top-3 rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-foreground backdrop-blur-sm">
+          {venue.category.name}
+        </span>
+        <button
+          type="button"
+          onClick={onToggleLike}
+          aria-label="Save venue"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground backdrop-blur-sm transition-colors hover:text-accent"
+        >
+          <Heart className={`h-4 w-4 ${liked ? "fill-accent text-accent" : ""}`} />
+        </button>
+      </div>
+
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">{venue.name}</h3>
+            <p className="mt-1 text-sm font-medium text-primary">{venue.category.name}</p>
+          </div>
+          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
+            <Star className="h-4 w-4 fill-accent text-accent" />
+            {venue.rating}
+          </span>
+        </div>
+
+        <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          {getVenueLocation(venue)}
+        </p>
+
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            Up to {venue.capacity}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            <span className="font-serif text-lg font-semibold text-foreground">
+              {formatCurrency(venue.price)}
+            </span>{" "}
+            /slot
+          </span>
+        </div>
+      </div>
+    </motion.article>
+  )
+}
+
+export default function ExploreVenuesPage() {
+  const [venues, setVenues] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filters, setFilters] = useState(initialFilters)
+  const [liked, setLiked] = useState({})
+
+  useEffect(() => {
+    let active = true
+
+    setLoading(true)
+
+    fetchVenues()
+      .then((venueData) => {
+        if (active) {
+          setVenues(venueData)
+        }
+      })
+      .catch((error) => console.error("Failed to load venues:", error))
+      .finally(() => {
+        if (active) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (searchInput === "") {
+      setSearchTerm("")
+    }
+  }, [searchInput])
+
+  const filteredVenues = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+
+    const results = venues.filter((venue) => {
+      const searchValues = [
+        venue.name,
+        venue.category.name,
+        venue.location.city,
+        venue.location.district,
+        venue.location.state,
+      ]
+
+      const matchesSearch =
+        !normalizedSearch ||
+        searchValues.some((value) => value.toLowerCase().includes(normalizedSearch))
+
+      return (
+        matchesSearch &&
+        (filters.category === "All" || venue.category.name === filters.category) &&
+        (filters.location === "All" || venue.location.city === filters.location) &&
+        matchesPriceRange(venue.price, filters.price)
+      )
+    })
+
+    return [...results].sort((a, b) => {
+      switch (filters.sort) {
+        case "price-low":
+          return a.price - b.price
+        case "price-high":
+          return b.price - a.price
+        case "rating-high":
+          return b.rating - a.rating
+        case "rating-low":
+          return a.rating - b.rating
+        default:
+          return 0
+      }
+    })
+  }, [filters, searchTerm, venues])
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      searchTerm !== "" ||
+      searchInput !== "" ||
+      filters.category !== initialFilters.category ||
+      filters.location !== initialFilters.location ||
+      filters.price !== initialFilters.price ||
+      filters.sort !== initialFilters.sort
+    )
+  }, [filters, searchInput, searchTerm])
+
+  const updateFilter = (key, value) => {
+    setFilters((state) => ({ ...state, [key]: value }))
+  }
+
+  const handleSearch = (event) => {
+    event.preventDefault()
+    setSearchTerm(searchInput)
+  }
+
+  const clearFilters = () => {
+    setSearchInput("")
+    setSearchTerm("")
+    setFilters(initialFilters)
+  }
+
+  return (
+    <MainLayout>
+      <main className="px-4 pt-32 pb-20 sm:pt-36">
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <div className="max-w-3xl">
+              <span className="text-sm font-semibold uppercase tracking-wider text-accent">
+                Explore venues
+              </span>
+              <h1 className="mt-3 font-serif text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance sm:text-6xl">
+                Find the right space for every plan
+              </h1>
+              <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
+                Search across cities, categories, and budgets with filters designed for quick venue shortlisting.
+              </p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.08}>
+            <form
+              onSubmit={handleSearch}
+              className="mt-10 flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-[0_12px_40px_rgba(27,36,29,0.07)] sm:flex-row sm:items-center"
+            >
+              <div className="flex flex-1 items-center gap-3 px-3 py-2">
+                <Search className="h-5 w-5 shrink-0 text-primary" />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search venues by name, category, city, district or state"
+                  className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+              </div>
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("")
+                    setSearchTerm("")
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:text-foreground sm:w-auto"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </button>
+              )}
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              >
+                Search
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          </Reveal>
+
+          <Reveal delay={0.12}>
+            <section className="mt-6">
+              <div className="border-y border-border py-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <SlidersHorizontal className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <h2 className="font-serif text-2xl font-semibold text-foreground">Browse by need</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {filteredVenues.length} venues match your current view
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["All", ...filterOptions.category].map((category) => {
+                    const isActive = filters.category === category
+
+                    return (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => updateFilter("category", category)}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                          isActive
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.25fr_auto] lg:items-end">
+                  <FilterSelect
+                    label="Location"
+                    value={filters.location}
+                    options={["All", ...filterOptions.location]}
+                    onChange={(value) => updateFilter("location", value)}
+                  />
+                  <FilterSelect
+                    label="Price"
+                    value={filters.price}
+                    options={filterOptions.price}
+                    onChange={(value) => updateFilter("price", value)}
+                  />
+                  <FilterSelect
+                    label="Sort By"
+                    value={filters.sort}
+                    options={filterOptions.sort}
+                    onChange={(value) => updateFilter("sort", value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    disabled={!hasActiveFilters}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-border px-5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </section>
+          </Reveal>
+
+          <section className="mt-10">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                Showing <span className="font-semibold text-foreground">{filteredVenues.length}</span> venues
+              </p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="hidden items-center justify-center gap-2 text-sm font-semibold text-primary transition hover:underline sm:inline-flex"
+                >
+                  Reset view
+                </button>
+              )}
+            </div>
+
+            {loading && (
+              <div className="rounded-2xl border border-border bg-card py-16 text-center text-muted-foreground">
+                Loading venues...
+              </div>
+            )}
+
+            {!loading && filteredVenues.length === 0 && (
+              <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
+                <h2 className="font-serif text-3xl font-semibold text-foreground">No venues found</h2>
+                <p className="mt-3 text-muted-foreground">No venues found matching your search criteria.</p>
+              </div>
+            )}
+
+            {!loading && filteredVenues.length > 0 && (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <AnimatePresence mode="popLayout">
+                  {filteredVenues.map((venue) => (
+                    <VenueCard
+                      key={venue.id}
+                      venue={venue}
+                      liked={liked[venue.id]}
+                      onToggleLike={() => setLiked((state) => ({ ...state, [venue.id]: !state[venue.id] }))}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+    </MainLayout>
+  )
+}
