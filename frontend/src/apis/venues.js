@@ -42,15 +42,20 @@ function toExploreVenue(venue) {
   }
 }
 
-export async function fetchAllVenuesHome() {
-  let { data } = await api.get("/venues/home", { baseURL: API_BASE_URL })
-  data = data.concat(venues)
+export async function fetchExploreVenues({ categoryId } = {}) {
+  const { data } = categoryId
+    ? await api.get("/venues/explore", {
+        baseURL: API_BASE_URL,
+        params: { category_id: categoryId, limit: 12 },
+      })
+    : await api.get("/venues/home", { baseURL: API_BASE_URL })
+
   return data.map(toExploreVenue)
 }
 
 export async function fetchVenueCategories() {
   const { data } = await api.get("/venues/categories", { baseURL: API_BASE_URL })
-  return ["All venues", ...data.map((category) => category.name)]
+  return [{ id: null, name: "All venues" }, ...data]
 }
 
 export function getVenues() {

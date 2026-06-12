@@ -1,40 +1,34 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
-import { fetchAllVenuesHome, fetchVenueCategories, formatVenuePrice } from "../../apis/venues"
+import { fetchExploreVenues, fetchVenueCategories, formatVenuePrice } from "../../apis/venues"
 import Reveal from "../common/Reveal"
 
-function matchesCategory(venueType, activeCategory) {
-  if (activeCategory === "All venues") {
-    return true
-  }
-
-  return venueType?.toLowerCase().includes(activeCategory.toLowerCase())
-}
+const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
 
 export default function ExploreVenues() {
   const navigate = useNavigate()
-  const [active, setActive] = useState("All venues")
+  const [activeCategory, setActiveCategory] = useState(ALL_VENUES_CATEGORY)
   const [venues, setVenues] = useState([])
-  const [categories, setCategories] = useState(["All venues"])
+  const [categories, setCategories] = useState([ALL_VENUES_CATEGORY])
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState({})
 
-  const filteredVenues = useMemo(
-    () => venues.filter((venue) => matchesCategory(venue.type, active)),
-    [venues, active],
-  )
+  useEffect(() => {
+    fetchVenueCategories()
+      .then((categoryData) => setCategories(categoryData))
+      .catch((error) => console.error("Failed to fetch categories:", error))
+  }, [])
 
   useEffect(() => {
-    Promise.all([fetchAllVenuesHome(), fetchVenueCategories()])
-      .then(([venueData, categoryData]) => {
-        setVenues(venueData)
-        setCategories(categoryData)
-      })
-      .catch((error) => console.error("Failed to fetch explore data:", error))
+    setLoading(true)
+
+    fetchExploreVenues({ categoryId: activeCategory.id })
+      .then((venueData) => setVenues(venueData))
+      .catch((error) => console.error("Failed to fetch venues:", error))
       .finally(() => setLoading(false))
-  }, [])
+  }, [activeCategory])
 
   return (
     <section id="explore" className="px-4 py-24">
@@ -62,17 +56,17 @@ export default function ExploreVenues() {
         </Reveal>
 
         <Reveal delay={0.1} className="mt-10 flex flex-wrap gap-2">
-          {categories.map((c) => (
+          {categories.map((category) => (
             <button
-              key={c}
-              onClick={() => setActive(c)}
+              key={category.id ?? "all"}
+              onClick={() => setActiveCategory(category)}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-all ${
-                active === c
+                activeCategory.id === category.id
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
               }`}
             >
-              {c}
+              {category.name}
             </button>
           ))}
         </Reveal>
@@ -84,7 +78,7 @@ export default function ExploreVenues() {
             </p>
           )}
 
-          {!loading && filteredVenues.length === 0 && (
+          {!loading && venues.length === 0 && (
             <p className="col-span-full text-center text-muted-foreground">
               No venues found for this category.
             </p>
@@ -92,7 +86,7 @@ export default function ExploreVenues() {
 
           <AnimatePresence>
             {!loading &&
-              filteredVenues.map((v, i) => {
+              venues.map((v, i) => {
                 const formattedPrice = formatVenuePrice(v.price)
 
                 return (

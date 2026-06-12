@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,9 +48,28 @@ async def get_venues(
 
 @router.get("/home", response_model=list[HomepageVenueResponse])
 async def get_homepage_venues(
-   db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await venue_repository.get_homepage_venues(db)
+
+
+@router.get("/explore", response_model=list[HomepageVenueResponse])
+async def explore_venues(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    category_id: int | None = None,
+    limit: int = Query(
+        default=venue_repository.EXPLORE_VENUE_DEFAULT_LIMIT,
+        ge=1,
+        le=venue_repository.EXPLORE_VENUE_MAX_LIMIT,
+    ),
+    offset: int = Query(default=0, ge=0),
+):
+    return await venue_repository.explore_venues(
+        db,
+        category_id=category_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/categories", response_model=list[HomePageVenueCategoryResponse])
