@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
 import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check } from "lucide-react"
@@ -13,6 +13,14 @@ export default function VenueDetailsPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
+
+  useEffect(() => {
+  window.scrollTo({
+    top: 0,
+    left: 0,
+    behavior: "instant",
+  });
+  }, [id]);
 
   if (!venue) {
     return (
