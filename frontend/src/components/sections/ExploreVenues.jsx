@@ -1,21 +1,36 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
-import { fetchAllVenuesHome, getVenueCategories, getVenues } from "../../apis/venues"
+import { fetchAllVenuesHome, formatVenuePrice, getVenueCategories } from "../../apis/venues"
 import Reveal from "../common/Reveal"
+
+function matchesCategory(venueType, activeCategory) {
+  if (activeCategory === "All venues") {
+    return true
+  }
+
+  return venueType?.toLowerCase().includes(activeCategory.toLowerCase())
+}
 
 export default function ExploreVenues() {
   const navigate = useNavigate()
   const [active, setActive] = useState("All venues")
+  const [venues, setVenues] = useState([])
+  const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState({})
   const categories = getVenueCategories()
-  const venues = getVenues()
+
+  const filteredVenues = useMemo(
+    () => venues.filter((venue) => matchesCategory(venue.type, active)),
+    [venues, active],
+  )
 
   useEffect(() => {
     fetchAllVenuesHome()
-      .then((data) => console.log(data))
+      .then((data) => setVenues(data))
       .catch((error) => console.error("Failed to fetch venues:", error))
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -43,7 +58,6 @@ export default function ExploreVenues() {
           </a>
         </Reveal>
 
-        {/* Category filter */}
         <Reveal delay={0.1} className="mt-10 flex flex-wrap gap-2">
           {categories.map((c) => (
             <button
@@ -60,73 +74,95 @@ export default function ExploreVenues() {
           ))}
         </Reveal>
 
-        {/* Grid */}
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {loading && (
+            <p className="col-span-full text-center text-muted-foreground">
+              Loading venues...
+            </p>
+          )}
+
+          {!loading && filteredVenues.length === 0 && (
+            <p className="col-span-full text-center text-muted-foreground">
+              No venues found for this category.
+            </p>
+          )}
+
           <AnimatePresence>
-            {venues.map((v, i) => (
-              <motion.article
-                key={v.name}
-                layout
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-                onClick={() => navigate(`/venue/${v.id}`)}
-                className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)] cursor-pointer"
-              >
-                <div className="relative overflow-hidden">
-                  <img
-                    src={v.image || "/placeholder.svg"}
-                    alt={v.name}
-                    className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <span className="absolute left-3 top-3 rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-foreground backdrop-blur-sm">
-                    {v.type}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setLiked((s) => ({ ...s, [v.name]: !s[v.name] }))
-                    }
-                    aria-label="Save venue"
-                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground backdrop-blur-sm transition-colors hover:text-accent"
+            {!loading &&
+              filteredVenues.map((v, i) => {
+                const formattedPrice = formatVenuePrice(v.price)
+
+                return (
+                  <motion.article
+                    key={v.id}
+                    layout
+                    initial={{ opacity: 0, y: 24 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
+                    onClick={() => navigate(`/venue/${v.id}`)}
+                    className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
                   >
-                    <Heart
-                      className={`h-4 w-4 ${
-                        liked[v.name] ? "fill-accent text-accent" : ""
-                      }`}
-                    />
-                  </button>
-                </div>
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={v.image || "/placeholder.svg"}
+                        alt={v.name}
+                        className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <span className="absolute left-3 top-3 rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-foreground backdrop-blur-sm">
+                        {v.type}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setLiked((state) => ({ ...state, [v.id]: !state[v.id] }))
+                        }}
+                        aria-label="Save venue"
+                        className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground backdrop-blur-sm transition-colors hover:text-accent"
+                      >
+                        <Heart
+                          className={`h-4 w-4 ${
+                            liked[v.id] ? "fill-accent text-accent" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
 
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {v.name}
-                    </h3>
-                    <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
-                      <Star className="h-4 w-4 fill-accent text-accent" />
-                      {v.rating}
-                    </span>
-                  </div>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="text-lg font-semibold text-foreground">
+                          {v.name}
+                        </h3>
+                        {v.rating != null && (
+                          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
+                            <Star className="h-4 w-4 fill-accent text-accent" />
+                            {v.rating}
+                          </span>
+                        )}
+                      </div>
 
-                  <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" /> {v.location}
-                  </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4" /> {v.location}
+                      </p>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" /> Up to {v.capacity}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      <span className="font-serif text-lg font-semibold text-foreground">
-                        {v.price}
-                      </span>{" "}
-                      /day
-                    </span>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
+                      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" /> Up to {v.capacity}
+                        </span>
+                        {formattedPrice && (
+                          <span className="text-sm text-muted-foreground">
+                            <span className="font-serif text-lg font-semibold text-foreground">
+                              {formattedPrice}
+                            </span>{" "}
+                            /slot
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </motion.article>
+                )
+              })}
           </AnimatePresence>
         </div>
       </div>

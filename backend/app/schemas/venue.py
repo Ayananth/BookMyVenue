@@ -1,6 +1,7 @@
 from enum import Enum
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
+from decimal import Decimal
 
 
 class VenueStatus(str, Enum):
@@ -63,3 +64,18 @@ class VenueListResponse(BaseModel):
     capacity: int
     status: VenueStatus
     is_active: bool
+
+
+
+class HomepageVenueResponse(BaseModel):
+    id: int
+    name: str
+    address: str
+    capacity: int
+
+    category: str
+
+    city: str
+    district: str
+    state: str
+    price: Decimal | None

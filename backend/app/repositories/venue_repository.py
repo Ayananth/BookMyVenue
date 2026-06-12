@@ -1,15 +1,21 @@
-# repositories/venue_repository.py
+from collections.abc import Sequence
 
 from sqlalchemy import func, select
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Venue, VenueStatus
+from app.models import (
+    Location,
+    Venue,
+    VenueCategory,
+    VenueSlot,
+    VenueStatus,
+)
+
+HOMEPAGE_VENUE_LIMIT = 12
 
 
-async def get_homepage_venues(
-    db: AsyncSession,
-    limit: int = 6,
-) -> list[Venue]:
+async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
     ranked_subquery = (
         select(
             Venue.id.label("venue_id"),
@@ -29,34 +35,51 @@ async def get_homepage_venues(
     )
 
     result = await db.execute(
-        select(Venue)
+        select(
+            Venue.id,
+            Venue.name,
+            Venue.address,
+            Venue.capacity,
+
+            VenueCategory.name.label("category"),
+
+            Location.city.label("city"),
+            Location.district.label("district"),
+            Location.state.label("state"),
+
+            func.min(VenueSlot.price).label("price"),
+        )
         .join(
             ranked_subquery,
             Venue.id == ranked_subquery.c.venue_id,
         )
-        .where(ranked_subquery.c.rn == 1)
-        .order_by(Venue.id)
-        .limit(limit)
+        .join(
+            VenueCategory,
+            Venue.category_id == VenueCategory.id,
+        )
+        .join(
+            Location,
+            Venue.location_id == Location.id,
+        )
+        .outerjoin(
+            VenueSlot,
+            Venue.id == VenueSlot.venue_id,
+        )
+        .where(
+            ranked_subquery.c.rn == 1,
+        )
+        .group_by(
+            Venue.id,
+            Venue.name,
+            Venue.address,
+            Venue.capacity,
+            VenueCategory.name,
+            Location.city,
+            Location.district,
+            Location.state,
+        )
+        .order_by(VenueCategory.name)
+        .limit(HOMEPAGE_VENUE_LIMIT)
     )
 
-    venues = result.scalars().all()
-
-    if len(venues) < limit:
-        selected_ids = [venue.id for venue in venues]
-
-        result = await db.execute(
-            select(Venue)
-            .where(
-                Venue.is_active.is_(True),
-                Venue.status == VenueStatus.APPROVED,
-                Venue.id.not_in(selected_ids)
-                if selected_ids
-                else True,
-            )
-            .order_by(Venue.id)
-            .limit(limit - len(venues))
-        )
-
-        venues.extend(result.scalars().all())
-
-    return venues
+    return result.mappings().all()
