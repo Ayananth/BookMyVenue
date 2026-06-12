@@ -16,6 +16,15 @@ from app.models import (
 HOMEPAGE_VENUE_LIMIT = 12
 
 
+async def get_venue_categories(db: AsyncSession) -> Sequence[VenueCategory]:
+    result = await db.execute(
+        select(VenueCategory)
+        .where(VenueCategory.is_active.is_(True))
+        .order_by(VenueCategory.name)
+    )
+    return result.scalars().all()
+
+
 async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
     ranked_subquery = (
         select(

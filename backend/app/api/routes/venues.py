@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.repositories import venue_repository
 from app.models import Venue, VenueStatus
-from app.schemas.venue import VenueResponse, HomepageVenueResponse
+from app.schemas.venue import (
+    HomePageVenueCategoryResponse,
+    HomepageVenueResponse,
+    VenueResponse,
+)
 
 router = APIRouter(
     prefix="/venues",
@@ -47,3 +51,11 @@ async def get_homepage_venues(
    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     return await venue_repository.get_homepage_venues(db)
+
+
+@router.get("/categories", response_model=list[HomePageVenueCategoryResponse])
+async def get_venue_categories(
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    return await venue_repository.get_venue_categories(db)
+    

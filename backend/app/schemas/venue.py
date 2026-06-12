@@ -67,6 +67,13 @@ class VenueListResponse(BaseModel):
 
 
 
+class HomePageVenueCategoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    icon_url: str | None = None
+
+
 class HomepageVenueResponse(BaseModel):
     id: int
     name: str
