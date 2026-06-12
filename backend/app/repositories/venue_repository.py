@@ -8,6 +8,7 @@ from app.models import (
     Location,
     Venue,
     VenueCategory,
+    VenueImage,
     VenueSlot,
     VenueStatus,
 )
@@ -34,6 +35,20 @@ async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
         .subquery()
     )
 
+    image_subquery = (
+        select(
+            VenueImage.venue_id,
+            VenueImage.image_url,
+            func.row_number()
+            .over(
+                partition_by=VenueImage.venue_id,
+                order_by=(VenueImage.is_cover.desc(), VenueImage.sort_order),
+            )
+            .label("img_rn"),
+        )
+        .subquery()
+    )
+
     result = await db.execute(
         select(
             Venue.id,
@@ -46,6 +61,8 @@ async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
             Location.city.label("city"),
             Location.district.label("district"),
             Location.state.label("state"),
+
+            image_subquery.c.image_url.label("image"),
 
             func.min(VenueSlot.price).label("price"),
         )
@@ -65,6 +82,11 @@ async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
             VenueSlot,
             Venue.id == VenueSlot.venue_id,
         )
+        .outerjoin(
+            image_subquery,
+            (Venue.id == image_subquery.c.venue_id)
+            & (image_subquery.c.img_rn == 1),
+        )
         .where(
             ranked_subquery.c.rn == 1,
         )
@@ -77,6 +99,7 @@ async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
             Location.city,
             Location.district,
             Location.state,
+            image_subquery.c.image_url,
         )
         .order_by(VenueCategory.name)
         .limit(HOMEPAGE_VENUE_LIMIT)

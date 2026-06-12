@@ -37,7 +37,7 @@ function toExploreVenue(venue) {
     address: venue.address,
     capacity: venue.capacity,
     price: venue.price,
-    image: "/placeholder.svg",
+    image: venue.image || "/placeholder.svg",
     rating: null,
   }
 }

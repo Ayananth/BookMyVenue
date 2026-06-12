@@ -78,4 +78,5 @@ class HomepageVenueResponse(BaseModel):
     city: str
     district: str
     state: str
+    image: str | None = None
     price: Decimal | None
