@@ -14,6 +14,9 @@ from app.models import (
     VenueStatus,
 )
 
+
+from decimal import Decimal
+
 HOMEPAGE_VENUE_LIMIT = 12
 EXPLORE_VENUE_DEFAULT_LIMIT = 12
 EXPLORE_VENUE_MAX_LIMIT = 50
@@ -73,10 +76,15 @@ async def get_venue_categories(db: AsyncSession) -> Sequence[VenueCategory]:
     return result.scalars().all()
 
 
+
+
 async def explore_venues(
     db: AsyncSession,
     *,
     category_id: int | None = None,
+    location_id: int | None = None,
+    min_price: Decimal | None = None,
+    max_price: Decimal | None = None,
     limit: int = EXPLORE_VENUE_DEFAULT_LIMIT,
     offset: int = 0,
 ) -> Sequence[RowMapping]:
@@ -108,18 +116,42 @@ async def explore_venues(
         )
     )
 
+    # Category filter
     if category_id is not None:
-        query = query.where(Venue.category_id == category_id)
+        query = query.where(
+            Venue.category_id == category_id
+        )
+
+    # Location filter
+    if location_id is not None:
+        query = query.where(
+            Venue.location_id == location_id
+        )
+
+    # Group by before HAVING
+    query = query.group_by(
+        *_explore_venue_group_by(image_subquery)
+    )
+
+    # Price filters based on displayed venue price
+    if min_price is not None:
+        query = query.having(
+            func.min(VenueSlot.price) >= min_price
+        )
+
+    if max_price is not None:
+        query = query.having(
+            func.min(VenueSlot.price) <= max_price
+        )
 
     result = await db.execute(
-        query.group_by(*_explore_venue_group_by(image_subquery))
+        query
         .order_by(Venue.id)
         .limit(capped_limit)
         .offset(offset)
     )
 
     return result.mappings().all()
-
 
 async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
     ranked_subquery = (
