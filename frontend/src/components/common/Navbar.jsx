@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MapPin, Menu, User, X } from "lucide-react"
+import AuthModal from "./AuthModal"
 
 const links = [
   { label: "Explore", href: "/venues" },
@@ -12,6 +13,7 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -53,6 +55,13 @@ export default function Navbar() {
         </ul>
 
         <div className="hidden items-center gap-3 md:flex">
+          <button
+            type="button"
+            onClick={() => setAuthOpen(true)}
+            className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
+          >
+            Sign in
+          </button>
           <a
             href="/profile"
             className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
@@ -98,6 +107,16 @@ export default function Navbar() {
                 </li>
               ))}
             </ul>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                setAuthOpen(true)
+              }}
+              className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
+            >
+              Sign in
+            </button>
             <a
               href="/profile"
               onClick={() => setOpen(false)}
@@ -115,6 +134,8 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   )
 }
