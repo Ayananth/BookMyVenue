@@ -80,6 +80,7 @@ class HomepageVenueResponse(BaseModel):
     address: str
     capacity: int
 
+    category_id: int
     category: str
 
     city: str
