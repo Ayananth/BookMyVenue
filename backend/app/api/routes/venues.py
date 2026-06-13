@@ -23,9 +23,7 @@ router = APIRouter(
 async def list_all_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = await db.execute(
-        select(Venue).order_by(Venue.id)
-    )
+    result = await db.execute(select(Venue).order_by(Venue.id))
     return result.scalars().all()
 
 
@@ -40,10 +38,6 @@ async def get_venues(
         )
     )
     return result.scalars().all()
-
-
-
-
 
 
 @router.get("/home", response_model=list[HomepageVenueResponse])
@@ -73,8 +67,5 @@ async def explore_venues(
 
 
 @router.get("/categories", response_model=list[HomePageVenueCategoryResponse])
-async def get_venue_categories(
-    db: Annotated[AsyncSession, Depends(get_db)]
-):
+async def get_venue_categories(db: Annotated[AsyncSession, Depends(get_db)]):
     return await venue_repository.get_venue_categories(db)
-    
