@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
@@ -81,6 +82,8 @@ function FilterSelect({ label, value, options, onChange }) {
 }
 
 function VenueCard({ venue, liked, onToggleLike }) {
+  const navigate = useNavigate()
+
   return (
     <motion.article
       layout
@@ -88,7 +91,8 @@ function VenueCard({ venue, liked, onToggleLike }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 16 }}
       transition={{ duration: 0.45 }}
-      className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
+      onClick={() => navigate(`/venue/${venue.id}`)}
+      className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
     >
       <div className="relative overflow-hidden">
         <img
@@ -101,7 +105,10 @@ function VenueCard({ venue, liked, onToggleLike }) {
         </span>
         <button
           type="button"
-          onClick={onToggleLike}
+          onClick={(event) => {
+            event.stopPropagation()
+            onToggleLike()
+          }}
           aria-label="Save venue"
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground backdrop-blur-sm transition-colors hover:text-accent"
         >
