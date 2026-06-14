@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
 import MainLayout from "../layouts/MainLayout"
+import { fetchVenueCategories } from "../apis/venues"
 import { fetchVenues } from "../services/venueExploreService"
 
 const initialFilters = {
@@ -14,14 +15,6 @@ const initialFilters = {
 }
 
 const filterOptions = {
-  category: [
-    "Wedding Hall",
-    "Convention Center",
-    "Party Hall",
-    "Conference Room",
-    "Sports Venue",
-    "Auditorium",
-  ],
   location: ["Thrissur", "Kochi", "Calicut", "Trivandrum"],
   price: ["All", "Below INR 10,000", "INR 10,000 - INR 25,000", "INR 25,000 - INR 50,000", "Above INR 50,000"],
   sort: [
@@ -152,6 +145,7 @@ function VenueCard({ venue, liked, onToggleLike }) {
 
 export default function ExploreVenuesPage() {
   const [venues, setVenues] = useState([])
+  const [categories, setCategories] = useState(["All"])
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
@@ -179,6 +173,17 @@ export default function ExploreVenuesPage() {
     return () => {
       active = false
     }
+  }, [])
+
+  useEffect(() => {
+    fetchVenueCategories()
+      .then((categoryData) => {
+        const names = categoryData
+          .filter((category) => category.id != null)
+          .map((category) => category.name)
+        setCategories(["All", ...names])
+      })
+      .catch((error) => console.error("Failed to load categories:", error))
   }, [])
 
   useEffect(() => {
@@ -325,7 +330,7 @@ export default function ExploreVenuesPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {["All", ...filterOptions.category].map((category) => {
+                  {categories.map((category) => {
                     const isActive = filters.category === category
 
                     return (
