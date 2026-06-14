@@ -17,5 +17,10 @@ class Settings(BaseSettings):
     static_dir: Path = BASE_DIR / "static"
     media_dir: Path = BASE_DIR / "media"
 
+    secret_key: str = "change-me-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 1440
+    google_client_id: str = ""
+
 
 settings = Settings()
