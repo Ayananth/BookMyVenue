@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   CalendarDays,
@@ -12,6 +13,7 @@ import {
   X,
 } from "lucide-react"
 import MainLayout from "../layouts/MainLayout"
+import { useAuth } from "../contexts/AuthContext"
 import {
   fetchBookings,
   fetchFavouriteVenues,
@@ -456,7 +458,7 @@ function LogoutModal({ open, onCancel, onLogout }) {
         </div>
         <h2 className="mt-4 font-serif text-3xl font-semibold text-foreground">Are you sure you want to logout?</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          This is a mock action for now. You can connect it to your real authentication flow later.
+          You will need to sign in again to access your profile and bookings.
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <button
@@ -480,6 +482,8 @@ function LogoutModal({ open, onCancel, onLogout }) {
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const [activeSection, setActiveSection] = useState("profile")
   const [profile, setProfile] = useState(null)
   const [bookings, setBookings] = useState([])
@@ -514,6 +518,12 @@ export default function ProfilePage() {
 
   const removeFavourite = (venueId) => {
     setFavouriteVenues((venues) => venues.filter((venue) => venue.id !== venueId))
+  }
+
+  const handleLogout = () => {
+    logout()
+    setLogoutOpen(false)
+    navigate("/")
   }
 
   const renderContent = () => {
@@ -571,7 +581,7 @@ export default function ProfilePage() {
       <LogoutModal
         open={logoutOpen}
         onCancel={() => setLogoutOpen(false)}
-        onLogout={() => setLogoutOpen(false)}
+        onLogout={handleLogout}
       />
     </MainLayout>
   )
