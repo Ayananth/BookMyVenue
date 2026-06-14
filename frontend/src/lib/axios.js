@@ -1,18 +1,18 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:8000",
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // useful if you later use cookies
+  withCredentials: true,
 });
 
 export default api;
 
-
-
-// Request Interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
@@ -23,25 +23,18 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error),
 );
 
-// Response Interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      console.log("Unauthorized");
-
-      // Later:
-      // - refresh token
-      // - logout user
-      // - redirect to login
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth:unauthorized"));
     }
 
     return Promise.reject(error);
-  }
+  },
 );
-

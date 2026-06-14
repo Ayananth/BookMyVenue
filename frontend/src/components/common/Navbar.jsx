@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { MapPin, Menu, User, X } from "lucide-react"
 import AuthModal from "./AuthModal"
+import { useAuth } from "../../contexts/AuthContext"
 
 const links = [
   { label: "Explore", href: "/venues" },
@@ -15,6 +16,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const { user, isAuthenticated, logout } = useAuth()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12)
@@ -55,13 +57,28 @@ export default function Navbar() {
         </ul>
 
         <div className="hidden items-center gap-3 md:flex">
-          <button
-            type="button"
-            onClick={() => setAuthOpen(true)}
-            className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
-          >
-            Sign in
-          </button>
+          {isAuthenticated ? (
+            <>
+              <span className="text-sm font-medium text-muted-foreground">
+                {user?.full_name || user?.email}
+              </span>
+              <button
+                type="button"
+                onClick={logout}
+                className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
+            >
+              Sign in
+            </button>
+          )}
           <a
             href="/profile"
             className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
@@ -111,11 +128,15 @@ export default function Navbar() {
               type="button"
               onClick={() => {
                 setOpen(false)
-                setAuthOpen(true)
+                if (isAuthenticated) {
+                  logout()
+                } else {
+                  setAuthOpen(true)
+                }
               }}
               className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
             >
-              Sign in
+              {isAuthenticated ? "Sign out" : "Sign in"}
             </button>
             <a
               href="/profile"
