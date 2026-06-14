@@ -16,7 +16,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const { user, isAuthenticated, logout } = useAuth()
+  const { isAuthenticated } = useAuth()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12)
@@ -58,18 +58,13 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
-            <>
-              <span className="text-sm font-medium text-muted-foreground">
-                {user?.full_name || user?.email}
-              </span>
-              <button
-                type="button"
-                onClick={logout}
-                className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
-              >
-                Sign out
-              </button>
-            </>
+            <a
+              href="/profile"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
+            >
+              <User className="h-4 w-4" />
+              Profile
+            </a>
           ) : (
             <button
               type="button"
@@ -79,13 +74,6 @@ export default function Navbar() {
               Sign in
             </button>
           )}
-          <a
-            href="/profile"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
-          >
-            <User className="h-4 w-4" />
-            Profile
-          </a>
           <a
             href="/#owners"
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
@@ -124,27 +112,27 @@ export default function Navbar() {
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                if (isAuthenticated) {
-                  logout()
-                } else {
+            {isAuthenticated ? (
+              <a
+                href="/profile"
+                onClick={() => setOpen(false)}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                <User className="h-4 w-4" />
+                Profile
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
                   setAuthOpen(true)
-                }
-              }}
-              className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
-            >
-              {isAuthenticated ? "Sign out" : "Sign in"}
-            </button>
-            <a
-              href="/profile"
-              onClick={() => setOpen(false)}
-              className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
-            >
-              Profile
-            </a>
+                }}
+                className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
+              >
+                Sign in
+              </button>
+            )}
             <a
               href="/#owners"
               onClick={() => setOpen(false)}
