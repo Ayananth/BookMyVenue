@@ -1,10 +1,38 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check } from "lucide-react"
+import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check, CalendarDays, X } from "lucide-react"
 import { getRelatedVenues, getVenueById } from "../apis/venues"
 import Reveal from "../components/common/Reveal"
 import MainLayout from "../layouts/MainLayout"
+
+const slotOptions = [
+  { id: "morning", label: "Morning", time: "9:00 AM - 1:00 PM", priceMultiplier: 0.85 },
+  { id: "afternoon", label: "Afternoon", time: "2:00 PM - 6:00 PM", priceMultiplier: 1 },
+  { id: "evening", label: "Evening", time: "6:30 PM - 11:00 PM", priceMultiplier: 1.18 },
+]
+
+function toDateInputValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
+function getSlotPrice(venue, multiplier) {
+  const basePrice = Number(String(venue.price).replace(/[^0-9.]/g, ""))
+
+  if (Number.isNaN(basePrice)) {
+    return venue.price
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(Math.round(basePrice * multiplier))
+}
 
 export default function VenueDetailsPage() {
   const { id } = useParams()
@@ -13,6 +41,9 @@ export default function VenueDetailsPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
+  const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
+  const [selectedSlot, setSelectedSlot] = useState(slotOptions[1].id)
 
   useEffect(() => {
   window.scrollTo({
@@ -21,6 +52,19 @@ export default function VenueDetailsPage() {
     behavior: "instant",
   });
   }, [id]);
+
+  const bookingDateRange = useMemo(() => {
+    const today = new Date()
+    const maxDate = new Date()
+    maxDate.setDate(today.getDate() + 90)
+
+    return {
+      min: toDateInputValue(today),
+      max: toDateInputValue(maxDate),
+    }
+  }, [])
+
+  const selectedSlotDetails = slotOptions.find((slot) => slot.id === selectedSlot) || slotOptions[0]
 
   if (!venue) {
     return (
@@ -50,7 +94,7 @@ export default function VenueDetailsPage() {
 
   return (
     <MainLayout>
-      <main className="pt-8">
+      <main className="pt-28 sm:pt-32">
         {/* Breadcrumb & Header */}
         <div className="container mx-auto px-4 mb-8">
           <button
@@ -333,6 +377,7 @@ export default function VenueDetailsPage() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsBookingOpen(true)}
                     className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold mb-3 hover:opacity-90 transition"
                   >
                     Book Now
@@ -425,6 +470,133 @@ export default function VenueDetailsPage() {
         )}
       </main>
 
+      {isBookingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 px-4 py-6 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.98 }}
+            className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-card shadow-2xl"
+          >
+            <div className="grid md:grid-cols-[0.95fr_1.4fr]">
+              <div className="relative min-h-56 bg-muted md:min-h-full">
+                <img
+                  src={venue.image}
+                  alt={venue.name}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/75 via-foreground/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-6 text-primary-foreground">
+                  <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-background/20 px-3 py-1 text-xs font-semibold backdrop-blur">
+                    <CalendarDays size={14} />
+                    Instant booking
+                  </p>
+                  <h2 className="font-serif text-3xl font-bold">{venue.name}</h2>
+                  <p className="mt-2 flex items-center gap-2 text-sm text-primary-foreground/85">
+                    <MapPin size={16} />
+                    {venue.location}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 md:p-8">
+                <button
+                  onClick={() => setIsBookingOpen(false)}
+                  className="absolute right-4 top-4 rounded-full bg-background/90 p-2 text-foreground shadow-sm transition hover:bg-background"
+                  aria-label="Close booking popup"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="mb-6 pr-8">
+                  <p className="text-sm font-semibold text-primary">Choose your date and slot</p>
+                  <h3 className="mt-1 font-serif text-2xl font-bold">Book this venue</h3>
+                </div>
+
+                <label className="mb-2 block text-sm font-semibold" htmlFor="booking-date">
+                  Event date
+                </label>
+                <div className="relative mb-6">
+                  <CalendarDays
+                    size={20}
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+                  />
+                  <input
+                    id="booking-date"
+                    type="date"
+                    value={selectedDate}
+                    min={bookingDateRange.min}
+                    max={bookingDateRange.max}
+                    onChange={(event) => setSelectedDate(event.target.value)}
+                    className="w-full rounded-lg border border-border bg-background py-3 pl-12 pr-4 font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <p className="mb-3 text-sm font-semibold">Available slots</p>
+                  <div className="grid gap-3">
+                    {slotOptions.map((slot) => {
+                      const isSelected = selectedSlot === slot.id
+
+                      return (
+                        <button
+                          key={slot.id}
+                          onClick={() => setSelectedSlot(slot.id)}
+                          className={`flex items-center justify-between rounded-lg border p-4 text-left transition ${
+                            isSelected
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/15"
+                              : "border-border bg-background hover:border-primary/60"
+                          }`}
+                        >
+                          <span>
+                            <span className="block font-semibold">{slot.label}</span>
+                            <span className="mt-1 block text-sm text-muted-foreground">{slot.time}</span>
+                          </span>
+                          <span className="text-right">
+                            <span className="block font-serif text-lg font-bold text-primary">
+                              {getSlotPrice(venue, slot.priceMultiplier)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">venue rental</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="mb-6 rounded-lg border border-border bg-secondary/60 p-4">
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Selected slot</span>
+                    <span className="font-semibold">{selectedSlotDetails.time}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Estimated total</span>
+                    <span className="font-serif text-2xl font-bold text-primary">
+                      {getSlotPrice(venue, selectedSlotDetails.priceMultiplier)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    Confirm Booking
+                  </motion.button>
+                  <button
+                    onClick={() => setIsBookingOpen(false)}
+                    className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
+                  >
+                    Keep Browsing
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </MainLayout>
   )
 }

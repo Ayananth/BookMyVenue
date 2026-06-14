@@ -3,6 +3,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.engine import RowMapping
+
+from collections.abc import Sequence
+
+from decimal import Decimal
+
+
 
 from app.db import get_db
 from app.repositories import venue_repository
@@ -23,9 +30,7 @@ router = APIRouter(
 async def list_all_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = await db.execute(
-        select(Venue).order_by(Venue.id)
-    )
+    result = await db.execute(select(Venue).order_by(Venue.id))
     return result.scalars().all()
 
 
@@ -42,10 +47,6 @@ async def get_venues(
     return result.scalars().all()
 
 
-
-
-
-
 @router.get("/home", response_model=list[HomepageVenueResponse])
 async def get_homepage_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -57,6 +58,9 @@ async def get_homepage_venues(
 async def explore_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
     category_id: int | None = None,
+    location_id: int | None = None,
+    min_price: Decimal | None = Query(default=None, ge=0),
+    max_price: Decimal | None = Query(default=None, ge=0),
     limit: int = Query(
         default=venue_repository.EXPLORE_VENUE_DEFAULT_LIMIT,
         ge=1,
@@ -67,14 +71,14 @@ async def explore_venues(
     return await venue_repository.explore_venues(
         db,
         category_id=category_id,
+        location_id=location_id,
+        min_price=min_price,
+        max_price=max_price,
         limit=limit,
         offset=offset,
     )
 
 
 @router.get("/categories", response_model=list[HomePageVenueCategoryResponse])
-async def get_venue_categories(
-    db: Annotated[AsyncSession, Depends(get_db)]
-):
+async def get_venue_categories(db: Annotated[AsyncSession, Depends(get_db)]):
     return await venue_repository.get_venue_categories(db)
-    

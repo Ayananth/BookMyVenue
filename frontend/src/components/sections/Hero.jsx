@@ -58,7 +58,7 @@ export default function Hero() {
               />
             </div>
             <a
-              href="#explore"
+              href="/venues"
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               Explore venues

@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { MapPin, Menu, X } from "lucide-react"
-import AuthModal from "./AuthModal"
+import { MapPin, Menu, User, X } from "lucide-react"
 
 const links = [
-  { label: "Explore", href: "#explore" },
-  { label: "Features", href: "#features" },
-  { label: "List your venue", href: "#owners" },
-  { label: "How it works", href: "#how" },
-  { label: "Contact", href: "#contact" },
+  { label: "Explore", href: "/venues" },
+  { label: "Features", href: "/#features" },
+  { label: "List your venue", href: "/#owners" },
+  { label: "How it works", href: "/#how" },
+  { label: "Contact", href: "/#contact" },
 ]
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -32,7 +30,7 @@ export default function Navbar() {
             : "border-transparent bg-transparent"
         }`}
       >
-        <a href="#top" className="flex items-center gap-2">
+        <a href="/#top" className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <MapPin className="h-5 w-5" />
           </span>
@@ -55,15 +53,15 @@ export default function Navbar() {
         </ul>
 
         <div className="hidden items-center gap-3 md:flex">
-          <button
-            type="button"
-            onClick={() => setAuthOpen(true)}
-            className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
-          >
-            Sign in
-          </button>
           <a
-            href="#owners"
+            href="/profile"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
+          >
+            <User className="h-4 w-4" />
+            Profile
+          </a>
+          <a
+            href="/#owners"
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             Get started
@@ -100,18 +98,15 @@ export default function Navbar() {
                 </li>
               ))}
             </ul>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                setAuthOpen(true)
-              }}
+            <a
+              href="/profile"
+              onClick={() => setOpen(false)}
               className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
             >
-              Sign in
-            </button>
+              Profile
+            </a>
             <a
-              href="#owners"
+              href="/#owners"
               onClick={() => setOpen(false)}
               className="mt-3 block rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground"
             >
@@ -120,8 +115,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   )
 }
