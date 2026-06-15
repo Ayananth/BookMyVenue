@@ -235,10 +235,10 @@ class Venue(Base):
         back_populates="venue",
         cascade="all, delete-orphan",
     )
-    # slots: Mapped[list["VenueSlot"]] = relationship(
-    #     back_populates="venue",
-    #     cascade="all, delete-orphan",
-    # )
+    slots: Mapped[list["VenueSlot"]] = relationship(
+        back_populates="venue",
+        cascade="all, delete-orphan",
+    )
     schedule_groups = relationship(
         "VenueScheduleGroup",
         back_populates="venue",
@@ -305,94 +305,94 @@ class VenueImage(Base):
         return f"Image #{self.id}"
 
 
-# class VenueSlot(Base):
+class VenueSlot(Base):
 
 
-#     __tablename__ = "venue_slots"
+    __tablename__ = "venue_slots"
 
-#     __table_args__ = (
-#         CheckConstraint(
-#             "price >= 0",
-#             name="ck_venue_slots_price",
-#         ),
-#         CheckConstraint(
-#             "end_time > start_time",
-#             name="ck_venue_slots_time_range",
-#         ),
-#         UniqueConstraint(
-#             "venue_id",
-#             "slot_date",
-#             "start_time",
-#             "end_time",
-#             name="uq_venue_slot",
-#         ),
-#         Index(
-#             "ix_venue_slots_venue_date",
-#             "venue_id",
-#             "slot_date",
-#         ),
-#         Index(
-#             "ix_venue_slots_booking_search",
-#             "venue_id",
-#             "slot_date",
-#             "is_available",
-#         ),
-#     )
+    __table_args__ = (
+        CheckConstraint(
+            "price >= 0",
+            name="ck_venue_slots_price",
+        ),
+        CheckConstraint(
+            "end_time > start_time",
+            name="ck_venue_slots_time_range",
+        ),
+        UniqueConstraint(
+            "venue_id",
+            "slot_date",
+            "start_time",
+            "end_time",
+            name="uq_venue_slot",
+        ),
+        Index(
+            "ix_venue_slots_venue_date",
+            "venue_id",
+            "slot_date",
+        ),
+        Index(
+            "ix_venue_slots_booking_search",
+            "venue_id",
+            "slot_date",
+            "is_available",
+        ),
+    )
 
-#     id: Mapped[int] = mapped_column(
-#         Integer,
-#         primary_key=True,
-#     )
-#     venue_id: Mapped[int] = mapped_column(
-#         ForeignKey(
-#             "venues.id",
-#             ondelete="CASCADE",
-#         ),
-#         nullable=False,
-#     )
-#     slot_date: Mapped[date] = mapped_column(
-#         Date,
-#         nullable=False,
-#     )
-#     start_time: Mapped[time] = mapped_column(
-#         Time,
-#         nullable=False,
-#     )
-#     end_time: Mapped[time] = mapped_column(
-#         Time,
-#         nullable=False,
-#     )
-#     price: Mapped[Decimal] = mapped_column(
-#         Numeric(10, 2),
-#         nullable=False,
-#     )
-#     is_available: Mapped[bool] = mapped_column(
-#         Boolean,
-#         nullable=False,
-#         server_default=text("true"),
-#     )
-#     created_at: Mapped[datetime] = mapped_column(
-#         DateTime(timezone=True),
-#         nullable=False,
-#         server_default=func.now(),
-#     )
-#     updated_at: Mapped[datetime] = mapped_column(
-#         DateTime(timezone=True),
-#         nullable=False,
-#         server_default=func.now(),
-#         onupdate=func.now(),
-#     )
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+    )
+    venue_id: Mapped[int] = mapped_column(
+        ForeignKey(
+            "venues.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+    )
+    slot_date: Mapped[date] = mapped_column(
+        Date,
+        nullable=False,
+    )
+    start_time: Mapped[time] = mapped_column(
+        Time,
+        nullable=False,
+    )
+    end_time: Mapped[time] = mapped_column(
+        Time,
+        nullable=False,
+    )
+    price: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+    )
+    is_available: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
-#     venue: Mapped["Venue"] = relationship(
-#         back_populates="slots",
-#     )
+    venue: Mapped["Venue"] = relationship(
+        back_populates="slots",
+    )
 
-#     def __str__(self) -> str:
-#         return (
-#             f"{self.slot_date} "
-#             f"{self.start_time.strftime('%H:%M')}-"
-#             f"{self.end_time.strftime('%H:%M')}"
-#         )
+    def __str__(self) -> str:
+        return (
+            f"{self.slot_date} "
+            f"{self.start_time.strftime('%H:%M')}-"
+            f"{self.end_time.strftime('%H:%M')}"
+        )
 
 
 class VenueScheduleGroup(Base):
