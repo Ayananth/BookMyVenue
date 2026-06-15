@@ -25,6 +25,18 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
+class BookingType(str, Enum):
+    HOURLY = "hourly"
+    SESSION = "session"
+    FULL_DAY = "full_day"
+
+
+class BookingStatus(str, Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+
+
 class VenueStatus(str, Enum):
     APPROVED = "approved"
     PENDING_APPROVAL = "pending_approval"
@@ -223,9 +235,19 @@ class Venue(Base):
         back_populates="venue",
         cascade="all, delete-orphan",
     )
-    slots: Mapped[list["VenueSlot"]] = relationship(
+    # slots: Mapped[list["VenueSlot"]] = relationship(
+    #     back_populates="venue",
+    #     cascade="all, delete-orphan",
+    # )
+    schedule_groups = relationship(
+        "VenueScheduleGroup",
         back_populates="venue",
         cascade="all, delete-orphan",
+    )
+
+    booking_type = mapped_column(
+        SQLEnum(BookingType),
+        nullable=False,
     )
 
     def __str__(self) -> str:
@@ -283,70 +305,135 @@ class VenueImage(Base):
         return f"Image #{self.id}"
 
 
-class VenueSlot(Base):
-    __tablename__ = "venue_slots"
+# class VenueSlot(Base):
 
-    __table_args__ = (
-        CheckConstraint(
-            "price >= 0",
-            name="ck_venue_slots_price",
-        ),
-        CheckConstraint(
-            "end_time > start_time",
-            name="ck_venue_slots_time_range",
-        ),
-        UniqueConstraint(
-            "venue_id",
-            "slot_date",
-            "start_time",
-            "end_time",
-            name="uq_venue_slot",
-        ),
-        Index(
-            "ix_venue_slots_venue_date",
-            "venue_id",
-            "slot_date",
-        ),
-        Index(
-            "ix_venue_slots_booking_search",
-            "venue_id",
-            "slot_date",
-            "is_available",
-        ),
+
+#     __tablename__ = "venue_slots"
+
+#     __table_args__ = (
+#         CheckConstraint(
+#             "price >= 0",
+#             name="ck_venue_slots_price",
+#         ),
+#         CheckConstraint(
+#             "end_time > start_time",
+#             name="ck_venue_slots_time_range",
+#         ),
+#         UniqueConstraint(
+#             "venue_id",
+#             "slot_date",
+#             "start_time",
+#             "end_time",
+#             name="uq_venue_slot",
+#         ),
+#         Index(
+#             "ix_venue_slots_venue_date",
+#             "venue_id",
+#             "slot_date",
+#         ),
+#         Index(
+#             "ix_venue_slots_booking_search",
+#             "venue_id",
+#             "slot_date",
+#             "is_available",
+#         ),
+#     )
+
+#     id: Mapped[int] = mapped_column(
+#         Integer,
+#         primary_key=True,
+#     )
+#     venue_id: Mapped[int] = mapped_column(
+#         ForeignKey(
+#             "venues.id",
+#             ondelete="CASCADE",
+#         ),
+#         nullable=False,
+#     )
+#     slot_date: Mapped[date] = mapped_column(
+#         Date,
+#         nullable=False,
+#     )
+#     start_time: Mapped[time] = mapped_column(
+#         Time,
+#         nullable=False,
+#     )
+#     end_time: Mapped[time] = mapped_column(
+#         Time,
+#         nullable=False,
+#     )
+#     price: Mapped[Decimal] = mapped_column(
+#         Numeric(10, 2),
+#         nullable=False,
+#     )
+#     is_available: Mapped[bool] = mapped_column(
+#         Boolean,
+#         nullable=False,
+#         server_default=text("true"),
+#     )
+#     created_at: Mapped[datetime] = mapped_column(
+#         DateTime(timezone=True),
+#         nullable=False,
+#         server_default=func.now(),
+#     )
+#     updated_at: Mapped[datetime] = mapped_column(
+#         DateTime(timezone=True),
+#         nullable=False,
+#         server_default=func.now(),
+#         onupdate=func.now(),
+#     )
+
+#     venue: Mapped["Venue"] = relationship(
+#         back_populates="slots",
+#     )
+
+#     def __str__(self) -> str:
+#         return (
+#             f"{self.slot_date} "
+#             f"{self.start_time.strftime('%H:%M')}-"
+#             f"{self.end_time.strftime('%H:%M')}"
+#         )
+
+
+class VenueScheduleGroup(Base):
+    __tablename__ = "venue_schedule_groups"
+
+    id = mapped_column(Integer, primary_key=True)
+
+    venue_id = mapped_column(
+        ForeignKey("venues.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-    )
-    venue_id: Mapped[int] = mapped_column(
-        ForeignKey(
-            "venues.id",
-            ondelete="CASCADE",
-        ),
+    name = mapped_column(
+        String(100),
         nullable=False,
     )
-    slot_date: Mapped[date] = mapped_column(
-        Date,
-        nullable=False,
-    )
-    start_time: Mapped[time] = mapped_column(
-        Time,
-        nullable=False,
-    )
-    end_time: Mapped[time] = mapped_column(
-        Time,
-        nullable=False,
-    )
-    price: Mapped[Decimal] = mapped_column(
-        Numeric(10, 2),
-        nullable=False,
-    )
-    is_available: Mapped[bool] = mapped_column(
+
+    is_active = mapped_column(
         Boolean,
         nullable=False,
-        server_default=text("true"),
+        default=True,
     )
+
+    venue = relationship(
+        "Venue",
+        back_populates="schedule_groups",
+    )
+
+    days = relationship(
+        "VenueScheduleGroupDay",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
+    schedules = relationship(
+        "VenueSchedule",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -359,13 +446,233 @@ class VenueSlot(Base):
         onupdate=func.now(),
     )
 
-    venue: Mapped["Venue"] = relationship(
-        back_populates="slots",
+
+class VenueScheduleGroupDay(Base):
+    __tablename__ = "venue_schedule_group_days"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id",
+            "day_of_week",
+            name="uq_group_day",
+        ),
+    CheckConstraint(
+        "day_of_week BETWEEN 0 AND 6",
+        name="ck_day_of_week",
+    )
     )
 
-    def __str__(self) -> str:
-        return (
-            f"{self.slot_date} "
-            f"{self.start_time.strftime('%H:%M')}-"
-            f"{self.end_time.strftime('%H:%M')}"
+    id = mapped_column(Integer, primary_key=True)
+
+    group_id = mapped_column(
+        ForeignKey("venue_schedule_groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    day_of_week = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    group = relationship(
+        "VenueScheduleGroup",
+        back_populates="days",
+    )
+
+
+class VenueSchedule(Base):
+    __tablename__ = "venue_schedules"
+
+    __table_args__ = (
+        CheckConstraint(
+            "end_time > start_time",
+            name="ck_schedule_time_range",
+        ),
+        CheckConstraint(
+            "price >= 0",
+            name="ck_schedule_price",
+        ),
+        UniqueConstraint(
+            "group_id",
+            "start_time",
+            "end_time",
+            name="uq_schedule_slot",
         )
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+
+    group_id = mapped_column(
+        ForeignKey(
+            "venue_schedule_groups.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    name = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    start_time = mapped_column(
+        Time,
+        nullable=False,
+    )
+
+    end_time = mapped_column(
+        Time,
+        nullable=False,
+    )
+
+    price = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+    )
+
+    is_available = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    group = relationship(
+        "VenueScheduleGroup",
+        back_populates="schedules",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+
+
+
+class Booking(Base):
+    __tablename__ = "bookings"
+
+    __table_args__ = (
+        CheckConstraint(
+            "end_time > start_time",
+            name="ck_booking_time_range",
+        ),
+        CheckConstraint(
+            "price >= 0",
+            name="ck_booking_price",
+        ),
+    )
+
+    id = mapped_column(Integer, primary_key=True)
+
+    venue_id = mapped_column(
+        ForeignKey("venues.id"),
+        nullable=False,
+        index=True,
+    )
+
+    user_id = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+
+    booking_date = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+
+    start_time = mapped_column(
+        Time,
+        nullable=False,
+    )
+
+    end_time = mapped_column(
+        Time,
+        nullable=False,
+    )
+
+    price = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+    )
+
+    status = mapped_column(
+        SQLEnum(BookingStatus),
+        nullable=False,
+    )
+
+
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class VenueScheduleOverride(Base):
+    __tablename__ = "venue_schedule_overrides"
+
+    id = mapped_column(Integer, primary_key=True)
+
+    venue_id = mapped_column(
+        ForeignKey("venues.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    override_date = mapped_column(
+        Date,
+        nullable=False,
+        index=True,
+    )
+
+    start_time = mapped_column(
+        Time,
+        nullable=True,
+    )
+
+    end_time = mapped_column(
+        Time,
+        nullable=True,
+    )
+
+    is_available = mapped_column(
+        Boolean,
+        nullable=False,
+    )
+
+    reason = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
