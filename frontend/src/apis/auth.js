@@ -12,6 +12,15 @@ export async function loginWithGoogle(idToken) {
   return data
 }
 
+export async function loginWithGoogleVenue(idToken) {
+  const { data } = await api.post(
+    "/users/venue/google",
+    { token: idToken },
+    { baseURL: API_BASE_URL },
+  )
+  return data
+}
+
 export async function fetchCurrentUser() {
   const { data } = await api.get("/users/me", { baseURL: API_BASE_URL })
   return data

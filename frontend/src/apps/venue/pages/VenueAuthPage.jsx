@@ -2,8 +2,9 @@ import { useState } from "react"
 import { GoogleLogin } from "@react-oauth/google"
 import { motion } from "framer-motion"
 import { Mail, Phone } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
-import { loginWithGoogle } from "../../../apis/auth"
+import { loginWithGoogleVenue } from "../../../apis/auth"
 import { useAuth } from "../../../contexts/AuthContext"
 
 const methods = [
@@ -13,6 +14,7 @@ const methods = [
 
 export default function VenueAuthPage() {
   const { login } = useAuth()
+  const navigate = useNavigate();
 
   const [method, setMethod] = useState("phone")
   const [phone, setPhone] = useState("")
@@ -42,11 +44,11 @@ export default function VenueAuthPage() {
     setGoogleError("")
 
     try {
-      const data = await loginWithGoogle(idToken)
+      const data = await loginWithGoogleVenue(idToken)
 
       login(data.access_token, data.user)
 
-      // navigate("/venue/dashboard")
+      navigate("/venue")
     } catch {
       setGoogleError("Google sign-in failed. Please try again.")
     } finally {
