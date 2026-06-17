@@ -8,6 +8,8 @@ import AdminUsersListPage from "../apps/admin/pages/AdminUsersListPage"
 import VenueBookingsPage from "../apps/venue/pages/VenueBookingsPage"
 import VenueAuthPage from "../apps/venue/pages/VenueAuthPage"
 import VenueDashboardPage from "../apps/venue/pages/VenueDashboardPage"
+import VenueListPage from "@/apps/venue/pages/VenueListPage"
+import AddVenuePage from "@/apps/venue/pages/AddVenuePage"
 import AdminLayout from "../layouts/AdminLayout"
 import UserLayout from "../layouts/UserLayout"
 import VenueLayout from "../layouts/VenueLayout"
@@ -29,6 +31,9 @@ export default function AppRoutes() {
           <Route index element={<VenueDashboardPage />} />
           <Route path="auth" element={<VenueAuthPage />} />
           <Route path="bookings" element={<VenueBookingsPage />} />
+          <Route path="venues" element={<VenueListPage />} />
+          <Route path="venues/add" element={<AddVenuePage />} />
+
         </Route>
 
         <Route path="/admin" element={<AdminLayout />}>
