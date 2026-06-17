@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.core.security import create_access_token, verify_google_token
 from app.db import get_db
-from app.models import AuthAccount, AuthProvider, User
+from app.models import AuthAccount, AuthProvider, User, UserRole
 from app.schemas.user import (
     GoogleAuthRequest,
     TokenResponse,
@@ -69,12 +69,13 @@ async def create_user(
     return user
 
 
-@router.post("/google", response_model=TokenResponse)
-async def google_login(
-    data: GoogleAuthRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    user_info = verify_google_token(data.token)
+async def google_auth(
+    db: AsyncSession,
+    token: str,
+    expected_role: UserRole,
+) -> TokenResponse:
+
+    user_info = verify_google_token(token)
 
     if not user_info:
         raise HTTPException(
@@ -100,40 +101,76 @@ async def google_login(
         )
     )
 
-    if auth_account is not None:
+    if auth_account:
         user = await db.get(User, auth_account.user_id)
-    else:
-        user = await db.scalar(select(User).where(User.email == email))
 
-        if user is not None:
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid account",
+            )
+
+        if user.role != expected_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"This email is associated with a "
+                    f"{user.role.value} account."
+                ),
+            )
+
+    else:
+        user = await db.scalar(
+            select(User).where(User.email == email)
+        )
+
+        if user:
+
+            if user.role != expected_role:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=(
+                        f"This email is associated with a "
+                        f"{user.role.value} account."
+                    ),
+                )
+
             auth_account = AuthAccount(
                 user_id=user.id,
                 provider=AuthProvider.GOOGLE,
                 provider_user_id=google_sub,
             )
             db.add(auth_account)
+
             if picture and not user.avatar_url:
                 user.avatar_url = picture
+
             if name and not user.full_name:
                 user.full_name = name
+
             user.is_email_verified = True
+
         else:
             user = User(
                 email=email,
                 full_name=name,
                 avatar_url=picture,
+                role=expected_role,
                 is_email_verified=True,
             )
+
             db.add(user)
             await db.flush()
+
             auth_account = AuthAccount(
                 user_id=user.id,
                 provider=AuthProvider.GOOGLE,
                 provider_user_id=google_sub,
             )
+
             db.add(auth_account)
 
-    if user is None or not user.is_active or user.is_blocked:
+    if not user.is_active or user.is_blocked:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is disabled",
@@ -142,6 +179,42 @@ async def google_login(
     await db.commit()
     await db.refresh(user)
 
-    access_token = create_access_token({"sub": str(user.id)})
+    access_token = create_access_token(
+        {"sub": str(user.id)}
+    )
 
-    return TokenResponse(access_token=access_token, user=user)
+    return TokenResponse(
+        access_token=access_token,
+        user=user,
+    )
+
+
+
+@router.post(
+    "/google",
+    response_model=TokenResponse,
+)
+async def google_login_user(
+    data: GoogleAuthRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await google_auth(
+        db=db,
+        token=data.token,
+        expected_role=UserRole.USER,
+    )
+
+
+@router.post(
+    "/venue/google",
+    response_model=TokenResponse,
+)
+async def google_login_venue(
+    data: GoogleAuthRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await google_auth(
+        db=db,
+        token=data.token,
+        expected_role=UserRole.VENUE,
+    )
