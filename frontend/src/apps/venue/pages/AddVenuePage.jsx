@@ -13,7 +13,8 @@ import {
   Clock,
   ArrowLeft,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  Phone
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -39,6 +40,10 @@ export default function AddVenuePage() {
     description: "",
     capacity: "",
     bookingType: "",
+    contactName: "",
+    contactPhone: "",
+    contactEmail: "",
+
   })
 
   useEffect(() => {
@@ -411,6 +416,91 @@ export default function AddVenuePage() {
               </div>
             </div>
           </motion.section>
+
+{/* Contact Information Section */}
+<motion.section
+  variants={cardVariants}
+  className="rounded-2xl border border-border/60 bg-white/70 backdrop-blur-sm p-6 shadow-sm hover:shadow-md transition-shadow"
+>
+  <div className="flex items-center gap-3 border-b border-border/40 pb-4 mb-6">
+    <div className="p-2 rounded-xl bg-primary/10 text-primary">
+      <Phone size={20} />
+    </div>
+
+    <div>
+      <h2 className="font-semibold text-lg text-foreground">
+        Contact Information
+      </h2>
+
+      <p className="text-xs text-muted-foreground">
+        Booking inquiries and customer communication details.
+      </p>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    {/* Contact Name */}
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
+        Contact Person
+      </label>
+
+      <input
+        type="text"
+        className="input"
+        placeholder="John Doe"
+        value={formData.contactName}
+        onChange={(e) =>
+          setFormData({
+            ...formData,
+            contactName: e.target.value,
+          })
+        }
+      />
+    </div>
+
+    {/* Contact Phone */}
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
+        Contact Phone
+      </label>
+
+      <input
+        type="tel"
+        className="input"
+        placeholder="+91 9876543210"
+        value={formData.contactPhone}
+        onChange={(e) =>
+          setFormData({
+            ...formData,
+            contactPhone: e.target.value,
+          })
+        }
+      />
+    </div>
+
+    {/* Contact Email */}
+    <div className="md:col-span-2">
+      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
+        Contact Email
+      </label>
+
+      <input
+        type="email"
+        className="input"
+        placeholder="booking@venue.com"
+        value={formData.contactEmail}
+        onChange={(e) =>
+          setFormData({
+            ...formData,
+            contactEmail: e.target.value,
+          })
+        }
+      />
+    </div>
+  </div>
+</motion.section>
 
           {/* Description Section */}
           <motion.section
