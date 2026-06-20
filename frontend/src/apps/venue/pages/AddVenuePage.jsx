@@ -17,6 +17,7 @@ import {
   Phone
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import api from "@/lib/axios"
 
 export default function AddVenuePage() {
   const navigate = useNavigate()
@@ -29,7 +30,7 @@ export default function AddVenuePage() {
   const [amenities, setAmenities] = useState([])
 
   const [images, setImages] = useState([])
-  const [imagePreviews, setImagePreviews] = useState([])
+  const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -75,19 +76,7 @@ export default function AddVenuePage() {
     fetchData()
   }, [])
 
-  // Manage image preview URLs
-  useEffect(() => {
-    if (images.length === 0) {
-      setImagePreviews([])
-      return
-    }
 
-    const objectUrls = images.map((file) => URL.createObjectURL(file))
-    setImagePreviews(objectUrls)
-
-    // Revoke object URLs to avoid memory leaks
-    return () => objectUrls.forEach((url) => URL.revokeObjectURL(url))
-  }, [images])
 
   const addAmenity = () => {
     if (!amenityInput.trim()) return
@@ -105,12 +94,31 @@ export default function AddVenuePage() {
     setAmenities((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleImages = (e) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files)
-      setImages((prev) => [...prev, ...selectedFiles])
-    }
-  }
+const handleImages = async (e) => {
+  if (!e.target.files) return
+
+  await uploadFiles(
+    Array.from(e.target.files)
+  )
+}
+
+  const uploadSingleImage = async (file) => {
+    const formData = new FormData();
+
+    formData.append("file", file);
+
+    const response = await api.post(
+      "/venues/image",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  };
 
   const removeImage = (index) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
@@ -125,16 +133,18 @@ export default function AddVenuePage() {
     setIsDragging(false)
   }
 
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setIsDragging(false)
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFiles = Array.from(e.dataTransfer.files)
-      // Filter for image types only
-      const imageFiles = droppedFiles.filter((file) => file.type.startsWith("image/"))
-      setImages((prev) => [...prev, ...imageFiles])
-    }
-  }
+const handleDrop = async (e) => {
+  e.preventDefault()
+  setIsDragging(false)
+
+  const files = Array.from(
+    e.dataTransfer.files
+  ).filter((file) =>
+    file.type.startsWith("image/")
+  )
+
+  await uploadFiles(files)
+}
 
   const handleSubmit = () => {
     const payload = {
@@ -186,6 +196,60 @@ export default function AddVenuePage() {
       },
     },
   }
+
+
+
+const uploadFiles = async (files) => {
+  setUploading(true)
+
+  try {
+    const uploadedImages = await Promise.all(
+      files.map(async (file, index) => {
+        const result = await uploadSingleImage(file)
+
+        return {
+          public_id: result.public_id,
+          image_url: result.secure_url,
+          is_cover: false,
+          sort_order: images.length + index + 1,
+        }
+      })
+    )
+
+    setImages((prev) => {
+      const merged = [...prev, ...uploadedImages]
+
+      if (merged.length > 0) {
+        merged[0].is_cover = true
+      }
+
+      return merged
+    })
+
+  } finally {
+    setUploading(false)
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div className="max-w-6xl mx-auto py-2 px-1">
@@ -555,9 +619,9 @@ export default function AddVenuePage() {
             <div className="rounded-xl overflow-hidden border border-border/40 bg-card">
               {/* Preview Image */}
               <div className="h-44 bg-secondary relative flex items-center justify-center text-muted-foreground overflow-hidden">
-                {imagePreviews.length > 0 ? (
+                {images[0]?.image_url ? (
                   <img
-                    src={imagePreviews[0]}
+                    src={images[0]?.image_url}
                     alt="Venue Preview"
                     className="w-full h-full object-cover"
                   />
@@ -734,12 +798,13 @@ export default function AddVenuePage() {
             </label>
 
             {/* File List / Previews */}
-            {imagePreviews.length > 0 && (
+            {images.length > 0 && (
               <div className="mt-5 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Uploaded ({images.length})
                   </span>
+
                   <button
                     onClick={() => setImages([])}
                     className="text-[11px] font-bold text-accent hover:underline cursor-pointer"
@@ -750,19 +815,26 @@ export default function AddVenuePage() {
 
                 <div className="grid grid-cols-3 gap-2">
                   <AnimatePresence>
-                    {imagePreviews.map((url, idx) => (
+                    {images.map((image, idx) => (
                       <motion.div
-                        key={url}
+                        key={image.public_id || idx}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
                         className="relative aspect-square rounded-xl overflow-hidden border border-border group"
                       >
                         <img
-                          src={url}
+                          src={image.image_url}
                           alt={`Upload ${idx}`}
                           className="w-full h-full object-cover"
                         />
+
+                        {image.is_cover && (
+                          <span className="absolute top-1 left-1 bg-primary text-white text-[10px] px-2 py-1 rounded">
+                            Cover
+                          </span>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => removeImage(idx)}
@@ -776,11 +848,17 @@ export default function AddVenuePage() {
                 </div>
               </div>
             )}
-            {imagePreviews.length === 0 && (
+
+            {images.length === 0 && (
               <p className="mt-3 text-xs text-muted-foreground/60 italic">
                 No images selected yet.
               </p>
             )}
+          {uploading && (
+            <div className="mt-3 text-sm text-primary font-medium">
+              Uploading images...
+            </div>
+          )}
           </motion.section>
         </div>
       </motion.div>
@@ -850,3 +928,5 @@ export default function AddVenuePage() {
 //         {}
 //     ]
 // }
+
+
