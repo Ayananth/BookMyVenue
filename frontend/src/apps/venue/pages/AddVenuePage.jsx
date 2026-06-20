@@ -804,3 +804,49 @@ export default function AddVenuePage() {
     </div>
   )
 }
+
+
+
+// sample form object
+// {
+//     "name": "Godha",
+//     "category": "Sports",
+//     "location": "Trivandrum",
+//     "address": "Kazhakkottam",
+//     "description": "skfjasldjflsadflaskdjflskf",
+//     "capacity": "50",
+//     "bookingType": "Hourly",
+//     "contactName": "owner",
+//     "contactPhone": "9847987478",
+//     "contactEmail": "booking@example.coma",
+//     "amenities": [
+//         "parking",
+//         "water",
+//         "dressing rooms"
+//     ],
+//     "images": [
+//         {}
+//     ]
+// }
+
+// will modify this to
+// {
+//     "name": "Godha",
+//     "category_id": "Sports",
+//     "location_id": "Trivandrum",
+//     "address": "Kazhakkottam",
+//     "description": "skfjasldjflsadflaskdjflskf",
+//     "capacity": "50",
+//     "bookingType_id": "Hourly",
+//     "contactName": "owner",
+//     "contactPhone": "9847987478",
+//     "contactEmail": "booking@example.coma",
+//     "amenities": [
+//         "parking",
+//         "water",
+//         "dressing rooms"
+//     ],
+//     "images": [
+//         {}
+//     ]
+// }
