@@ -146,13 +146,29 @@ const handleDrop = async (e) => {
   await uploadFiles(files)
 }
 
-  const handleSubmit = () => {
-    const payload = {
-      ...formData,
-      amenities,
-      images,
+  const handleSubmit = async () => {
+    try {
+      const payload = {
+        ...formData,
+        amenities,
+        images,
+      }
+
+      const response = await api.post("/venues/add", payload)
+
+      window.alert("Venue created successfully!", "success")
+
+      console.log("Venue created:", response.data)
+
+      // Optional: reset form or navigate
+      // navigate("/venues")
+    } catch (error) {
+      console.error("Error creating venue:", error)
+
+      if (error.response) {
+        console.error("Backend error:", error.response.data)
+      }
     }
-    console.log("Submitting Venue:", payload)
   }
 
   // Calculate Form Completion Progress
