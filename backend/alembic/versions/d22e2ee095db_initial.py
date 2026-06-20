@@ -1,8 +1,8 @@
-"""initial schema
+"""initial
 
-Revision ID: 91cc651dfda8
+Revision ID: d22e2ee095db
 Revises: 
-Create Date: 2026-06-11 15:14:17.453078
+Create Date: 2026-06-20 12:11:02.791538
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '91cc651dfda8'
+revision: str = 'd22e2ee095db'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -111,11 +111,15 @@ def upgrade() -> None:
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('address', sa.Text(), nullable=False),
     sa.Column('capacity', sa.Integer(), nullable=False),
+    sa.Column('contact_name', sa.String(length=100), nullable=False),
+    sa.Column('contact_phone', sa.String(length=20), nullable=False),
+    sa.Column('contact_email', sa.String(length=255), nullable=False),
     sa.Column('status', sa.Enum('approved', 'pending_approval', 'rejected', 'suspended', name='venuestatus'), server_default='pending_approval', nullable=False),
     sa.Column('amenities', sa.JSON(), nullable=False),
     sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('booking_type', sa.Enum('HOURLY', 'SESSION', 'FULL_DAY', name='bookingtype'), nullable=False),
     sa.CheckConstraint('capacity > 0', name='ck_venues_capacity_positive'),
     sa.ForeignKeyConstraint(['category_id'], ['venue_categories.id'], ),
     sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
@@ -128,6 +132,26 @@ def upgrade() -> None:
     op.create_index('ix_venues_location_status', 'venues', ['location_id', 'status'], unique=False)
     op.create_index('ix_venues_owner_id', 'venues', ['owner_id'], unique=False)
     op.create_index('ix_venues_status', 'venues', ['status'], unique=False)
+    op.create_table('bookings',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('venue_id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('booking_date', sa.Date(), nullable=False),
+    sa.Column('start_time', sa.Time(), nullable=False),
+    sa.Column('end_time', sa.Time(), nullable=False),
+    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'CANCELLED', name='bookingstatus'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.CheckConstraint('end_time > start_time', name='ck_booking_time_range'),
+    sa.CheckConstraint('price >= 0', name='ck_booking_price'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['venue_id'], ['venues.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_bookings_booking_date'), 'bookings', ['booking_date'], unique=False)
+    op.create_index(op.f('ix_bookings_user_id'), 'bookings', ['user_id'], unique=False)
+    op.create_index(op.f('ix_bookings_venue_id'), 'bookings', ['venue_id'], unique=False)
     op.create_table('venue_images',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('venue_id', sa.Integer(), nullable=False),
@@ -140,6 +164,32 @@ def upgrade() -> None:
     )
     op.create_index('ix_venue_images_venue_id', 'venue_images', ['venue_id'], unique=False)
     op.create_index('ix_venue_images_venue_sort', 'venue_images', ['venue_id', 'sort_order'], unique=False)
+    op.create_table('venue_schedule_groups',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('venue_id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['venue_id'], ['venues.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_venue_schedule_groups_venue_id'), 'venue_schedule_groups', ['venue_id'], unique=False)
+    op.create_table('venue_schedule_overrides',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('venue_id', sa.Integer(), nullable=False),
+    sa.Column('override_date', sa.Date(), nullable=False),
+    sa.Column('start_time', sa.Time(), nullable=True),
+    sa.Column('end_time', sa.Time(), nullable=True),
+    sa.Column('is_available', sa.Boolean(), nullable=False),
+    sa.Column('reason', sa.String(length=255), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['venue_id'], ['venues.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_venue_schedule_overrides_override_date'), 'venue_schedule_overrides', ['override_date'], unique=False)
+    op.create_index(op.f('ix_venue_schedule_overrides_venue_id'), 'venue_schedule_overrides', ['venue_id'], unique=False)
     op.create_table('venue_slots',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('venue_id', sa.Integer(), nullable=False),
@@ -158,18 +208,58 @@ def upgrade() -> None:
     )
     op.create_index('ix_venue_slots_booking_search', 'venue_slots', ['venue_id', 'slot_date', 'is_available'], unique=False)
     op.create_index('ix_venue_slots_venue_date', 'venue_slots', ['venue_id', 'slot_date'], unique=False)
+    op.create_table('venue_schedule_group_days',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('group_id', sa.Integer(), nullable=False),
+    sa.Column('day_of_week', sa.Integer(), nullable=False),
+    sa.CheckConstraint('day_of_week BETWEEN 0 AND 6', name='ck_day_of_week'),
+    sa.ForeignKeyConstraint(['group_id'], ['venue_schedule_groups.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('group_id', 'day_of_week', name='uq_group_day')
+    )
+    op.create_index(op.f('ix_venue_schedule_group_days_group_id'), 'venue_schedule_group_days', ['group_id'], unique=False)
+    op.create_table('venue_schedules',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('group_id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=True),
+    sa.Column('start_time', sa.Time(), nullable=False),
+    sa.Column('end_time', sa.Time(), nullable=False),
+    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('is_available', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.CheckConstraint('end_time > start_time', name='ck_schedule_time_range'),
+    sa.CheckConstraint('price >= 0', name='ck_schedule_price'),
+    sa.ForeignKeyConstraint(['group_id'], ['venue_schedule_groups.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('group_id', 'start_time', 'end_time', name='uq_schedule_slot')
+    )
+    op.create_index(op.f('ix_venue_schedules_group_id'), 'venue_schedules', ['group_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_venue_schedules_group_id'), table_name='venue_schedules')
+    op.drop_table('venue_schedules')
+    op.drop_index(op.f('ix_venue_schedule_group_days_group_id'), table_name='venue_schedule_group_days')
+    op.drop_table('venue_schedule_group_days')
     op.drop_index('ix_venue_slots_venue_date', table_name='venue_slots')
     op.drop_index('ix_venue_slots_booking_search', table_name='venue_slots')
     op.drop_table('venue_slots')
+    op.drop_index(op.f('ix_venue_schedule_overrides_venue_id'), table_name='venue_schedule_overrides')
+    op.drop_index(op.f('ix_venue_schedule_overrides_override_date'), table_name='venue_schedule_overrides')
+    op.drop_table('venue_schedule_overrides')
+    op.drop_index(op.f('ix_venue_schedule_groups_venue_id'), table_name='venue_schedule_groups')
+    op.drop_table('venue_schedule_groups')
     op.drop_index('ix_venue_images_venue_sort', table_name='venue_images')
     op.drop_index('ix_venue_images_venue_id', table_name='venue_images')
     op.drop_table('venue_images')
+    op.drop_index(op.f('ix_bookings_venue_id'), table_name='bookings')
+    op.drop_index(op.f('ix_bookings_user_id'), table_name='bookings')
+    op.drop_index(op.f('ix_bookings_booking_date'), table_name='bookings')
+    op.drop_table('bookings')
     op.drop_index('ix_venues_status', table_name='venues')
     op.drop_index('ix_venues_owner_id', table_name='venues')
     op.drop_index('ix_venues_location_status', table_name='venues')
