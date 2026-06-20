@@ -1,7 +1,12 @@
 from enum import Enum
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from typing import List
 from decimal import Decimal
+
+from app.models.venue import (
+    BookingType,
+)
 
 
 class VenueStatus(str, Enum):
@@ -11,14 +16,50 @@ class VenueStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
+
+
+class VenueImageCreate(BaseModel):
+    image_url: str
+    is_cover: bool = False
+    sort_order: int = 0
+
+class VenueImageResponse(BaseModel):
+    id: int
+    image_url: str
+    is_primary: bool
+
+
 class VenueCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=200)
     category_id: int
     location_id: int
-    name: str = Field(..., min_length=2, max_length=200)
+
+    address: str = Field(..., min_length=5)
     description: str | None = None
-    address: str
+
     capacity: int = Field(..., gt=0)
+
+    booking_type: BookingType
+
+    contact_name: str = Field(..., min_length=2, max_length=100)
+    contact_phone: str = Field(..., min_length=10, max_length=20)
+    contact_email: EmailStr
+
     amenities: list[str] = []
+
+    images: list[VenueImageCreate] = []
+
+
+class VenueCreateResponse(BaseModel):
+    id: int
+    name: str
+    status: VenueStatus
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
 
 
 class VenueUpdate(BaseModel):

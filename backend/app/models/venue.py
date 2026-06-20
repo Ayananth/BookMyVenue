@@ -195,6 +195,20 @@ class Venue(Base):
         Integer,
         nullable=False,
     )
+    contact_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    contact_phone: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+    )
+
+    contact_email: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
     status: Mapped[VenueStatus] = mapped_column(
         venue_status_enum,
         nullable=False,

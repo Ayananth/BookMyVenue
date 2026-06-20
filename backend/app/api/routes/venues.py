@@ -9,6 +9,19 @@ from collections.abc import Sequence
 
 from decimal import Decimal
 
+from app.models import User
+from app.deps import get_current_user
+from app.schemas.venue import VenueResponse
+from app.schemas.venue import (
+    HomePageVenueCategoryResponse,
+    HomepageVenueResponse,
+    VenueCreate,
+    VenueCreateResponse
+)
+from app.models import Venue, VenueStatus
+from app.models.user import UserRole
+from fastapi import HTTPException, status 
+
 
 
 from app.db import get_db
@@ -18,6 +31,8 @@ from app.schemas.venue import (
     HomePageVenueCategoryResponse,
     HomepageVenueResponse,
     VenueResponse,
+    VenueCreate,
+    VenueCreateResponse
 )
 
 router = APIRouter(
@@ -82,3 +97,25 @@ async def explore_venues(
 @router.get("/categories", response_model=list[HomePageVenueCategoryResponse])
 async def get_venue_categories(db: Annotated[AsyncSession, Depends(get_db)]):
     return await venue_repository.get_venue_categories(db)
+
+
+
+
+
+@router.post("/add", response_model=VenueCreateResponse, status_code=201)
+async def add_venue(
+    venue: VenueCreate,
+    db: Annotated[AsyncSession, Depends(get_db)], 
+    current_user: Annotated[User, Depends(get_current_user)]
+                    ):
+    
+    if current_user.role != UserRole.VENUE:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only venue owners can add venues")
+    
+    return await venue_repository.create_venue(
+        db,
+        venue,
+        current_user.id,
+    )
+    
+

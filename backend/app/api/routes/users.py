@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.deps import get_current_user
 from app.core.security import create_access_token, verify_google_token
 from app.db import get_db
 from app.models import AuthAccount, AuthProvider, User, UserRole
@@ -183,6 +183,8 @@ async def google_auth(
         {"sub": str(user.id)}
     )
 
+    print(f"User {user.id} logged in with Google")
+    print(access_token)
     return TokenResponse(
         access_token=access_token,
         user=user,

@@ -1,5 +1,7 @@
 from collections.abc import Sequence
+from http.client import HTTPException
 
+from app.schemas.venue import VenueCreate
 from sqlalchemy import func, select
 from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -208,3 +210,86 @@ async def get_homepage_venues(db: AsyncSession) -> Sequence[RowMapping]:
     )
 
     return result.mappings().all()
+
+
+
+async def create_venue(
+    db: AsyncSession,
+    venue_data: VenueCreate,
+    owner_id: int,
+):
+    try:
+        category = await db.scalar(
+            select(VenueCategory).where(
+                VenueCategory.id == venue_data.category_id
+            )
+        )
+
+        if not category:
+            raise HTTPException(
+                status_code=404,
+                detail="Category not found",
+            )
+
+        location = await db.scalar(
+            select(Location).where(
+                Location.id == venue_data.location_id
+            )
+        )
+
+        if not location:
+            raise HTTPException(
+                status_code=404,
+                detail="Location not found",
+            )
+        
+        cover_count = sum(
+            1
+            for image in venue_data.images
+            if image.is_cover
+        )
+
+        if cover_count > 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Only one cover image is allowed",
+            )
+
+        if venue_data.images and cover_count == 0:
+            venue_data.images[0].is_cover = True
+
+        venue = Venue(
+            owner_id=owner_id,
+            category_id=venue_data.category_id,
+            location_id=venue_data.location_id,
+            name=venue_data.name,
+            description=venue_data.description,
+            address=venue_data.address,
+            capacity=venue_data.capacity,
+            booking_type=venue_data.booking_type,
+            amenities=venue_data.amenities,
+            status=VenueStatus.APPROVED,
+            contact_name=venue_data.contact_name,
+            contact_phone=venue_data.contact_phone,
+            contact_email=venue_data.contact_email,
+        )
+
+        venue.images = [
+            VenueImage(
+                image_url=image.image_url,
+                is_cover=image.is_cover,
+                sort_order=image.sort_order,
+            )
+            for image in venue_data.images
+        ]
+
+        db.add(venue)
+
+        await db.commit()
+        await db.refresh(venue)
+
+        return venue
+
+    except Exception:
+        await db.rollback()
+        raise
