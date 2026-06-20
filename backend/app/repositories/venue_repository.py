@@ -276,6 +276,7 @@ async def create_venue(
 
         venue.images = [
             VenueImage(
+                public_id=image.public_id,
                 image_url=image.image_url,
                 is_cover=image.is_cover,
                 sort_order=image.sort_order,

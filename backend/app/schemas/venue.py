@@ -29,6 +29,7 @@ class ImageUploadResponse(BaseModel):
 
 
 class VenueImageCreate(BaseModel):
+    public_id: str
     image_url: str
     is_cover: bool = False
     sort_order: int = 0
