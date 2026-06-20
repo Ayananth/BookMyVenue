@@ -108,7 +108,7 @@ const handleImages = async (e) => {
     formData.append("file", file);
 
     const response = await api.post(
-      "/venues/image",
+      "/uploads/image",
       formData,
       {
         headers: {
