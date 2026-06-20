@@ -16,6 +16,16 @@ class VenueStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
+class ImageUploadResponse(BaseModel):
+    public_id: str
+    url: str
+    secure_url: str
+    width: int
+    height: int
+    format: str
+    bytes: int
+
+
 
 
 class VenueImageCreate(BaseModel):

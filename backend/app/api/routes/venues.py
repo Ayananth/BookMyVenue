@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from app.services.cloudinary_service import upload_image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.engine import RowMapping
@@ -11,7 +12,7 @@ from decimal import Decimal
 
 from app.models import User
 from app.deps import get_current_user
-from app.schemas.venue import VenueResponse
+from app.schemas.venue import ImageUploadResponse, VenueResponse
 from app.schemas.venue import (
     HomePageVenueCategoryResponse,
     HomepageVenueResponse,
@@ -119,3 +120,30 @@ async def add_venue(
     )
     
 
+
+
+
+@router.post(
+    "/image",
+    response_model=ImageUploadResponse,
+)
+async def upload_venue_image(
+    file: UploadFile = File(...),
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only image files are allowed",
+        )
+
+    result = await upload_image(file)
+
+    return ImageUploadResponse(
+        public_id=result["public_id"],
+        url=result["url"],
+        secure_url=result["secure_url"],
+        width=result["width"],
+        height=result["height"],
+        format=result["format"],
+        bytes=result["bytes"],
+    )
