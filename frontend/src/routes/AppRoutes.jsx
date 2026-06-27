@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Route, Routes } from "react-router-dom"
 import ExploreVenuesPage from "../pages/ExploreVenuesPage"
 import HomePage from "../pages/HomePage"
 import ProfilePage from "../pages/ProfilePage"
@@ -13,13 +13,12 @@ import AddVenuePage from "@/apps/venue/pages/AddVenuePage"
 import AdminLayout from "../layouts/AdminLayout"
 import UserLayout from "../layouts/UserLayout"
 import VenueLayout from "../layouts/VenueLayout"
+import { GuestRoute, ProtectedRoute } from "./ProtectedRoute"
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* <Route path="/" element={<Navigate to="/user" replace />} /> */}
-
         <Route path="/" element={<UserLayout />}>
           <Route index element={<HomePage />} />
           <Route path="venues" element={<ExploreVenuesPage />} />
@@ -27,13 +26,27 @@ export default function AppRoutes() {
           <Route path="venue/:slug" element={<VenueDetailsPage />} />
         </Route>
 
-        <Route path="/venue" element={<VenueLayout />}>
+        <Route
+          path="/venue/auth"
+          element={
+            <GuestRoute allowedRole="venue" redirectTo="/venue">
+              <VenueAuthPage />
+            </GuestRoute>
+          }
+        />
+
+        <Route
+          path="/venue"
+          element={
+            <ProtectedRoute requiredRole="venue" loginPath="/venue/auth">
+              <VenueLayout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<VenueDashboardPage />} />
-          <Route path="auth" element={<VenueAuthPage />} />
           <Route path="bookings" element={<VenueBookingsPage />} />
           <Route path="venues" element={<VenueListPage />} />
           <Route path="venues/add" element={<AddVenuePage />} />
-
         </Route>
 
         <Route path="/admin" element={<AdminLayout />}>

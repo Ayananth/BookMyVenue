@@ -1,34 +1,72 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { GoogleLogin } from "@react-oauth/google"
 import { motion } from "framer-motion"
 import { Mail, Phone } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 
-import { loginWithGoogleVenue } from "../../../apis/auth"
+import {
+  loginVenue,
+  loginWithGoogleVenue,
+  parseAuthError,
+  registerVenue,
+} from "../../../apis/auth"
 import { useAuth } from "../../../contexts/AuthContext"
 
 const methods = [
-  { id: "phone", label: "Phone", icon: Phone },
   { id: "email", label: "Email", icon: Mail },
+  { id: "phone", label: "Phone", icon: Phone },
 ]
 
 export default function VenueAuthPage() {
   const { login } = useAuth()
-  const navigate = useNavigate();
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const [method, setMethod] = useState("phone")
-  const [phone, setPhone] = useState("")
+  const [mode, setMode] = useState("login")
+  const [method, setMethod] = useState("email")
+  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
   const [googleError, setGoogleError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  const handleSubmit = (event) => {
-    event.preventDefault()
+  useEffect(() => {
+    if (location.state?.wrongRole) {
+      setError("This account is not registered as a venue partner.")
+    }
+  }, [location.state])
 
-    if (method === "phone") {
-      console.log(phone)
-    } else {
-      console.log(email)
+  const redirectAfterAuth = () => {
+    const from = location.state?.from?.pathname
+    navigate(from && from.startsWith("/venue") ? from : "/venue", {
+      replace: true,
+    })
+  }
+
+  const handleEmailSubmit = async (event) => {
+    event.preventDefault()
+    setError("")
+    setSubmitting(true)
+
+    try {
+      const payload =
+        mode === "register"
+          ? { email, password, full_name: fullName || undefined }
+          : { email, password }
+
+      const data =
+        mode === "register"
+          ? await registerVenue(payload)
+          : await loginVenue(payload)
+
+      login(data.access_token, data.user)
+      redirectAfterAuth()
+    } catch (err) {
+      setError(parseAuthError(err))
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -45,15 +83,19 @@ export default function VenueAuthPage() {
 
     try {
       const data = await loginWithGoogleVenue(idToken)
-
       login(data.access_token, data.user)
-
-      navigate("/venue")
+      redirectAfterAuth()
     } catch {
       setGoogleError("Google sign-in failed. Please try again.")
     } finally {
       setGoogleLoading(false)
     }
+  }
+
+  const toggleMode = () => {
+    setMode((current) => (current === "login" ? "register" : "login"))
+    setError("")
+    setPassword("")
   }
 
   return (
@@ -71,7 +113,7 @@ export default function VenueAuthPage() {
             </span>
 
             <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-foreground">
-              Sign in to BookMyVenue
+              {mode === "login" ? "Sign in to BookMyVenue" : "Create your account"}
             </h1>
 
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -131,26 +173,31 @@ export default function VenueAuthPage() {
               ))}
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-              {method === "phone" ? (
-                <div>
-                  <label
-                    htmlFor="phone"
-                    className="text-sm font-medium text-foreground"
-                  >
-                    Phone number
-                  </label>
+            {method === "phone" ? (
+              <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+                Phone sign-in is coming soon. Please use email for now.
+              </div>
+            ) : (
+              <form onSubmit={handleEmailSubmit} className="mt-5 space-y-4">
+                {mode === "register" && (
+                  <div>
+                    <label
+                      htmlFor="fullName"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Full name
+                    </label>
+                    <input
+                      id="fullName"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Your name"
+                      className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                )}
 
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 9876543210"
-                    className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                </div>
-              ) : (
                 <div>
                   <label
                     htmlFor="email"
@@ -158,35 +205,70 @@ export default function VenueAuthPage() {
                   >
                     Email address
                   </label>
-
                   <input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="owner@example.com"
+                    required
+                    autoComplete="email"
                     className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
-              )}
 
-              <button
-                type="submit"
-                className="w-full rounded-full bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-              >
-                {method === "phone"
-                  ? "Continue with phone"
-                  : "Continue with email"}
-              </button>
-            </form>
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    minLength={8}
+                    autoComplete={
+                      mode === "login" ? "current-password" : "new-password"
+                    }
+                    className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-sm text-red-600" role="alert">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full rounded-full bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting
+                    ? mode === "login"
+                      ? "Signing in..."
+                      : "Creating account..."
+                    : mode === "login"
+                      ? "Sign in"
+                      : "Create account"}
+                </button>
+              </form>
+            )}
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              New venue partner?
+              {mode === "login" ? "New venue partner?" : "Already have an account?"}
               <button
                 type="button"
+                onClick={toggleMode}
                 className="ml-1 font-semibold text-primary hover:underline"
               >
-                Create account
+                {mode === "login" ? "Create account" : "Sign in"}
               </button>
             </p>
 
