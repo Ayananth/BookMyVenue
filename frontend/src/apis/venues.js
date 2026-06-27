@@ -18,6 +18,14 @@ export function parseVenueError(error) {
   return "Something went wrong. Please try again."
 }
 
+export async function fetchMyVenues() {
+  const { data } = await api.get("/venues/", {
+    ...apiConfig,
+    params: { mine: true },
+  })
+  return data.results ?? data
+}
+
 export async function fetchVenueFormCategories() {
   const { data } = await api.get("/venues/categories", apiConfig)
   return data
