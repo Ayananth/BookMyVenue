@@ -20,6 +20,7 @@ from venues.models import (
     VenueSchedule,
     VenueScheduleGroup,
     VenueScheduleGroupDay,
+    VenueScheduleOverride,
     VenueStatus,
 )
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
@@ -30,6 +31,8 @@ from venues.serializers import (
     VenueListSerializer,
     VenueScheduleGroupReadSerializer,
     VenueScheduleGroupWriteSerializer,
+    VenueScheduleOverrideReadSerializer,
+    VenueScheduleOverrideWriteSerializer,
     VenueUpdateSerializer,
     VenueWriteSerializer,
 )
@@ -321,3 +324,94 @@ class VenueScheduleGroupDetailView(APIView):
         group = serializer.save()
         group = _get_schedule_group(venue, group.pk)
         return Response(_schedule_group_response(group))
+
+
+def _schedule_overrides_queryset(venue):
+    return venue.schedule_overrides.order_by("override_date", "start_time")
+
+
+def _schedule_override_response(override):
+    return VenueScheduleOverrideReadSerializer(override).data
+
+
+def _get_schedule_override(venue, override_id):
+    return get_object_or_404(
+        _schedule_overrides_queryset(venue),
+        pk=override_id,
+    )
+
+
+class VenueScheduleOverrideListCreateView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [CanManageVenues(), IsVenueOwnerOrAdmin()]
+
+    def get(self, request, slug):
+        venue = _get_venue_detail(request, slug)
+        overrides = _schedule_overrides_queryset(venue)
+        serializer = VenueScheduleOverrideReadSerializer(overrides, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, slug):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+
+        serializer = VenueScheduleOverrideWriteSerializer(
+            data=request.data,
+            context={"venue": venue},
+        )
+        serializer.is_valid(raise_exception=True)
+        override = serializer.save()
+        return Response(
+            _schedule_override_response(override),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VenueScheduleOverrideDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [CanManageVenues(), IsVenueOwnerOrAdmin()]
+
+    def get(self, request, slug, override_id):
+        venue = _get_venue_detail(request, slug)
+        override = _get_schedule_override(venue, override_id)
+        return Response(_schedule_override_response(override))
+
+    def put(self, request, slug, override_id):
+        return self._update(request, slug, override_id, partial=False)
+
+    def patch(self, request, slug, override_id):
+        return self._update(request, slug, override_id, partial=True)
+
+    def delete(self, request, slug, override_id):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+        override = get_object_or_404(
+            VenueScheduleOverride,
+            pk=override_id,
+            venue=venue,
+        )
+        override.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _update(self, request, slug, override_id, partial):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+        override = get_object_or_404(
+            VenueScheduleOverride,
+            pk=override_id,
+            venue=venue,
+        )
+
+        serializer = VenueScheduleOverrideWriteSerializer(
+            override,
+            data=request.data,
+            partial=partial,
+            context={"venue": venue},
+        )
+        serializer.is_valid(raise_exception=True)
+        override = serializer.save()
+        return Response(_schedule_override_response(override))

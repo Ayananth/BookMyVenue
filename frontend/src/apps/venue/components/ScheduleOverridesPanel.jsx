@@ -9,7 +9,13 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
+  overrideFromApi,
+  parseScheduleGroupError,
+} from "@/apis/venueSchedules"
+import { useVenueScheduleOverrides } from "@/apps/venue/hooks/useVenueScheduleOverrides"
+import {
   OVERRIDE_BOOKING_TYPE_HINTS,
+  buildScheduleOverridePayload,
   createScheduleOverride,
   formatOverrideDate,
   formatOverrideTimeRange,
@@ -72,11 +78,19 @@ function OverrideRow({ override, onEdit, onDelete }) {
 }
 
 export default function ScheduleOverridesPanel({ venue, bookingType }) {
-  const [overrides, setOverrides] = useState([])
+  const {
+    overrides,
+    setOverrides,
+    loading,
+    loadError,
+    persistOverride,
+    removeOverride,
+  } = useVenueScheduleOverrides(venue)
   const [form, setForm] = useState(EMPTY_FORM)
   const [editingOverrideId, setEditingOverrideId] = useState(null)
   const [formError, setFormError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const sortedOverrides = useMemo(
     () =>
@@ -96,7 +110,7 @@ export default function ScheduleOverridesPanel({ venue, bookingType }) {
     setFormError("")
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setFormError("")
     setSuccessMessage("")
 
@@ -116,13 +130,18 @@ export default function ScheduleOverridesPanel({ venue, bookingType }) {
         editingOverrideId,
       )
 
+      setSaving(true)
+      const payload = buildScheduleOverridePayload(override)
+      const saved = await persistOverride(payload, editingOverrideId)
+      const mapped = overrideFromApi(saved)
+
       setOverrides((prev) => {
         if (editingOverrideId) {
           return prev.map((item) =>
-            item.id === editingOverrideId ? override : item,
+            item.id === editingOverrideId ? mapped : item,
           )
         }
-        return [...prev, override]
+        return [...prev, mapped]
       })
 
       setSuccessMessage(
@@ -133,7 +152,9 @@ export default function ScheduleOverridesPanel({ venue, bookingType }) {
       resetForm()
       window.setTimeout(() => setSuccessMessage(""), 4000)
     } catch (error) {
-      setFormError(error.message)
+      setFormError(parseScheduleGroupError(error))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -150,12 +171,25 @@ export default function ScheduleOverridesPanel({ venue, bookingType }) {
     setSuccessMessage("")
   }
 
-  const handleDelete = (overrideId) => {
-    setOverrides((prev) => prev.filter((item) => item.id !== overrideId))
-    if (editingOverrideId === overrideId) resetForm()
+  const handleDelete = async (overrideId) => {
+    setFormError("")
+    try {
+      await removeOverride(overrideId)
+      if (editingOverrideId === overrideId) resetForm()
+    } catch (error) {
+      setFormError(parseScheduleGroupError(error))
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10)
+
+  if (loading) {
+    return (
+      <section className="rounded-2xl border border-border/60 bg-white/70 px-6 py-16 text-center shadow-sm backdrop-blur-sm animate-pulse">
+        <p className="text-sm text-muted-foreground">Loading blocked dates...</p>
+      </section>
+    )
+  }
 
   return (
     <section className="rounded-2xl border border-border/60 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
@@ -172,6 +206,12 @@ export default function ScheduleOverridesPanel({ venue, bookingType }) {
           </p>
         </div>
       </div>
+
+      {loadError && (
+        <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </p>
+      )}
 
       <p className="mb-6 rounded-xl bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         {hint}
@@ -275,10 +315,15 @@ export default function ScheduleOverridesPanel({ venue, bookingType }) {
         <button
           type="button"
           onClick={handleSubmit}
+          disabled={saving}
           className="btn btn-primary inline-flex items-center gap-2 cursor-pointer"
         >
           {editingOverrideId ? <Save size={16} /> : <Plus size={16} />}
-          {editingOverrideId ? "Update Block" : "Add Block"}
+          {saving
+            ? "Saving..."
+            : editingOverrideId
+              ? "Update Block"
+              : "Add Block"}
         </button>
         {editingOverrideId && (
           <button

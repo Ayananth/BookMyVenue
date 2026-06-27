@@ -11,6 +11,7 @@ from venues.models import (
     VenueSchedule,
     VenueScheduleGroup,
     VenueScheduleGroupDay,
+    VenueScheduleOverride,
     VenueStatus,
 )
 from venues.utils import generate_unique_venue_slug
@@ -469,4 +470,139 @@ class VenueScheduleGroupWriteSerializer(serializers.Serializer):
         instance.save()
 
         _replace_schedule_group_children(instance, days, schedules)
+        return instance
+
+
+class VenueScheduleOverrideReadSerializer(serializers.ModelSerializer):
+    is_full_day = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VenueScheduleOverride
+        fields = (
+            "id",
+            "override_date",
+            "start_time",
+            "end_time",
+            "is_available",
+            "reason",
+            "is_full_day",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_is_full_day(self, obj) -> bool:
+        return obj.start_time is None and obj.end_time is None
+
+
+def _override_is_full_day(start_time, end_time) -> bool:
+    return start_time is None and end_time is None
+
+
+def _overrides_overlap(
+    date_a,
+    start_a,
+    end_a,
+    date_b,
+    start_b,
+    end_b,
+) -> bool:
+    if date_a != date_b:
+        return False
+    if _override_is_full_day(start_a, end_a) or _override_is_full_day(start_b, end_b):
+        return True
+    return start_a < end_b and start_b < end_a
+
+
+def _validate_override_no_overlap(
+    venue: Venue,
+    override_date,
+    start_time,
+    end_time,
+    exclude_override_id: int | None = None,
+) -> None:
+    queryset = VenueScheduleOverride.objects.filter(
+        venue=venue,
+        override_date=override_date,
+    )
+    if exclude_override_id is not None:
+        queryset = queryset.exclude(pk=exclude_override_id)
+
+    for existing in queryset:
+        if _overrides_overlap(
+            override_date,
+            start_time,
+            end_time,
+            existing.override_date,
+            existing.start_time,
+            existing.end_time,
+        ):
+            if _override_is_full_day(existing.start_time, existing.end_time):
+                label = "full day"
+            else:
+                label = f"{existing.start_time.strftime('%H:%M')}–{existing.end_time.strftime('%H:%M')}"
+            raise serializers.ValidationError(
+                {
+                    "override_date": (
+                        f"This block overlaps with an existing entry on "
+                        f"{override_date} ({label})."
+                    ),
+                },
+            )
+
+
+class VenueScheduleOverrideWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VenueScheduleOverride
+        fields = (
+            "override_date",
+            "start_time",
+            "end_time",
+            "is_available",
+            "reason",
+        )
+
+    def validate(self, attrs):
+        start_time = attrs.get(
+            "start_time",
+            getattr(self.instance, "start_time", None),
+        )
+        end_time = attrs.get(
+            "end_time",
+            getattr(self.instance, "end_time", None),
+        )
+        override_date = attrs.get(
+            "override_date",
+            getattr(self.instance, "override_date", None),
+        )
+
+        start_is_null = start_time is None
+        end_is_null = end_time is None
+        if start_is_null != end_is_null:
+            raise serializers.ValidationError(
+                "Provide both start and end time, or leave both empty for a full-day block.",
+            )
+        if not start_is_null and end_time <= start_time:
+            raise serializers.ValidationError("End time must be after start time.")
+
+        venue = self.context["venue"]
+        exclude_override_id = self.instance.pk if self.instance else None
+        _validate_override_no_overlap(
+            venue,
+            override_date,
+            start_time,
+            end_time,
+            exclude_override_id,
+        )
+
+        return attrs
+
+    def create(self, validated_data):
+        venue = self.context["venue"]
+        return VenueScheduleOverride.objects.create(venue=venue, **validated_data)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
         return instance

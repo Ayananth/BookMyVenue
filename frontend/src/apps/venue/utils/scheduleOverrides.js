@@ -68,7 +68,7 @@ export function createScheduleOverride({
     start_time: normalizedStart,
     end_time: normalizedEnd,
     is_available: false,
-    reason: reason.trim(),
+    reason: (reason ?? "").trim(),
   }
 }
 

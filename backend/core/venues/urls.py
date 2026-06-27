@@ -9,6 +9,8 @@ from venues.views import (
     VenueLocationListView,
     VenueScheduleGroupDetailView,
     VenueScheduleGroupListCreateView,
+    VenueScheduleOverrideDetailView,
+    VenueScheduleOverrideListCreateView,
 )
 
 urlpatterns = [
@@ -25,6 +27,16 @@ urlpatterns = [
         "<slug:slug>/schedule-groups/<int:group_id>/",
         VenueScheduleGroupDetailView.as_view(),
         name="venue-schedule-group-detail",
+    ),
+    path(
+        "<slug:slug>/schedule-overrides/",
+        VenueScheduleOverrideListCreateView.as_view(),
+        name="venue-schedule-override-list-create",
+    ),
+    path(
+        "<slug:slug>/schedule-overrides/<int:override_id>/",
+        VenueScheduleOverrideDetailView.as_view(),
+        name="venue-schedule-override-detail",
     ),
     path("<slug:slug>/", VenueDetailView.as_view(), name="venue-detail"),
 ]

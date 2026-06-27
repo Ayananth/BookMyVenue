@@ -82,3 +82,54 @@ export function fullDayGroupFromApi(group) {
     schedules: group.schedules.map(scheduleFromApi),
   }
 }
+
+export function isPersistedOverrideId(id) {
+  if (id == null || id === "") return false
+  return /^\d+$/.test(String(id))
+}
+
+export function overrideFromApi(entry) {
+  const isFullDay =
+    entry.is_full_day ??
+    (entry.start_time == null && entry.end_time == null)
+
+  return {
+    id: String(entry.id),
+    override_date: entry.override_date,
+    isFullDay,
+    start_time: entry.start_time?.slice(0, 5) ?? null,
+    end_time: entry.end_time?.slice(0, 5) ?? null,
+    is_available: entry.is_available,
+    reason: entry.reason ?? "",
+  }
+}
+
+export async function fetchVenueScheduleOverrides(slug) {
+  const { data } = await api.get(`/venues/${slug}/schedule-overrides/`, apiConfig)
+  return data
+}
+
+export async function createVenueScheduleOverride(slug, payload) {
+  const { data } = await api.post(
+    `/venues/${slug}/schedule-overrides/`,
+    payload,
+    apiConfig,
+  )
+  return data
+}
+
+export async function updateVenueScheduleOverride(slug, overrideId, payload) {
+  const { data } = await api.put(
+    `/venues/${slug}/schedule-overrides/${overrideId}/`,
+    payload,
+    apiConfig,
+  )
+  return data
+}
+
+export async function deleteVenueScheduleOverride(slug, overrideId) {
+  await api.delete(
+    `/venues/${slug}/schedule-overrides/${overrideId}/`,
+    apiConfig,
+  )
+}
