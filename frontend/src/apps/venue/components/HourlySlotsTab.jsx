@@ -14,6 +14,8 @@ import {
   WEEKDAYS,
   createClientId,
   formatDaySelection,
+  getAvailableWeekdays,
+  getAssignedDays,
   formatIndianPrice,
   formatCompactSlotRange,
   formatSlotName,
@@ -102,6 +104,18 @@ export default function HourlySlotsTab({ venue }) {
       ),
     [draft.slots],
   )
+
+  const availableDays = useMemo(
+    () => getAvailableWeekdays(groups, editingGroupId),
+    [groups, editingGroupId],
+  )
+
+  const assignedElsewhereLabels = useMemo(() => {
+    const assigned = getAssignedDays(groups, editingGroupId)
+    return [...assigned]
+      .sort((a, b) => a - b)
+      .map((day) => WEEKDAYS.find((item) => item.value === day)?.short ?? day)
+  }, [groups, editingGroupId])
 
   const resetDraft = () => {
     setDraft(EMPTY_DRAFT)
@@ -352,29 +366,41 @@ export default function HourlySlotsTab({ venue }) {
                 <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground/90">
                   Select Days
                 </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-                  {WEEKDAYS.map((day) => {
-                    const checked = draft.days.includes(day.value)
-                    return (
-                      <label
-                        key={day.value}
-                        className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
-                          checked
-                            ? "border-primary/30 bg-primary/5 text-primary"
-                            : "border-border/60 bg-white hover:border-primary/20"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="accent-primary"
-                          checked={checked}
-                          onChange={() => toggleDay(day.value)}
-                        />
-                        <span className="font-medium">{day.short}</span>
-                      </label>
-                    )
-                  })}
-                </div>
+                {availableDays.length === 0 ? (
+                  <p className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                    All days are already assigned to other schedule groups. Edit or
+                    delete an existing group to free up days.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                    {availableDays.map((day) => {
+                      const checked = draft.days.includes(day.value)
+                      return (
+                        <label
+                          key={day.value}
+                          className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+                            checked
+                              ? "border-primary/30 bg-primary/5 text-primary"
+                              : "border-border/60 bg-white hover:border-primary/20"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="accent-primary"
+                            checked={checked}
+                            onChange={() => toggleDay(day.value)}
+                          />
+                          <span className="font-medium">{day.short}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+                {assignedElsewhereLabels.length > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Already scheduled: {assignedElsewhereLabels.join(", ")}
+                  </p>
+                )}
               </div>
             </div>
           </div>

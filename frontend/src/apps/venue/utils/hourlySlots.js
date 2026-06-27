@@ -44,6 +44,20 @@ export function formatIndianPrice(amount) {
   }).format(numeric)
 }
 
+export function getAssignedDays(groups, excludeGroupId = null) {
+  const assigned = new Set()
+  for (const group of groups) {
+    if (group.id === excludeGroupId) continue
+    for (const day of group.days) assigned.add(day)
+  }
+  return assigned
+}
+
+export function getAvailableWeekdays(groups, excludeGroupId = null) {
+  const assigned = getAssignedDays(groups, excludeGroupId)
+  return WEEKDAYS.filter((day) => !assigned.has(day.value))
+}
+
 export function formatDaySelection(days) {
   if (!days.length) return "No days selected"
   const sorted = [...days].sort((a, b) => a - b)
