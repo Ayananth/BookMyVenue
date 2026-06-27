@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Phone,
   Pencil,
+  CalendarClock,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -75,6 +76,7 @@ export default function AddVenuePage() {
   const [submitError, setSubmitError] = useState("")
 
   const [formData, setFormData] = useState(EMPTY_FORM)
+  const [activeTab, setActiveTab] = useState("details")
 
   const fieldsDisabled = isEditMode && !isEditing
 
@@ -187,6 +189,16 @@ const handleDrop = async (e) => {
 
   await uploadFiles(files)
 }
+
+  const handleTabChange = (tab) => {
+    if (tab === "slots" && isEditing && venue) {
+      applyVenueToForm(venue)
+      setAmenityInput("")
+      setSubmitError("")
+      setIsEditing(false)
+    }
+    setActiveTab(tab)
+  }
 
   const handleCancelEdit = () => {
     if (venue) applyVenueToForm(venue)
@@ -407,14 +419,16 @@ const uploadFiles = async (files) => {
 
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
             {isEditMode
-              ? fieldsDisabled
-                ? "View your venue details. Click Edit to make changes."
-                : "Edit your venue details and save changes instantly."
+              ? activeTab === "slots"
+                ? "Configure opening hours and booking slots for this venue."
+                : fieldsDisabled
+                  ? "View your venue details. Click Edit to make changes."
+                  : "Edit your venue details and save changes instantly."
               : "Create and publish a venue to showcase on our booking website."}
           </p>
         </div>
 
-        {isEditMode && fieldsDisabled && (
+        {isEditMode && activeTab === "details" && fieldsDisabled && (
           <button
             type="button"
             onClick={() => {
@@ -467,6 +481,48 @@ const uploadFiles = async (files) => {
         </p>
       )}
 
+      {isEditMode && (
+        <div className="mb-6 flex gap-1 border-b border-border">
+          <button
+            type="button"
+            onClick={() => handleTabChange("details")}
+            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              activeTab === "details"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Details
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("slots")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              activeTab === "slots"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CalendarClock size={16} />
+            Slots
+          </button>
+        </div>
+      )}
+
+      {isEditMode && activeTab === "slots" ? (
+        <div className="rounded-2xl border border-dashed border-border/80 bg-white/70 px-6 py-20 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <CalendarClock size={28} />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-foreground">
+            Slot configuration
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            Set opening hours, schedule groups, and bookable time slots for this
+            venue.
+          </p>
+        </div>
+      ) : (
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -1057,9 +1113,10 @@ const uploadFiles = async (files) => {
           </motion.section>
         </div>
       </motion.div>
+      )}
 
       {/* Footer Form Submission buttons */}
-      {(!isEditMode || isEditing) && (
+      {activeTab === "details" && (!isEditMode || isEditing) && (
       <div className="flex flex-col items-end gap-3 mt-8 border-t border-border/40 pt-6">
         {submitError && (
           <p className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
