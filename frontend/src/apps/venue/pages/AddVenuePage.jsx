@@ -34,6 +34,7 @@ import {
 } from "@/apis/venues"
 import HourlySlotsTab from "@/apps/venue/components/HourlySlotsTab"
 import SessionSlotsTab from "@/apps/venue/components/SessionSlotsTab"
+import FullDaySlotsTab from "@/apps/venue/components/FullDaySlotsTab"
 
 const EMPTY_FORM = {
   name: "",
@@ -512,27 +513,25 @@ const uploadFiles = async (files) => {
       )}
 
       {isEditMode && activeTab === "slots" ? (
-        (venue?.booking_type ?? formData.bookingType) === "hourly" ? (
-          <HourlySlotsTab venue={venue} />
-        ) : (venue?.booking_type ?? formData.bookingType) === "session" ? (
-          <SessionSlotsTab venue={venue} />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-white/70 px-6 py-20 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <CalendarClock size={28} />
+        (() => {
+          const bookingType = venue?.booking_type ?? formData.bookingType
+          if (bookingType === "hourly") return <HourlySlotsTab venue={venue} />
+          if (bookingType === "session") return <SessionSlotsTab venue={venue} />
+          if (bookingType === "full_day") return <FullDaySlotsTab venue={venue} />
+          return (
+            <div className="rounded-2xl border border-dashed border-border/80 bg-white/70 px-6 py-20 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <CalendarClock size={28} />
+              </div>
+              <h2 className="mt-4 text-lg font-semibold text-foreground">
+                Slot configuration
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                Set the venue booking type on the Details tab to configure slots.
+              </p>
             </div>
-            <h2 className="mt-4 text-lg font-semibold text-foreground">
-              {selectedBookingType
-                ? `${selectedBookingType.label} slot configuration`
-                : "Slot configuration"}
-            </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              {selectedBookingType?.value === "full_day"
-                ? "Full-day scheduling will be available in the next step."
-                : "Set the venue booking type on the Details tab to configure slots."}
-            </p>
-          </div>
-        )
+          )
+        })()
       ) : (
       <motion.div
         variants={containerVariants}

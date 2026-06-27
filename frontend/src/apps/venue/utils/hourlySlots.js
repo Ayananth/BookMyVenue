@@ -193,15 +193,65 @@ export function validateSessionAgainstExisting(session, existingSessions, exclud
 }
 
 export function buildSessionScheduleGroupPayload(group) {
+  return buildScheduleEntriesPayload(group.name, group.days, group.sessions)
+}
+
+export function createSchedule({ name, startTime, endTime, price, id }) {
+  const trimmedName = name.trim()
+  if (!trimmedName) {
+    throw new Error("Schedule name is required.")
+  }
+
+  const startMinutes = parseTimeToMinutes(startTime)
+  const endMinutes = parseTimeToMinutes(endTime)
+  if (endMinutes <= startMinutes) {
+    throw new Error("End time must be after start time.")
+  }
+
+  const numericPrice = Number(price)
+  if (Number.isNaN(numericPrice) || numericPrice < 0) {
+    throw new Error("Price must be zero or greater.")
+  }
+
   return {
-    name: group.name.trim(),
-    days: [...group.days].sort((a, b) => a - b),
-    schedules: group.sessions.map((session) => ({
-      name: session.name,
-      start_time: `${session.start_time}:00`,
-      end_time: `${session.end_time}:00`,
-      price: Number(session.price),
-      is_available: session.is_available,
+    id: id ?? createClientId("schedule"),
+    name: trimmedName,
+    start_time: startTime.slice(0, 5),
+    end_time: endTime.slice(0, 5),
+    price: numericPrice,
+    is_available: true,
+  }
+}
+
+export function validateScheduleAgainstExisting(
+  schedule,
+  existingSchedules,
+  excludeId = null,
+) {
+  for (const existing of existingSchedules) {
+    if (excludeId && existing.id === excludeId) continue
+    if (sessionsOverlap(schedule, existing)) {
+      throw new Error(
+        `"${schedule.name}" overlaps with "${existing.name}" (${formatSlotName(existing.start_time, existing.end_time)}).`,
+      )
+    }
+  }
+}
+
+function buildScheduleEntriesPayload(name, days, schedules) {
+  return {
+    name: name.trim(),
+    days: [...days].sort((a, b) => a - b),
+    schedules: schedules.map((schedule) => ({
+      name: schedule.name,
+      start_time: `${schedule.start_time}:00`,
+      end_time: `${schedule.end_time}:00`,
+      price: Number(schedule.price),
+      is_available: schedule.is_available,
     })),
   }
+}
+
+export function buildFullDayScheduleGroupPayload(group) {
+  return buildScheduleEntriesPayload(group.name, group.days, group.schedules)
 }
