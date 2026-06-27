@@ -35,6 +35,7 @@ import {
 import HourlySlotsTab from "@/apps/venue/components/HourlySlotsTab"
 import SessionSlotsTab from "@/apps/venue/components/SessionSlotsTab"
 import FullDaySlotsTab from "@/apps/venue/components/FullDaySlotsTab"
+import ScheduleOverridesPanel from "@/apps/venue/components/ScheduleOverridesPanel"
 
 const EMPTY_FORM = {
   name: "",
@@ -515,20 +516,28 @@ const uploadFiles = async (files) => {
       {isEditMode && activeTab === "slots" ? (
         (() => {
           const bookingType = venue?.booking_type ?? formData.bookingType
-          if (bookingType === "hourly") return <HourlySlotsTab venue={venue} />
-          if (bookingType === "session") return <SessionSlotsTab venue={venue} />
-          if (bookingType === "full_day") return <FullDaySlotsTab venue={venue} />
-          return (
-            <div className="rounded-2xl border border-dashed border-border/80 bg-white/70 px-6 py-20 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <CalendarClock size={28} />
+          if (!bookingType) {
+            return (
+              <div className="rounded-2xl border border-dashed border-border/80 bg-white/70 px-6 py-20 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <CalendarClock size={28} />
+                </div>
+                <h2 className="mt-4 text-lg font-semibold text-foreground">
+                  Slot configuration
+                </h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                  Set the venue booking type on the Details tab to configure slots.
+                </p>
               </div>
-              <h2 className="mt-4 text-lg font-semibold text-foreground">
-                Slot configuration
-              </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                Set the venue booking type on the Details tab to configure slots.
-              </p>
+            )
+          }
+
+          return (
+            <div className="space-y-8">
+              {bookingType === "hourly" && <HourlySlotsTab venue={venue} />}
+              {bookingType === "session" && <SessionSlotsTab venue={venue} />}
+              {bookingType === "full_day" && <FullDaySlotsTab venue={venue} />}
+              <ScheduleOverridesPanel venue={venue} bookingType={bookingType} />
             </div>
           )
         })()
