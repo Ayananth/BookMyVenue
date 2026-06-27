@@ -12,26 +12,35 @@ import {
   Users,
   Clock,
   ArrowLeft,
-  CheckCircle,
-  HelpCircle,
   Phone
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import api from "@/lib/axios"
+import {
+  buildVenuePayload,
+  createVenue,
+  fetchVenueFormCategories,
+  fetchVenueFormLocations,
+  parseVenueError,
+  uploadVenueImage,
+  VENUE_BOOKING_TYPES,
+} from "@/apis/venues"
 
 export default function AddVenuePage() {
   const navigate = useNavigate()
 
   const [categories, setCategories] = useState([])
   const [locations, setLocations] = useState([])
-  const [bookingTypes, setBookingTypes] = useState([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [optionsError, setOptionsError] = useState("")
 
   const [amenityInput, setAmenityInput] = useState("")
   const [amenities, setAmenities] = useState([])
 
   const [images, setImages] = useState([])
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState("")
 
   const [formData, setFormData] = useState({
     name: "",
@@ -49,28 +58,21 @@ export default function AddVenuePage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // Mock API calls
-      setCategories([
-        "Auditorium",
-        "Sports",
-        "Conference",
-        "Cafe",
-        "Other",
-      ])
+      setLoadingOptions(true)
+      setOptionsError("")
 
-      setLocations([
-        "Thrissur",
-        "Kochi",
-        "Trivandrum",
-        "Calicut",
-        "Palakkad",
-      ])
-
-      setBookingTypes([
-        "Hourly",
-        "Session",
-        "Full Day",
-      ])
+      try {
+        const [categoryData, locationData] = await Promise.all([
+          fetchVenueFormCategories(),
+          fetchVenueFormLocations(),
+        ])
+        setCategories(categoryData)
+        setLocations(locationData)
+      } catch {
+        setOptionsError("Failed to load categories and locations.")
+      } finally {
+        setLoadingOptions(false)
+      }
     }
 
     fetchData()
@@ -103,22 +105,8 @@ const handleImages = async (e) => {
 }
 
   const uploadSingleImage = async (file) => {
-    const formData = new FormData();
-
-    formData.append("file", file);
-
-    const response = await api.post(
-      "/uploads/image",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
-
-    return response.data;
-  };
+    return uploadVenueImage(file)
+  }
 
   const removeImage = (index) => {
     setImages((prev) => prev.filter((_, i) => i !== index))
@@ -147,29 +135,47 @@ const handleDrop = async (e) => {
 }
 
   const handleSubmit = async () => {
+    setSubmitError("")
+
+    const missingFields = []
+    if (!formData.name.trim()) missingFields.push("venue name")
+    if (!formData.category) missingFields.push("category")
+    if (!formData.bookingType) missingFields.push("booking type")
+    if (!formData.capacity) missingFields.push("capacity")
+    if (!formData.location) missingFields.push("location")
+    if (!formData.address.trim()) missingFields.push("address")
+    if (!formData.description.trim()) missingFields.push("description")
+    if (!formData.contactName.trim()) missingFields.push("contact person")
+    if (!formData.contactPhone.trim()) missingFields.push("contact phone")
+    if (!formData.contactEmail.trim()) missingFields.push("contact email")
+
+    if (missingFields.length > 0) {
+      setSubmitError(`Please fill in: ${missingFields.join(", ")}.`)
+      return
+    }
+
+    setSubmitting(true)
+
     try {
-      const payload = {
-        ...formData,
-        amenities,
-        images,
-      }
-
-      const response = await api.post("/venues/add", payload)
-
-      window.alert("Venue created successfully!", "success")
-
-      console.log("Venue created:", response.data)
-
-      // Optional: reset form or navigate
-      // navigate("/venues")
+      const payload = buildVenuePayload(formData, amenities, images)
+      const venue = await createVenue(payload)
+      navigate(`/venue/venues`, { replace: true, state: { createdVenue: venue.name } })
     } catch (error) {
-      console.error("Error creating venue:", error)
-
-      if (error.response) {
-        console.error("Backend error:", error.response.data)
-      }
+      setSubmitError(parseVenueError(error))
+    } finally {
+      setSubmitting(false)
     }
   }
+
+  const selectedCategory = categories.find(
+    (item) => String(item.id) === String(formData.category),
+  )
+  const selectedLocation = locations.find(
+    (item) => String(item.id) === String(formData.location),
+  )
+  const selectedBookingType = VENUE_BOOKING_TYPES.find(
+    (item) => item.value === formData.bookingType,
+  )
 
   // Calculate Form Completion Progress
   const requiredFields = [
@@ -229,7 +235,7 @@ const uploadFiles = async (files) => {
           is_cover: false,
           sort_order: images.length + index + 1,
         }
-      })
+      }),
     )
 
     setImages((prev) => {
@@ -241,7 +247,8 @@ const uploadFiles = async (files) => {
 
       return merged
     })
-
+  } catch (error) {
+    setSubmitError(parseVenueError(error))
   } finally {
     setUploading(false)
   }
@@ -293,6 +300,12 @@ const uploadFiles = async (files) => {
           </span>
         </div>
       </div>
+
+      {optionsError && (
+        <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {optionsError}
+        </p>
+      )}
 
       <motion.div
         variants={containerVariants}
@@ -356,11 +369,12 @@ const uploadFiles = async (files) => {
                         category: e.target.value,
                       })
                     }
+                    disabled={loadingOptions}
                   >
                     <option value="">Select Category</option>
                     {categories.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.id} value={item.id}>
+                        {item.name}
                       </option>
                     ))}
                   </select>
@@ -384,9 +398,9 @@ const uploadFiles = async (files) => {
                     }
                   >
                     <option value="">Select Booking Type</option>
-                    {bookingTypes.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                    {VENUE_BOOKING_TYPES.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
                       </option>
                     ))}
                   </select>
@@ -440,10 +454,8 @@ const uploadFiles = async (files) => {
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
                   City / Location <span className="text-accent font-bold">*</span>
                 </label>
-                <input
-                  list="locations"
+                <select
                   className="input"
-                  placeholder="Search city/location..."
                   value={formData.location}
                   onChange={(e) =>
                     setFormData({
@@ -451,12 +463,15 @@ const uploadFiles = async (files) => {
                       location: e.target.value,
                     })
                   }
-                />
-                <datalist id="locations">
+                  disabled={loadingOptions}
+                >
+                  <option value="">Select location</option>
                   {locations.map((item) => (
-                    <option key={item} value={item} />
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </div>
 
               {/* Full Address */}
@@ -630,9 +645,9 @@ const uploadFiles = async (files) => {
                     <span className="text-xs font-medium">No Image Uploaded</span>
                   </div>
                 )}
-                {formData.category && (
+                {selectedCategory && (
                   <span className="absolute top-3 right-3 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm">
-                    {formData.category}
+                    {selectedCategory.name}
                   </span>
                 )}
               </div>
@@ -646,7 +661,9 @@ const uploadFiles = async (files) => {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <MapPin size={14} className="text-primary/70 shrink-0" />
                   <span className="line-clamp-1">
-                    {formData.location ? `${formData.location}` : "City Center, Kochi"}
+                    {selectedLocation
+                      ? selectedLocation.name
+                      : "City Center, Kochi"}
                     {formData.address ? `, ${formData.address}` : ""}
                   </span>
                 </div>
@@ -658,7 +675,7 @@ const uploadFiles = async (files) => {
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock size={14} className="text-primary/70" />
-                    <span>{formData.bookingType ? `${formData.bookingType}` : "— Booking"}</span>
+                    <span>{selectedBookingType ? selectedBookingType.label : "— Booking"}</span>
                   </div>
                 </div>
 
@@ -863,10 +880,18 @@ const uploadFiles = async (files) => {
       </motion.div>
 
       {/* Footer Form Submission buttons */}
-      <div className="flex items-center justify-end gap-3 mt-8 border-t border-border/40 pt-6">
+      <div className="flex flex-col items-end gap-3 mt-8 border-t border-border/40 pt-6">
+        {submitError && (
+          <p className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </p>
+        )}
+
+        <div className="flex items-center justify-end gap-3">
         <button
           onClick={() => navigate(-1)}
           className="btn btn-outline"
+          disabled={submitting}
         >
           Cancel
         </button>
@@ -874,9 +899,11 @@ const uploadFiles = async (files) => {
         <button
           onClick={handleSubmit}
           className="btn btn-primary"
+          disabled={submitting || loadingOptions}
         >
-          Create Venue
+          {submitting ? "Creating Venue..." : "Create Venue"}
         </button>
+        </div>
       </div>
     </div>
   )

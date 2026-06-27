@@ -3,6 +3,73 @@ import api from "../lib/axios"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
 
+const apiConfig = { baseURL: API_BASE_URL }
+
+export function parseVenueError(error) {
+  const data = error.response?.data
+  if (!data) return "Something went wrong. Please try again."
+  if (typeof data.detail === "string") return data.detail
+  if (typeof data === "object") {
+    const firstKey = Object.keys(data)[0]
+    const value = data[firstKey]
+    if (Array.isArray(value)) return value[0]
+    if (typeof value === "string") return value
+  }
+  return "Something went wrong. Please try again."
+}
+
+export async function fetchVenueFormCategories() {
+  const { data } = await api.get("/venues/categories", apiConfig)
+  return data
+}
+
+export async function fetchVenueFormLocations() {
+  const { data } = await api.get("/venues/locations", apiConfig)
+  return data
+}
+
+export async function createVenue(payload) {
+  const { data } = await api.post("/venues/add", payload, apiConfig)
+  return data
+}
+
+export async function uploadVenueImage(file) {
+  const formData = new FormData()
+  formData.append("file", file)
+  const { data } = await api.post("/uploads/image", formData, {
+    ...apiConfig,
+    headers: { "Content-Type": "multipart/form-data" },
+  })
+  return data
+}
+
+export const VENUE_BOOKING_TYPES = [
+  { value: "hourly", label: "Hourly" },
+  { value: "session", label: "Session" },
+  { value: "full_day", label: "Full Day" },
+]
+
+export function buildVenuePayload(formData, amenities, images) {
+  return {
+    name: formData.name.trim(),
+    category_id: Number(formData.category),
+    location_id: Number(formData.location),
+    address: formData.address.trim(),
+    description: formData.description.trim(),
+    capacity: Number(formData.capacity),
+    booking_type: formData.bookingType,
+    contact_name: formData.contactName.trim(),
+    contact_phone: formData.contactPhone.trim(),
+    contact_email: formData.contactEmail.trim(),
+    amenities,
+    images: images.map(({ image_url, is_cover, sort_order }) => ({
+      image_url,
+      is_cover,
+      sort_order,
+    })),
+  }
+}
+
 export function formatVenuePrice(price) {
   if (price == null || price === "") {
     return null

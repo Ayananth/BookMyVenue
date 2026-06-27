@@ -1,3 +1,8 @@
+import os
+import uuid
+
+from django.conf import settings
+from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -8,9 +13,11 @@ from rest_framework.views import APIView
 
 from accounts.models import UserRole
 from venues.filters import annotate_min_price, filter_venue_list
-from venues.models import Venue, VenueStatus
+from venues.models import Location, Venue, VenueCategory, VenueStatus
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
 from venues.serializers import (
+    LocationDropdownSerializer,
+    VenueCategorySerializer,
     VenueDetailSerializer,
     VenueListSerializer,
     VenueUpdateSerializer,
@@ -91,6 +98,59 @@ def _create_venue(request):
         _detail_response(venue),
         status=status.HTTP_201_CREATED,
     )
+
+
+class VenueCategoryListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        categories = VenueCategory.objects.filter(is_active=True).order_by("name")
+        serializer = VenueCategorySerializer(categories, many=True)
+        return Response(serializer.data)
+
+
+class VenueLocationListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        locations = Location.objects.filter(is_active=True).order_by("city", "district")
+        serializer = LocationDropdownSerializer(locations, many=True)
+        return Response(serializer.data)
+
+
+class ImageUploadView(APIView):
+    permission_classes = [CanManageVenues]
+
+    def post(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response(
+                {"detail": "No file provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        content_type = getattr(file, "content_type", "") or ""
+        if not content_type.startswith("image/"):
+            return Response(
+                {"detail": "Only image files are allowed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        extension = os.path.splitext(file.name)[1] or ".jpg"
+        filename = f"venue_images/{uuid.uuid4().hex}{extension}"
+        saved_path = default_storage.save(filename, file)
+        image_url = request.build_absolute_uri(
+            settings.MEDIA_URL + saved_path.replace("\\", "/"),
+        )
+
+        return Response(
+            {
+                "public_id": saved_path,
+                "url": image_url,
+                "secure_url": image_url,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class VenueListCreateView(APIView):

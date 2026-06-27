@@ -12,6 +12,17 @@ from venues.models import (
 from venues.utils import generate_unique_venue_slug
 
 
+class LocationDropdownSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Location
+        fields = ("id", "name")
+
+    def get_name(self, obj) -> str:
+        return f"{obj.city}, {obj.district}"
+
+
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
