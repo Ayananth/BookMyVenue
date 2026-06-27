@@ -150,32 +150,48 @@ export function formatVenuePrice(price) {
 }
 
 function toExploreVenue(venue) {
-  if (venue.type) {
+  if (venue.type && typeof venue.location === "string") {
     return venue
   }
+
+  const location =
+    typeof venue.location === "object" && venue.location
+      ? [venue.location.district, venue.location.city, venue.location.state]
+          .filter(Boolean)
+          .join(", ")
+      : [venue.district, venue.city, venue.state].filter(Boolean).join(", ")
+
+  const categoryName =
+    typeof venue.category === "object" && venue.category
+      ? venue.category.name
+      : venue.category ?? venue.type
 
   return {
     slug: venue.slug ?? venue.id?.toString(),
     name: venue.name,
-    type: venue.category,
-    location: [venue.district, venue.city, venue.state].filter(Boolean).join(", "),
+    type: categoryName,
+    location,
     address: venue.address,
     capacity: venue.capacity,
-    price: venue.price,
-    image: venue.image || "/placeholder.svg",
-    rating: null,
+    price: venue.min_price ?? venue.price,
+    image: venue.cover_image ?? venue.image ?? "/placeholder.svg",
+    rating: venue.rating ?? null,
   }
 }
 
 export async function fetchExploreVenues({ categoryId } = {}) {
-  const { data } = categoryId
-    ? await api.get("/venues/explore", {
-        baseURL: API_BASE_URL,
-        params: { category_id: categoryId, limit: 12 },
-      })
-    : await api.get("/venues/home", { baseURL: API_BASE_URL })
+  const params = { limit: 12 }
+  if (categoryId != null) {
+    params.category_id = categoryId
+  }
 
-  return data.map(toExploreVenue)
+  const { data } = await api.get("/venues/", {
+    baseURL: API_BASE_URL,
+    params,
+  })
+
+  const venues = data.results ?? data
+  return venues.map(toExploreVenue)
 }
 
 export async function fetchVenueCategories() {
