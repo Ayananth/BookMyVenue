@@ -1,9 +1,6 @@
-import cloudinary
 from cloudinary.uploader import upload
 
-from app.core.config import settings
-
-import app.core.cloudinary
+import app.core.cloudinary  # noqa: F401
 
 
 async def upload_image(file):

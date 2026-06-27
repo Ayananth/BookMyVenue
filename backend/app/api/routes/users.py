@@ -1,19 +1,21 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_current_user
-from app.core.security import create_access_token, verify_google_token
+from decimal import Decimal
+
 from app.db import get_db
-from app.models import AuthAccount, AuthProvider, User, UserRole
+from app.deps import get_current_user
+from app.models import User, UserRole
+from app.queries import user_queries
 from app.schemas.user import (
     GoogleAuthRequest,
     TokenResponse,
     UserCreate,
     UserResponse,
 )
+from app.core.security import create_access_token, verify_google_token
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -22,8 +24,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = await db.execute(select(User).order_by(User.id))
-    return result.scalars().all()
+    return await user_queries.list_users(db)
 
 
 @router.get("/me", response_model=UserResponse)
@@ -45,36 +46,28 @@ async def create_user(
         )
 
     if user_in.email is not None:
-        existing_user = await db.scalar(
-            select(User).where(User.email == user_in.email)
-        )
+        existing_user = await user_queries.get_user_by_email(db, user_in.email)
         if existing_user is not None:
             raise HTTPException(status_code=400, detail="Email already registered")
 
     if user_in.phone is not None:
-        existing_user = await db.scalar(
-            select(User).where(User.phone == user_in.phone)
-        )
+        existing_user = await user_queries.get_user_by_phone(db, user_in.phone)
         if existing_user is not None:
             raise HTTPException(status_code=400, detail="Phone already registered")
 
-    user = User(
+    return await user_queries.create_user(
+        db,
         full_name=user_in.full_name,
         email=user_in.email,
         phone=user_in.phone,
     )
-    db.add(user)
-    await db.commit()
-    await db.refresh(user)
-    return user
 
 
-async def google_auth(
+async def _google_auth(
     db: AsyncSession,
     token: str,
     expected_role: UserRole,
 ) -> TokenResponse:
-
     user_info = verify_google_token(token)
 
     if not user_info:
@@ -94,12 +87,7 @@ async def google_auth(
             detail="Google account must have an email",
         )
 
-    auth_account = await db.scalar(
-        select(AuthAccount).where(
-            AuthAccount.provider == AuthProvider.GOOGLE,
-            AuthAccount.provider_user_id == google_sub,
-        )
-    )
+    auth_account = await user_queries.get_google_auth_account(db, google_sub)
 
     if auth_account:
         user = await db.get(User, auth_account.user_id)
@@ -118,14 +106,10 @@ async def google_auth(
                     f"{user.role.value} account."
                 ),
             )
-
     else:
-        user = await db.scalar(
-            select(User).where(User.email == email)
-        )
+        user = await user_queries.get_user_by_email(db, email)
 
         if user:
-
             if user.role != expected_role:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -135,40 +119,22 @@ async def google_auth(
                     ),
                 )
 
-            auth_account = AuthAccount(
-                user_id=user.id,
-                provider=AuthProvider.GOOGLE,
-                provider_user_id=google_sub,
+            user = await user_queries.link_google_account(
+                db,
+                user=user,
+                google_sub=google_sub,
+                name=name,
+                picture=picture,
             )
-            db.add(auth_account)
-
-            if picture and not user.avatar_url:
-                user.avatar_url = picture
-
-            if name and not user.full_name:
-                user.full_name = name
-
-            user.is_email_verified = True
-
         else:
-            user = User(
+            user = await user_queries.create_user_with_google_account(
+                db,
                 email=email,
-                full_name=name,
-                avatar_url=picture,
+                name=name,
+                picture=picture,
                 role=expected_role,
-                is_email_verified=True,
+                google_sub=google_sub,
             )
-
-            db.add(user)
-            await db.flush()
-
-            auth_account = AuthAccount(
-                user_id=user.id,
-                provider=AuthProvider.GOOGLE,
-                provider_user_id=google_sub,
-            )
-
-            db.add(auth_account)
 
     if not user.is_active or user.is_blocked:
         raise HTTPException(
@@ -176,46 +142,32 @@ async def google_auth(
             detail="Account is disabled",
         )
 
-    await db.commit()
-    await db.refresh(user)
+    access_token = create_access_token({"sub": str(user.id)})
 
-    access_token = create_access_token(
-        {"sub": str(user.id)}
-    )
-
-    print(f"User {user.id} logged in with Google")
-    print(access_token)
     return TokenResponse(
         access_token=access_token,
         user=user,
     )
 
 
-
-@router.post(
-    "/google",
-    response_model=TokenResponse,
-)
+@router.post("/google", response_model=TokenResponse)
 async def google_login_user(
     data: GoogleAuthRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await google_auth(
+    return await _google_auth(
         db=db,
         token=data.token,
         expected_role=UserRole.USER,
     )
 
 
-@router.post(
-    "/venue/google",
-    response_model=TokenResponse,
-)
+@router.post("/venue/google", response_model=TokenResponse)
 async def google_login_venue(
     data: GoogleAuthRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await google_auth(
+    return await _google_auth(
         db=db,
         token=data.token,
         expected_role=UserRole.VENUE,

@@ -1,34 +1,33 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
-from app.repositories import master_repository
-from app.schemas import DropdownItem, VenueFormDataResponse
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db import get_db
-from app.repositories import master_repository
+from app.queries import master_queries
+from app.schemas.master import DropdownItem, VenueFormDataResponse
+
+router = APIRouter(prefix="/masters", tags=["Masters"])
 
 
-
-
-router = APIRouter(
-    prefix="/masters",
-    tags=["Masters"]
-)
-
-@router.get(
-    "/locations",
-    response_model=list[DropdownItem]
-)
+@router.get("/locations", response_model=list[DropdownItem])
 async def get_locations(
-    db: AsyncSession = Depends(get_db)
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await master_repository.get_locations(db)
+    rows = await master_queries.get_locations(db)
+    return [DropdownItem(id=row[0], name=row[1]) for row in rows]
 
 
-@router.get(
-    "/venue-form-data",
-    response_model=VenueFormDataResponse,
-)
+@router.get("/venue-form-data", response_model=VenueFormDataResponse)
 async def get_venue_form_data(
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await master_repository.get_venue_form_data(db)
+    data = await master_queries.get_venue_form_data(db)
+    return VenueFormDataResponse(
+        locations=[DropdownItem(id=row[0], name=row[1]) for row in data["locations"]],
+        categories=[DropdownItem(id=row[0], name=row[1]) for row in data["categories"]],
+        booking_types=[
+            DropdownItem(id=row[0], name=row[1]) for row in data["booking_types"]
+        ],
+        amenities=[DropdownItem(id=row[0], name=row[1]) for row in data["amenities"]],
+    )

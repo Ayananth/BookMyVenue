@@ -1,73 +1,43 @@
+from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
-from app.services.cloudinary_service import upload_image
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.engine import RowMapping
-
-from collections.abc import Sequence
-
-from decimal import Decimal
-
-from app.models import User
-from app.deps import get_current_user
-from app.schemas.venue import ImageUploadResponse, VenueResponse
-from app.schemas.venue import (
-    HomePageVenueCategoryResponse,
-    HomepageVenueResponse,
-    VenueCreate,
-    VenueCreateResponse
-)
-from app.models import Venue, VenueStatus
-from app.models.user import UserRole
-from fastapi import HTTPException, status 
-
-
 
 from app.db import get_db
-from app.repositories import venue_repository
-from app.models import Venue, VenueStatus
+from app.deps import get_current_user
+from app.models import User, UserRole
+from app.queries import venue_queries
 from app.schemas.venue import (
     HomePageVenueCategoryResponse,
     HomepageVenueResponse,
-    VenueResponse,
     VenueCreate,
-    VenueCreateResponse
+    VenueCreateResponse,
+    VenueResponse,
 )
 
-router = APIRouter(
-    prefix="/venues",
-    tags=["Venues"],
-)
+router = APIRouter(prefix="/venues", tags=["Venues"])
 
 
 @router.get("/all", response_model=list[VenueResponse])
 async def list_all_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = await db.execute(select(Venue).order_by(Venue.id))
-    return result.scalars().all()
+    return await venue_queries.list_all_venues(db)
 
 
 @router.get("/", response_model=list[VenueResponse])
 async def get_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    result = await db.execute(
-        select(Venue).where(
-            Venue.is_active.is_(True),
-            Venue.status == VenueStatus.APPROVED,
-        )
-    )
-    return result.scalars().all()
+    return await venue_queries.get_active_approved_venues(db)
 
 
 @router.get("/home", response_model=list[HomepageVenueResponse])
 async def get_homepage_venues(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    return await venue_repository.get_homepage_venues(db)
+    return await venue_queries.get_homepage_venues(db)
 
 
 @router.get("/explore", response_model=list[HomepageVenueResponse])
@@ -78,13 +48,13 @@ async def explore_venues(
     min_price: Decimal | None = Query(default=None, ge=0),
     max_price: Decimal | None = Query(default=None, ge=0),
     limit: int = Query(
-        default=venue_repository.EXPLORE_VENUE_DEFAULT_LIMIT,
+        default=venue_queries.EXPLORE_VENUE_DEFAULT_LIMIT,
         ge=1,
-        le=venue_repository.EXPLORE_VENUE_MAX_LIMIT,
+        le=venue_queries.EXPLORE_VENUE_MAX_LIMIT,
     ),
     offset: int = Query(default=0, ge=0),
 ):
-    return await venue_repository.explore_venues(
+    return await venue_queries.explore_venues(
         db,
         category_id=category_id,
         location_id=location_id,
@@ -96,54 +66,40 @@ async def explore_venues(
 
 
 @router.get("/categories", response_model=list[HomePageVenueCategoryResponse])
-async def get_venue_categories(db: Annotated[AsyncSession, Depends(get_db)]):
-    return await venue_repository.get_venue_categories(db)
-
-
-
+async def get_venue_categories(
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    return await venue_queries.get_venue_categories(db)
 
 
 @router.post("/add", response_model=VenueCreateResponse, status_code=201)
 async def add_venue(
     venue: VenueCreate,
-    db: Annotated[AsyncSession, Depends(get_db)], 
-    current_user: Annotated[User, Depends(get_current_user)]
-                    ):
-    
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
     if current_user.role != UserRole.VENUE:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only venue owners can add venues")
-    
-    return await venue_repository.create_venue(
-        db,
-        venue,
-        current_user.id,
-    )
-    
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only venue owners can add venues",
+        )
 
+    category = await venue_queries.get_category_by_id(db, venue.category_id)
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
 
+    location = await venue_queries.get_location_by_id(db, venue.location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
 
+    cover_count = sum(1 for image in venue.images if image.is_cover)
+    if cover_count > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Only one cover image is allowed",
+        )
 
-# @router.post(
-#     "/image",
-#     response_model=ImageUploadResponse,
-# )
-# async def upload_venue_image(
-#     file: UploadFile = File(...),
-# ):
-#     if not file.content_type.startswith("image/"):
-#         raise HTTPException(
-#             status_code=400,
-#             detail="Only image files are allowed",
-#         )
+    if venue.images and cover_count == 0:
+        venue.images[0].is_cover = True
 
-#     result = await upload_image(file)
-
-#     return ImageUploadResponse(
-#         public_id=result["public_id"],
-#         url=result["url"],
-#         secure_url=result["secure_url"],
-#         width=result["width"],
-#         height=result["height"],
-#         format=result["format"],
-#         bytes=result["bytes"],
-#     )
+    return await venue_queries.create_venue(db, venue, current_user.id)
