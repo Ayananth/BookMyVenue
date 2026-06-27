@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@react-oauth/google": "^0.13.5",
     "axios": "^1.17.0",
     "framer-motion": "^12.40.0",

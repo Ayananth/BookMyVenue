@@ -1,6 +1,8 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
 import { GoogleOAuthProvider } from "@react-oauth/google"
+import "@fontsource-variable/plus-jakarta-sans"
+import "@fontsource-variable/fraunces/standard.css"
 import App from "./App.jsx"
 import "./lib/axios.js"
 import "./index.css"

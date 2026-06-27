@@ -22,31 +22,14 @@
   --color-border: #ddd5c4;
   --color-ring: #14624a;
 
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces Variable", "Fraunces", ui-serif, Georgia, serif;
 
   --radius-xl: 1.25rem;
   --radius-2xl: 1.75rem;
 }
 
 @layer base {
-  @font-face {
-    font-family: "Plus Jakarta Sans";
-    font-style: normal;
-    font-weight: 200 800;
-    font-display: swap;
-    src: url(https://fonts.gstatic.com/s/plusjakartasans/v8/LDIbaomQNQcsA88c7O9yZ4KMCoOg4IA6-91aHEjcWuA_qU79bg.woff2)
-      format("woff2");
-  }
-  @font-face {
-    font-family: "Fraunces";
-    font-style: normal;
-    font-weight: 300 700;
-    font-display: swap;
-    src: url(https://fonts.gstatic.com/s/fraunces/v31/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9thS5w.woff2)
-      format("woff2");
-  }
-
   * {
     border-color: var(--color-border);
   }
@@ -60,6 +43,12 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  .font-serif {
+    font-optical-sizing: auto;
   }
 
   ::selection {
