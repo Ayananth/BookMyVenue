@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from accounts.models import UserRole
@@ -7,9 +8,22 @@ from venues.models import (
     Venue,
     VenueCategory,
     VenueImage,
+    VenueSchedule,
+    VenueScheduleGroup,
+    VenueScheduleGroupDay,
     VenueStatus,
 )
 from venues.utils import generate_unique_venue_slug
+
+WEEKDAY_LABELS = {
+    0: "Monday",
+    1: "Tuesday",
+    2: "Wednesday",
+    3: "Thursday",
+    4: "Friday",
+    5: "Saturday",
+    6: "Sunday",
+}
 
 
 class LocationDropdownSerializer(serializers.ModelSerializer):
@@ -296,4 +310,163 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
             instance.images.all().delete()
             save_venue_images(instance, images_data)
 
+        return instance
+
+
+class VenueScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VenueSchedule
+        fields = (
+            "id",
+            "name",
+            "start_time",
+            "end_time",
+            "price",
+            "is_available",
+        )
+        read_only_fields = ("id",)
+
+
+class VenueScheduleWriteSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    start_time = serializers.TimeField()
+    end_time = serializers.TimeField()
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    is_available = serializers.BooleanField(default=True)
+
+    def validate(self, attrs):
+        if attrs["end_time"] <= attrs["start_time"]:
+            raise serializers.ValidationError("End time must be after start time.")
+        if attrs["price"] < 0:
+            raise serializers.ValidationError("Price must be zero or greater.")
+        return attrs
+
+
+class VenueScheduleGroupReadSerializer(serializers.ModelSerializer):
+    days = serializers.SerializerMethodField()
+    schedules = VenueScheduleSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = VenueScheduleGroup
+        fields = (
+            "id",
+            "name",
+            "is_active",
+            "days",
+            "schedules",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_days(self, obj) -> list[int]:
+        return sorted(day.day_of_week for day in obj.days.all())
+
+
+def _validate_schedules_no_overlap(schedules: list[dict]) -> None:
+    for index, current in enumerate(schedules):
+        for other in schedules[index + 1 :]:
+            if (
+                current["start_time"] < other["end_time"]
+                and other["start_time"] < current["end_time"]
+            ):
+                current_label = current.get("name") or "Schedule"
+                other_label = other.get("name") or "Schedule"
+                raise serializers.ValidationError(
+                    {
+                        "schedules": (
+                            f'"{current_label}" overlaps with "{other_label}".'
+                        ),
+                    },
+                )
+
+
+def _validate_days_available(
+    venue: Venue,
+    days: list[int],
+    exclude_group_id: int | None = None,
+) -> None:
+    queryset = VenueScheduleGroupDay.objects.filter(group__venue=venue)
+    if exclude_group_id is not None:
+        queryset = queryset.exclude(group_id=exclude_group_id)
+
+    assigned_days = set(queryset.values_list("day_of_week", flat=True))
+    conflicts = sorted(set(days) & assigned_days)
+    if not conflicts:
+        return
+
+    labels = [WEEKDAY_LABELS.get(day, str(day)) for day in conflicts]
+    raise serializers.ValidationError(
+        {"days": f"These days are already assigned: {', '.join(labels)}."},
+    )
+
+
+def _replace_schedule_group_children(group: VenueScheduleGroup, days, schedules) -> None:
+    group.days.all().delete()
+    group.schedules.all().delete()
+
+    VenueScheduleGroupDay.objects.bulk_create(
+        [
+            VenueScheduleGroupDay(group=group, day_of_week=day)
+            for day in sorted(set(days))
+        ],
+    )
+    VenueSchedule.objects.bulk_create(
+        [
+            VenueSchedule(
+                group=group,
+                name=schedule.get("name") or "",
+                start_time=schedule["start_time"],
+                end_time=schedule["end_time"],
+                price=schedule["price"],
+                is_available=schedule.get("is_available", True),
+            )
+            for schedule in schedules
+        ],
+    )
+
+
+class VenueScheduleGroupWriteSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    is_active = serializers.BooleanField(required=False, default=True)
+    days = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=6),
+        allow_empty=False,
+    )
+    schedules = VenueScheduleWriteSerializer(many=True, allow_empty=False)
+
+    def validate_days(self, value):
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("Duplicate days are not allowed.")
+        return value
+
+    def validate(self, attrs):
+        schedules = attrs.get("schedules", [])
+        _validate_schedules_no_overlap(schedules)
+
+        venue = self.context["venue"]
+        exclude_group_id = self.context.get("group_id")
+        _validate_days_available(venue, attrs["days"], exclude_group_id)
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        venue = self.context["venue"]
+        days = validated_data.pop("days")
+        schedules = validated_data.pop("schedules")
+
+        group = VenueScheduleGroup.objects.create(venue=venue, **validated_data)
+        _replace_schedule_group_children(group, days, schedules)
+        return group
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        days = validated_data.pop("days")
+        schedules = validated_data.pop("schedules")
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        _replace_schedule_group_children(instance, days, schedules)
         return instance

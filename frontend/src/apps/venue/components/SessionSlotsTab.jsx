@@ -11,8 +11,12 @@ import {
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
+  sessionGroupFromApi,
+  parseScheduleGroupError,
+} from "@/apis/venueSchedules"
+import { useVenueScheduleGroups } from "@/apps/venue/hooks/useVenueScheduleGroups"
+import {
   WEEKDAYS,
-  createClientId,
   createSession,
   formatDaySelection,
   formatIndianPrice,
@@ -105,7 +109,17 @@ function SessionRow({ session, onEdit, onDelete, onToggleAvailability }) {
 }
 
 export default function SessionSlotsTab({ venue }) {
-  const [groups, setGroups] = useState([])
+  const {
+    groups,
+    setGroups,
+    loading,
+    loadError,
+    persistGroup,
+    removeGroup,
+  } = useVenueScheduleGroups({
+    venue,
+    mapGroupFromApi: sessionGroupFromApi,
+  })
   const [draft, setDraft] = useState(EMPTY_DRAFT)
   const [sessionForm, setSessionForm] = useState(EMPTY_SESSION_FORM)
   const [editingGroupId, setEditingGroupId] = useState(null)
@@ -113,6 +127,7 @@ export default function SessionSlotsTab({ venue }) {
   const [sessionError, setSessionError] = useState("")
   const [saveError, setSaveError] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const isEditingExisting = Boolean(editingGroupId)
   const hasSessions = draft.sessions.length > 0
@@ -236,7 +251,7 @@ export default function SessionSlotsTab({ venue }) {
     setSuccessMessage("")
   }
 
-  const handleSaveGroup = () => {
+  const handleSaveGroup = async () => {
     setSaveError("")
     setSuccessMessage("")
 
@@ -253,40 +268,62 @@ export default function SessionSlotsTab({ venue }) {
       return
     }
 
-    const groupData = {
-      id: editingGroupId ?? createClientId("group"),
-      name: draft.name.trim(),
-      days: [...draft.days].sort((a, b) => a - b),
-      sessions: draft.sessions.map((session) => ({ ...session })),
-      payload: buildSessionScheduleGroupPayload({
+    setSaving(true)
+
+    try {
+      const payload = buildSessionScheduleGroupPayload({
         name: draft.name,
         days: draft.days,
         sessions: draft.sessions,
-      }),
+      })
+      const saved = await persistGroup(payload, editingGroupId)
+      const mapped = sessionGroupFromApi(saved)
+
+      setGroups((prev) => {
+        const exists = prev.some((group) => group.id === mapped.id)
+        if (exists) {
+          return prev.map((group) =>
+            group.id === mapped.id ? mapped : group,
+          )
+        }
+        return [...prev, mapped]
+      })
+
+      setSuccessMessage(`"${mapped.name}" saved successfully.`)
+      resetDraft()
+      window.setTimeout(() => setSuccessMessage(""), 4000)
+    } catch (error) {
+      setSaveError(parseScheduleGroupError(error))
+    } finally {
+      setSaving(false)
     }
-
-    setGroups((prev) => {
-      const exists = prev.some((group) => group.id === groupData.id)
-      if (exists) {
-        return prev.map((group) =>
-          group.id === groupData.id ? groupData : group,
-        )
-      }
-      return [...prev, groupData]
-    })
-
-    setSuccessMessage(`"${groupData.name}" saved. Ready to sync when API is connected.`)
-    resetDraft()
-    window.setTimeout(() => setSuccessMessage(""), 4000)
   }
 
-  const handleDeleteGroup = (groupId) => {
-    setGroups((prev) => prev.filter((group) => group.id !== groupId))
-    if (editingGroupId === groupId) resetDraft()
+  const handleDeleteGroup = async (groupId) => {
+    setSaveError("")
+    try {
+      await removeGroup(groupId)
+      if (editingGroupId === groupId) resetDraft()
+    } catch (error) {
+      setSaveError(parseScheduleGroupError(error))
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl border border-border/60 bg-white/70 px-6 py-16 text-center animate-pulse">
+        <p className="text-sm text-muted-foreground">Loading schedule groups...</p>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
+      {loadError && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </p>
+      )}
       {successMessage && (
         <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {successMessage}
@@ -617,10 +654,11 @@ export default function SessionSlotsTab({ venue }) {
               <button
                 type="button"
                 onClick={handleSaveGroup}
+                disabled={saving}
                 className="btn btn-primary inline-flex items-center gap-2 cursor-pointer"
               >
                 <Save size={16} />
-                Save Schedule Group
+                {saving ? "Saving..." : "Save Schedule Group"}
               </button>
             </div>
           </div>

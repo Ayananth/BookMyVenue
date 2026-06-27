@@ -10,7 +10,10 @@ class IsVenueOwnerOrAdmin(permissions.BasePermission):
             return False
         if user.role == UserRole.ADMIN:
             return True
-        return obj.owner_id == user.id
+        owner_id = getattr(obj, "owner_id", None)
+        if owner_id is None and hasattr(obj, "venue"):
+            owner_id = obj.venue.owner_id
+        return owner_id == user.id
 
 
 class CanManageVenues(permissions.BasePermission):

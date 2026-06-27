@@ -3,7 +3,7 @@ import uuid
 
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
@@ -13,13 +13,23 @@ from rest_framework.views import APIView
 
 from accounts.models import UserRole
 from venues.filters import annotate_min_price, filter_venue_list
-from venues.models import Location, Venue, VenueCategory, VenueStatus
+from venues.models import (
+    Location,
+    Venue,
+    VenueCategory,
+    VenueSchedule,
+    VenueScheduleGroup,
+    VenueScheduleGroupDay,
+    VenueStatus,
+)
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
 from venues.serializers import (
     LocationDropdownSerializer,
     VenueCategorySerializer,
     VenueDetailSerializer,
     VenueListSerializer,
+    VenueScheduleGroupReadSerializer,
+    VenueScheduleGroupWriteSerializer,
     VenueUpdateSerializer,
     VenueWriteSerializer,
 )
@@ -213,3 +223,101 @@ class VenueDetailView(APIView):
         venue = serializer.save()
         venue = _get_venue_detail(request, venue.slug)
         return Response(_detail_response(venue))
+
+
+def _schedule_groups_queryset(venue):
+    return (
+        venue.schedule_groups.filter(is_active=True)
+        .prefetch_related(
+            Prefetch(
+                "days",
+                queryset=VenueScheduleGroupDay.objects.order_by("day_of_week"),
+            ),
+            Prefetch(
+                "schedules",
+                queryset=VenueSchedule.objects.order_by("start_time"),
+            ),
+        )
+        .order_by("created_at")
+    )
+
+
+def _schedule_group_response(group):
+    return VenueScheduleGroupReadSerializer(group).data
+
+
+def _get_schedule_group(venue, group_id):
+    return get_object_or_404(
+        _schedule_groups_queryset(venue),
+        pk=group_id,
+    )
+
+
+class VenueScheduleGroupListCreateView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [CanManageVenues(), IsVenueOwnerOrAdmin()]
+
+    def get(self, request, slug):
+        venue = _get_venue_detail(request, slug)
+        groups = _schedule_groups_queryset(venue)
+        serializer = VenueScheduleGroupReadSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, slug):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+
+        serializer = VenueScheduleGroupWriteSerializer(
+            data=request.data,
+            context={"venue": venue},
+        )
+        serializer.is_valid(raise_exception=True)
+        group = serializer.save()
+        group = _get_schedule_group(venue, group.pk)
+        return Response(
+            _schedule_group_response(group),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VenueScheduleGroupDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [CanManageVenues(), IsVenueOwnerOrAdmin()]
+
+    def get(self, request, slug, group_id):
+        venue = _get_venue_detail(request, slug)
+        group = _get_schedule_group(venue, group_id)
+        return Response(_schedule_group_response(group))
+
+    def put(self, request, slug, group_id):
+        return self._update(request, slug, group_id, partial=False)
+
+    def patch(self, request, slug, group_id):
+        return self._update(request, slug, group_id, partial=True)
+
+    def delete(self, request, slug, group_id):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+        group = get_object_or_404(VenueScheduleGroup, pk=group_id, venue=venue)
+        group.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _update(self, request, slug, group_id, partial):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+        group = get_object_or_404(VenueScheduleGroup, pk=group_id, venue=venue)
+
+        serializer = VenueScheduleGroupWriteSerializer(
+            group,
+            data=request.data,
+            partial=partial,
+            context={"venue": venue, "group_id": group.pk},
+        )
+        serializer.is_valid(raise_exception=True)
+        group = serializer.save()
+        group = _get_schedule_group(venue, group.pk)
+        return Response(_schedule_group_response(group))
