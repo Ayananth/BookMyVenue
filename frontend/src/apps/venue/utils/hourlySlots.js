@@ -137,3 +137,71 @@ export function buildScheduleGroupPayload(group) {
     })),
   }
 }
+
+export function formatTime12Hour(timeStr) {
+  const [hours, minutes] = timeStr.split(":").map(Number)
+  const period = hours >= 12 ? "PM" : "AM"
+  const hour12 = hours % 12 || 12
+  if (minutes === 0) return `${hour12} ${period}`
+  return `${hour12}:${String(minutes).padStart(2, "0")} ${period}`
+}
+
+export function sessionsOverlap(a, b) {
+  const aStart = parseTimeToMinutes(a.start_time)
+  const aEnd = parseTimeToMinutes(a.end_time)
+  const bStart = parseTimeToMinutes(b.start_time)
+  const bEnd = parseTimeToMinutes(b.end_time)
+  return aStart < bEnd && bStart < aEnd
+}
+
+export function createSession({ name, startTime, endTime, price, id }) {
+  const trimmedName = name.trim()
+  if (!trimmedName) {
+    throw new Error("Session name is required.")
+  }
+
+  const startMinutes = parseTimeToMinutes(startTime)
+  const endMinutes = parseTimeToMinutes(endTime)
+  if (endMinutes <= startMinutes) {
+    throw new Error("End time must be after start time.")
+  }
+
+  const numericPrice = Number(price)
+  if (Number.isNaN(numericPrice) || numericPrice < 0) {
+    throw new Error("Price must be zero or greater.")
+  }
+
+  return {
+    id: id ?? createClientId("session"),
+    name: trimmedName,
+    start_time: startTime.slice(0, 5),
+    end_time: endTime.slice(0, 5),
+    price: numericPrice,
+    is_available: true,
+  }
+}
+
+export function validateSessionAgainstExisting(session, existingSessions, excludeId = null) {
+  for (const existing of existingSessions) {
+    if (excludeId && existing.id === excludeId) continue
+    if (sessionsOverlap(session, existing)) {
+      throw new Error(
+        `"${session.name}" overlaps with "${existing.name}" (${formatSlotName(existing.start_time, existing.end_time)}).`,
+      )
+    }
+  }
+}
+
+export function buildSessionScheduleGroupPayload(group) {
+  return {
+    name: group.name.trim(),
+    days: [...group.days].sort((a, b) => a - b),
+    schedules: group.sessions.map((session) => ({
+      name: session.name,
+      start_time: `${session.start_time}:00`,
+      end_time: `${session.end_time}:00`,
+      price: Number(session.price),
+      is_available: session.is_available,
+    })),
+  }
+}
