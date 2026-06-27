@@ -91,13 +91,13 @@ export default function ExploreVenues() {
 
                 return (
                   <motion.article
-                    key={v.id}
+                    key={v.slug}
                     layout
                     initial={{ opacity: 0, y: 24 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-                    onClick={() => navigate(`/venue/${v.id}`)}
+                    onClick={() => navigate(`/venue/${v.slug}`)}
                     className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
                   >
                     <div className="relative overflow-hidden">
@@ -113,14 +113,14 @@ export default function ExploreVenues() {
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation()
-                          setLiked((state) => ({ ...state, [v.id]: !state[v.id] }))
+                          setLiked((state) => ({ ...state, [v.slug]: !state[v.slug] }))
                         }}
                         aria-label="Save venue"
                         className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-card/90 text-foreground backdrop-blur-sm transition-colors hover:text-accent"
                       >
                         <Heart
                           className={`h-4 w-4 ${
-                            liked[v.id] ? "fill-accent text-accent" : ""
+                            liked[v.slug] ? "fill-accent text-accent" : ""
                           }`}
                         />
                       </button>

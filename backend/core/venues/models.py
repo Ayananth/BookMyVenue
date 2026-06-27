@@ -2,6 +2,8 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
+from venues.utils import generate_unique_venue_slug
+
 
 class BookingType(models.TextChoices):
     HOURLY = "hourly", "Hourly"
@@ -87,6 +89,7 @@ class Venue(models.Model):
         related_name="venues",
     )
     name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=220, unique=True)
     description = models.TextField(blank=True, null=True)
     address = models.TextField()
     capacity = models.PositiveIntegerField()
@@ -113,6 +116,7 @@ class Venue(models.Model):
             ),
         ]
         indexes = [
+            models.Index(fields=["slug"], name="ix_venues_slug"),
             models.Index(fields=["owner"], name="ix_venues_owner_id"),
             models.Index(fields=["category"], name="ix_venues_category_id"),
             models.Index(fields=["location"], name="ix_venues_location_id"),
@@ -126,6 +130,11 @@ class Venue(models.Model):
                 name="ix_venues_location_status",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = generate_unique_venue_slug(self.name, exclude_pk=self.pk)
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.name

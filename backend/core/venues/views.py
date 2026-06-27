@@ -75,8 +75,8 @@ def _detail_response(venue):
     return VenueDetailSerializer(venue).data
 
 
-def _get_venue_detail(request, pk):
-    return get_object_or_404(_detail_queryset(request), pk=pk)
+def _get_venue_detail(request, slug):
+    return get_object_or_404(_detail_queryset(request), slug=slug)
 
 
 def _create_venue(request):
@@ -86,7 +86,7 @@ def _create_venue(request):
     )
     serializer.is_valid(raise_exception=True)
     venue = serializer.save()
-    venue = _get_venue_detail(request, venue.pk)
+    venue = _get_venue_detail(request, venue.slug)
     return Response(
         _detail_response(venue),
         status=status.HTTP_201_CREATED,
@@ -123,24 +123,24 @@ class VenueDetailView(APIView):
             return [AllowAny()]
         return [CanManageVenues(), IsVenueOwnerOrAdmin()]
 
-    def get(self, request, pk):
-        venue = _get_venue_detail(request, pk)
+    def get(self, request, slug):
+        venue = _get_venue_detail(request, slug)
         return Response(_detail_response(venue))
 
-    def put(self, request, pk):
-        return self._update(request, pk, partial=False)
+    def put(self, request, slug):
+        return self._update(request, slug, partial=False)
 
-    def patch(self, request, pk):
-        return self._update(request, pk, partial=True)
+    def patch(self, request, slug):
+        return self._update(request, slug, partial=True)
 
-    def delete(self, request, pk):
-        venue = get_object_or_404(_detail_queryset(request), pk=pk)
+    def delete(self, request, slug):
+        venue = get_object_or_404(_detail_queryset(request), slug=slug)
         self.check_object_permissions(request, venue)
         venue.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _update(self, request, pk, partial):
-        venue = get_object_or_404(_detail_queryset(request), pk=pk)
+    def _update(self, request, slug, partial):
+        venue = get_object_or_404(_detail_queryset(request), slug=slug)
         self.check_object_permissions(request, venue)
 
         serializer = VenueUpdateSerializer(
@@ -151,5 +151,5 @@ class VenueDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         venue = serializer.save()
-        venue = _get_venue_detail(request, venue.pk)
+        venue = _get_venue_detail(request, venue.slug)
         return Response(_detail_response(venue))

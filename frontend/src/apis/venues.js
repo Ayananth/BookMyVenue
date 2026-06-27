@@ -30,7 +30,7 @@ function toExploreVenue(venue) {
   }
 
   return {
-    id: venue.id,
+    slug: venue.slug ?? venue.id?.toString(),
     name: venue.name,
     type: venue.category,
     location: [venue.district, venue.city, venue.state].filter(Boolean).join(", "),
@@ -62,8 +62,8 @@ export function getVenues() {
   return venues
 }
 
-export function getVenueById(id) {
-  return venues.find((venue) => venue.id === Number(id))
+export function getVenueBySlug(slug) {
+  return venues.find((venue) => venue.slug === slug)
 }
 
 export function getRelatedVenues(venue) {
@@ -72,6 +72,6 @@ export function getRelatedVenues(venue) {
   }
 
   return venues
-    .filter((candidate) => candidate.type === venue.type && candidate.id !== venue.id)
+    .filter((candidate) => candidate.type === venue.type && candidate.slug !== venue.slug)
     .slice(0, 3)
 }

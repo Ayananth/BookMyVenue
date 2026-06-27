@@ -432,7 +432,7 @@ function FavouritesSection({ venues, onRemove }) {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence mode="popLayout">
             {venues.map((venue) => (
-              <FavouriteVenueCard key={venue.id} venue={venue} onRemove={() => onRemove(venue.id)} />
+              <FavouriteVenueCard key={venue.slug} venue={venue} onRemove={() => onRemove(venue.slug)} />
             ))}
           </AnimatePresence>
         </div>
@@ -516,8 +516,8 @@ export default function ProfilePage() {
     }
   }, [])
 
-  const removeFavourite = (venueId) => {
-    setFavouriteVenues((venues) => venues.filter((venue) => venue.id !== venueId))
+  const removeFavourite = (venueSlug) => {
+    setFavouriteVenues((venues) => venues.filter((venue) => venue.slug !== venueSlug))
   }
 
   const handleLogout = () => {

@@ -9,6 +9,7 @@ from venues.models import (
     VenueImage,
     VenueStatus,
 )
+from venues.utils import generate_unique_venue_slug
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -50,7 +51,7 @@ class VenueListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venue
         fields = (
-            "id",
+            "slug",
             "name",
             "address",
             "capacity",
@@ -88,7 +89,7 @@ class VenueDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venue
         fields = (
-            "id",
+            "slug",
             "owner_id",
             "name",
             "description",
@@ -179,6 +180,8 @@ class VenueWriteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         images_data = validated_data.pop("images", [])
         owner = self.context["request"].user
+        name = validated_data["name"]
+        validated_data["slug"] = generate_unique_venue_slug(name)
         venue = Venue.objects.create(owner=owner, **validated_data)
         save_venue_images(venue, images_data)
         return venue
@@ -208,10 +211,12 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
         required=False,
     )
     images = VenueImageCreateSerializer(many=True, required=False)
+    slug = serializers.SlugField(required=False, max_length=220)
 
     class Meta:
         model = Venue
         fields = (
+            "slug",
             "category_id",
             "location_id",
             "name",
@@ -236,6 +241,14 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
             "contact_phone": {"required": False},
             "contact_email": {"required": False},
         }
+
+    def validate_slug(self, value):
+        queryset = Venue.objects.filter(slug=value)
+        if self.instance:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        if queryset.exists():
+            raise serializers.ValidationError("This slug is already in use.")
+        return value
 
     def validate_capacity(self, value):
         if value <= 0:

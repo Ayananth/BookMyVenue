@@ -24,7 +24,7 @@ export default function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="venues" element={<ExploreVenuesPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="venue/:id" element={<VenueDetailsPage />} />
+          <Route path="venue/:slug" element={<VenueDetailsPage />} />
         </Route>
 
         <Route path="/venue" element={<VenueLayout />}>

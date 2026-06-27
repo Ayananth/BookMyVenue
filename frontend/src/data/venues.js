@@ -1,6 +1,6 @@
 export const venues = [
   {
-    id: 1,
+    slug: "the-grand-ballroom",
     name: "The Grand Ballroom",
     location: "Downtown, San Francisco",
     address: "123 Market Street, San Francisco, CA 94102",
@@ -40,7 +40,7 @@ export const venues = [
     eventTypes: ["Weddings", "Galas", "Corporate Events", "Banquets"]
   },
   {
-    id: 2,
+    slug: "skyline-rooftop-terrace",
     name: "Skyline Rooftop Terrace",
     location: "Midtown, New York",
     address: "456 Park Avenue, New York, NY 10022",
@@ -80,7 +80,7 @@ export const venues = [
     eventTypes: ["Cocktail Parties", "Corporate Events", "Birthday Celebrations", "Product Launches"]
   },
   {
-    id: 3,
+    slug: "willow-garden-estate",
     name: "Willow Garden Estate",
     location: "Napa Valley, CA",
     address: "789 Vineyard Road, Napa, CA 94558",
@@ -120,7 +120,7 @@ export const venues = [
     eventTypes: ["Weddings", "Anniversaries", "Vow Renewals", "Garden Parties"]
   },
   {
-    id: 4,
+    slug: "summit-conference-hall",
     name: "Summit Conference Hall",
     location: "Austin, Texas",
     address: "321 Congress Avenue, Austin, TX 78701",
@@ -160,7 +160,7 @@ export const venues = [
     eventTypes: ["Conferences", "Trade Shows", "Meetings", "Awards Ceremonies"]
   },
   {
-    id: 5,
+    slug: "the-brick-loft",
     name: "The Brick Loft",
     location: "Brooklyn, New York",
     address: "555 Williamsburg Street, Brooklyn, NY 11249",
@@ -200,7 +200,7 @@ export const venues = [
     eventTypes: ["Birthday Parties", "Celebrations", "Art Shows", "Social Gatherings"]
   },
   {
-    id: 6,
+    slug: "aurora-banquet-hall",
     name: "Aurora Banquet Hall",
     location: "Chicago, Illinois",
     address: "777 North Michigan Avenue, Chicago, IL 60611",

@@ -42,7 +42,7 @@ const mockBookings = [
 
 const mockFavouriteVenues = [
   {
-    id: 1,
+    slug: "royal-convention-center",
     name: "Royal Convention Center",
     location: "Thrissur, Kerala",
     rating: 4.8,
@@ -50,7 +50,7 @@ const mockFavouriteVenues = [
     image: "/venues/hero-banquet.png",
   },
   {
-    id: 2,
+    slug: "willow-wedding-hall",
     name: "Willow Wedding Hall",
     location: "Kochi, Kerala",
     rating: 4.9,
@@ -58,7 +58,7 @@ const mockFavouriteVenues = [
     image: "/venues/garden.png",
   },
   {
-    id: 3,
+    slug: "summit-conference-room",
     name: "Summit Conference Room",
     location: "Kochi, Karnataka",
     rating: 4.6,

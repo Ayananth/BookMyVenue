@@ -5,7 +5,7 @@ const EXPLORE_VENUE_MAX_LIMIT = 50
 
 function toExplorePageVenue(venue) {
   return {
-    id: venue.id,
+    slug: venue.slug ?? venue.id?.toString(),
     name: venue.name,
     category: {
       id: venue.category_id,

@@ -84,7 +84,7 @@ function VenueCard({ venue, liked, onToggleLike }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 16 }}
       transition={{ duration: 0.45 }}
-      onClick={() => navigate(`/venue/${venue.id}`)}
+      onClick={() => navigate(`/venue/${venue.slug}`)}
       className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
     >
       <div className="relative overflow-hidden">
@@ -417,10 +417,10 @@ export default function ExploreVenuesPage() {
                 <AnimatePresence mode="popLayout">
                   {filteredVenues.map((venue) => (
                     <VenueCard
-                      key={venue.id}
+                      key={venue.slug}
                       venue={venue}
-                      liked={liked[venue.id]}
-                      onToggleLike={() => setLiked((state) => ({ ...state, [venue.id]: !state[venue.id] }))}
+                      liked={liked[venue.slug]}
+                      onToggleLike={() => setLiked((state) => ({ ...state, [venue.slug]: !state[venue.slug] }))}
                     />
                   ))}
                 </AnimatePresence>

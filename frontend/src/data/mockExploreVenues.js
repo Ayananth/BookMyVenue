@@ -1,6 +1,6 @@
 export const mockVenues = [
   {
-    id: 101,
+    slug: "royal-convention-center",
     name: "Royal Convention Center",
     category: { id: 1, name: "Convention Center" },
     location: { state: "Kerala", district: "Thrissur", city: "Thrissur" },
@@ -10,7 +10,7 @@ export const mockVenues = [
     image: "/venues/hero-banquet.png",
   },
   {
-    id: 102,
+    slug: "willow-wedding-hall",
     name: "Willow Wedding Hall",
     category: { id: 2, name: "Wedding Hall" },
     location: { state: "Kerala", district: "Ernakulam", city: "Kochi" },
@@ -20,7 +20,7 @@ export const mockVenues = [
     image: "/venues/garden.png",
   },
   {
-    id: 103,
+    slug: "summit-conference-room",
     name: "Summit Conference Room",
     category: { id: 3, name: "Conference Room" },
     location: { state: "Karnataka", district: "Ernakulam", city: "Kochi" },
@@ -30,7 +30,7 @@ export const mockVenues = [
     image: "/venues/conference.png",
   },
   {
-    id: 104,
+    slug: "emerald-party-hall",
     name: "Emerald Party Hall",
     category: { id: 4, name: "Party Hall" },
     location: { state: "Kerala", district: "Kozhikode", city: "Calicut" },
@@ -40,7 +40,7 @@ export const mockVenues = [
     image: "/venues/loft.png",
   },
   {
-    id: 105,
+    slug: "metro-sports-arena",
     name: "Metro Sports Arena",
     category: { id: 5, name: "Sports Venue" },
     location: { state: "Tamil Nadu", district: "Trivandrum", city: "Trivandrum" },
@@ -50,7 +50,7 @@ export const mockVenues = [
     image: "/venues/rooftop.png",
   },
   {
-    id: 106,
+    slug: "sapphire-auditorium",
     name: "Sapphire Auditorium",
     category: { id: 6, name: "Auditorium" },
     location: { state: "Karnataka", district: "Thrissur", city: "Thrissur" },
@@ -60,7 +60,7 @@ export const mockVenues = [
     image: "/venues/ballroom.png",
   },
   {
-    id: 107,
+    slug: "lakeview-wedding-hall",
     name: "Lakeview Wedding Hall",
     category: { id: 2, name: "Wedding Hall" },
     location: { state: "Kerala", district: "Thrissur", city: "Thrissur" },
@@ -70,7 +70,7 @@ export const mockVenues = [
     image: "/venues/garden.png",
   },
   {
-    id: 108,
+    slug: "harbor-convention-center",
     name: "Harbor Convention Center",
     category: { id: 1, name: "Convention Center" },
     location: { state: "Tamil Nadu", district: "Ernakulam", city: "Kochi" },
@@ -80,7 +80,7 @@ export const mockVenues = [
     image: "/venues/hero-banquet.png",
   },
   {
-    id: 109,
+    slug: "orchid-party-hall",
     name: "Orchid Party Hall",
     category: { id: 4, name: "Party Hall" },
     location: { state: "Karnataka", district: "Kozhikode", city: "Calicut" },
@@ -90,7 +90,7 @@ export const mockVenues = [
     image: "/venues/loft.png",
   },
   {
-    id: 110,
+    slug: "pavilion-conference-room",
     name: "Pavilion Conference Room",
     category: { id: 3, name: "Conference Room" },
     location: { state: "Kerala", district: "Trivandrum", city: "Trivandrum" },
@@ -100,7 +100,7 @@ export const mockVenues = [
     image: "/venues/conference.png",
   },
   {
-    id: 111,
+    slug: "crown-auditorium",
     name: "Crown Auditorium",
     category: { id: 6, name: "Auditorium" },
     location: { state: "Tamil Nadu", district: "Thrissur", city: "Thrissur" },
@@ -110,7 +110,7 @@ export const mockVenues = [
     image: "/venues/ballroom.png",
   },
   {
-    id: 112,
+    slug: "victory-sports-venue",
     name: "Victory Sports Venue",
     category: { id: 5, name: "Sports Venue" },
     location: { state: "Karnataka", district: "Ernakulam", city: "Kochi" },
@@ -120,7 +120,7 @@ export const mockVenues = [
     image: "/venues/rooftop.png",
   },
   {
-    id: 113,
+    slug: "pearl-wedding-hall",
     name: "Pearl Wedding Hall",
     category: { id: 2, name: "Wedding Hall" },
     location: { state: "Kerala", district: "Kozhikode", city: "Calicut" },
@@ -130,7 +130,7 @@ export const mockVenues = [
     image: "/venues/garden.png",
   },
   {
-    id: 114,
+    slug: "axis-convention-center",
     name: "Axis Convention Center",
     category: { id: 1, name: "Convention Center" },
     location: { state: "Karnataka", district: "Trivandrum", city: "Trivandrum" },
@@ -140,7 +140,7 @@ export const mockVenues = [
     image: "/venues/hero-banquet.png",
   },
   {
-    id: 115,
+    slug: "jubilee-party-hall",
     name: "Jubilee Party Hall",
     category: { id: 4, name: "Party Hall" },
     location: { state: "Tamil Nadu", district: "Thrissur", city: "Thrissur" },
@@ -150,7 +150,7 @@ export const mockVenues = [
     image: "/venues/loft.png",
   },
   {
-    id: 116,
+    slug: "boardwalk-conference-room",
     name: "Boardwalk Conference Room",
     category: { id: 3, name: "Conference Room" },
     location: { state: "Kerala", district: "Ernakulam", city: "Kochi" },
@@ -160,7 +160,7 @@ export const mockVenues = [
     image: "/venues/conference.png",
   },
   {
-    id: 117,
+    slug: "regal-auditorium",
     name: "Regal Auditorium",
     category: { id: 6, name: "Auditorium" },
     location: { state: "Kerala", district: "Kozhikode", city: "Calicut" },
@@ -170,7 +170,7 @@ export const mockVenues = [
     image: "/venues/ballroom.png",
   },
   {
-    id: 118,
+    slug: "prime-sports-complex",
     name: "Prime Sports Complex",
     category: { id: 5, name: "Sports Venue" },
     location: { state: "Tamil Nadu", district: "Trivandrum", city: "Trivandrum" },
@@ -180,7 +180,7 @@ export const mockVenues = [
     image: "/venues/rooftop.png",
   },
   {
-    id: 119,
+    slug: "rosewood-wedding-hall",
     name: "Rosewood Wedding Hall",
     category: { id: 2, name: "Wedding Hall" },
     location: { state: "Karnataka", district: "Thrissur", city: "Thrissur" },
@@ -190,7 +190,7 @@ export const mockVenues = [
     image: "/venues/garden.png",
   },
   {
-    id: 120,
+    slug: "civic-convention-center",
     name: "Civic Convention Center",
     category: { id: 1, name: "Convention Center" },
     location: { state: "Kerala", district: "Ernakulam", city: "Kochi" },
@@ -200,7 +200,7 @@ export const mockVenues = [
     image: "/venues/hero-banquet.png",
   },
   {
-    id: 121,
+    slug: "fiesta-party-hall",
     name: "Fiesta Party Hall",
     category: { id: 4, name: "Party Hall" },
     location: { state: "Tamil Nadu", district: "Kozhikode", city: "Calicut" },
@@ -210,7 +210,7 @@ export const mockVenues = [
     image: "/venues/loft.png",
   },
   {
-    id: 122,
+    slug: "nexus-conference-room",
     name: "Nexus Conference Room",
     category: { id: 3, name: "Conference Room" },
     location: { state: "Karnataka", district: "Trivandrum", city: "Trivandrum" },
@@ -220,7 +220,7 @@ export const mockVenues = [
     image: "/venues/conference.png",
   },
   {
-    id: 123,
+    slug: "harmony-auditorium",
     name: "Harmony Auditorium",
     category: { id: 6, name: "Auditorium" },
     location: { state: "Kerala", district: "Thrissur", city: "Thrissur" },
@@ -230,7 +230,7 @@ export const mockVenues = [
     image: "/venues/ballroom.png",
   },
   {
-    id: 124,
+    slug: "arena-one-sports-venue",
     name: "Arena One Sports Venue",
     category: { id: 5, name: "Sports Venue" },
     location: { state: "Karnataka", district: "Ernakulam", city: "Kochi" },
@@ -240,7 +240,7 @@ export const mockVenues = [
     image: "/venues/rooftop.png",
   },
   {
-    id: 125,
+    slug: "mango-grove-wedding-hall",
     name: "Mango Grove Wedding Hall",
     category: { id: 2, name: "Wedding Hall" },
     location: { state: "Tamil Nadu", district: "Kozhikode", city: "Calicut" },
@@ -250,7 +250,7 @@ export const mockVenues = [
     image: "/venues/garden.png",
   },
   {
-    id: 126,
+    slug: "capital-convention-center",
     name: "Capital Convention Center",
     category: { id: 1, name: "Convention Center" },
     location: { state: "Kerala", district: "Trivandrum", city: "Trivandrum" },

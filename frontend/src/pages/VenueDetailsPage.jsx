@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
 import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check, CalendarDays, X } from "lucide-react"
-import { getRelatedVenues, getVenueById } from "../apis/venues"
+import { getRelatedVenues, getVenueBySlug } from "../apis/venues"
 import Reveal from "../components/common/Reveal"
 import MainLayout from "../layouts/MainLayout"
 
@@ -35,9 +35,9 @@ function getSlotPrice(venue, multiplier) {
 }
 
 export default function VenueDetailsPage() {
-  const { id } = useParams()
+  const { slug } = useParams()
   const navigate = useNavigate()
-  const venue = getVenueById(id)
+  const venue = getVenueBySlug(slug)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
@@ -51,7 +51,7 @@ export default function VenueDetailsPage() {
     left: 0,
     behavior: "instant",
   });
-  }, [id]);
+  }, [slug]);
 
   const bookingDateRange = useMemo(() => {
     const today = new Date()
@@ -438,9 +438,9 @@ export default function VenueDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {relatedVenues.map((relatedVenue) => (
                   <motion.div
-                    key={relatedVenue.id}
+                    key={relatedVenue.slug}
                     whileHover={{ translateY: -8 }}
-                    onClick={() => navigate(`/venue/${relatedVenue.id}`)}
+                    onClick={() => navigate(`/venue/${relatedVenue.slug}`)}
                     className="cursor-pointer group"
                   >
                     <div className="relative h-64 rounded-xl overflow-hidden bg-muted mb-4">
