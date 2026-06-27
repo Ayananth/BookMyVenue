@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime
 
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import UserRole
+from venues.availability import get_available_slots
 from venues.filters import annotate_min_price, filter_venue_list
 from venues.models import (
     Location,
@@ -188,6 +190,29 @@ class VenueCreateView(APIView):
 
     def post(self, request):
         return _create_venue(request)
+
+
+class VenueAvailabilityView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug):
+        venue = _get_venue_detail(request, slug)
+        date_param = request.query_params.get("date")
+        if not date_param:
+            return Response(
+                {"detail": "Query parameter 'date' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_date = datetime.strptime(date_param, "%Y-%m-%d").date()
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date format. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(get_available_slots(venue, target_date))
 
 
 class VenueDetailView(APIView):

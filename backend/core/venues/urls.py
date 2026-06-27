@@ -2,6 +2,7 @@ from django.urls import path
 
 from venues.views import (
     ImageUploadView,
+    VenueAvailabilityView,
     VenueCategoryListView,
     VenueCreateView,
     VenueDetailView,
@@ -37,6 +38,11 @@ urlpatterns = [
         "<slug:slug>/schedule-overrides/<int:override_id>/",
         VenueScheduleOverrideDetailView.as_view(),
         name="venue-schedule-override-detail",
+    ),
+    path(
+        "<slug:slug>/availability/",
+        VenueAvailabilityView.as_view(),
+        name="venue-availability",
     ),
     path("<slug:slug>/", VenueDetailView.as_view(), name="venue-detail"),
 ]
