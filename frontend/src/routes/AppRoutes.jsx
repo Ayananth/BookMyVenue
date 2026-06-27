@@ -47,6 +47,7 @@ export default function AppRoutes() {
           <Route path="bookings" element={<VenueBookingsPage />} />
           <Route path="venues" element={<VenueListPage />} />
           <Route path="venues/add" element={<AddVenuePage />} />
+          <Route path="venues/:slug" element={<AddVenuePage />} />
         </Route>
 
         <Route path="/admin" element={<AdminLayout />}>

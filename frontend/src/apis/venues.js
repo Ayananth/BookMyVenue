@@ -18,6 +18,40 @@ export function parseVenueError(error) {
   return "Something went wrong. Please try again."
 }
 
+export async function fetchVenueBySlug(slug) {
+  const { data } = await api.get(`/venues/${slug}/`, apiConfig)
+  return data
+}
+
+export async function updateVenue(slug, payload) {
+  const { data } = await api.patch(`/venues/${slug}/`, payload, apiConfig)
+  return data
+}
+
+export function venueToFormState(venue) {
+  return {
+    name: venue.name ?? "",
+    category: venue.category?.id ? String(venue.category.id) : "",
+    location: venue.location?.id ? String(venue.location.id) : "",
+    address: venue.address ?? "",
+    description: venue.description ?? "",
+    capacity: venue.capacity != null ? String(venue.capacity) : "",
+    bookingType: venue.booking_type ?? "",
+    contactName: venue.contact_name ?? "",
+    contactPhone: venue.contact_phone ?? "",
+    contactEmail: venue.contact_email ?? "",
+  }
+}
+
+export function venueImagesToFormState(images = []) {
+  return images.map((image, index) => ({
+    public_id: image.id ?? `image-${index}`,
+    image_url: image.image_url,
+    is_cover: image.is_cover,
+    sort_order: image.sort_order ?? index + 1,
+  }))
+}
+
 export async function fetchMyVenues() {
   const { data } = await api.get("/venues/", {
     ...apiConfig,
@@ -57,6 +91,20 @@ export const VENUE_BOOKING_TYPES = [
   { value: "full_day", label: "Full Day" },
 ]
 
+export const VENUE_STATUS_STYLES = {
+  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  pending_approval: "bg-amber-50 text-amber-700 border-amber-200",
+  rejected: "bg-red-50 text-red-700 border-red-200",
+  suspended: "bg-slate-100 text-slate-600 border-slate-200",
+}
+
+export const VENUE_STATUS_LABELS = {
+  approved: "Approved",
+  pending_approval: "Pending approval",
+  rejected: "Rejected",
+  suspended: "Suspended",
+}
+
 export function buildVenuePayload(formData, amenities, images) {
   return {
     name: formData.name.trim(),
@@ -77,6 +125,8 @@ export function buildVenuePayload(formData, amenities, images) {
     })),
   }
 }
+
+export const buildVenueUpdatePayload = buildVenuePayload
 
 export function formatVenuePrice(price) {
   if (price == null || price === "") {

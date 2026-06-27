@@ -14,21 +14,9 @@ import {
   formatVenuePrice,
   parseVenueError,
   VENUE_BOOKING_TYPES,
+  VENUE_STATUS_LABELS,
+  VENUE_STATUS_STYLES,
 } from "@/apis/venues"
-
-const STATUS_STYLES = {
-  approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  pending_approval: "bg-amber-50 text-amber-700 border-amber-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  suspended: "bg-slate-100 text-slate-600 border-slate-200",
-}
-
-const STATUS_LABELS = {
-  approved: "Approved",
-  pending_approval: "Pending approval",
-  rejected: "Rejected",
-  suspended: "Suspended",
-}
 
 function bookingTypeLabel(value) {
   return VENUE_BOOKING_TYPES.find((item) => item.value === value)?.label ?? value
@@ -41,15 +29,16 @@ function formatLocation(location) {
 
 function VenueCard({ venue }) {
   const statusClass =
-    STATUS_STYLES[venue.status] ?? "bg-slate-100 text-slate-600 border-slate-200"
-  const statusLabel = STATUS_LABELS[venue.status] ?? venue.status
+    VENUE_STATUS_STYLES[venue.status] ?? "bg-slate-100 text-slate-600 border-slate-200"
+  const statusLabel = VENUE_STATUS_LABELS[venue.status] ?? venue.status
 
   return (
+    <Link to={`/venue/venues/${venue.slug}`} className="block">
     <motion.article
       layout
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm transition-shadow hover:shadow-md"
+      className="overflow-hidden rounded-2xl border border-border/60 bg-white shadow-sm transition-shadow hover:shadow-md cursor-pointer"
     >
       <div className="relative h-44 bg-secondary">
         {venue.cover_image ? (
@@ -114,6 +103,7 @@ function VenueCard({ venue }) {
         </div>
       </div>
     </motion.article>
+    </Link>
   )
 }
 

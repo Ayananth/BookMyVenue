@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useCallback, useEffect, useState } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import {
   Upload,
   Plus,
@@ -12,26 +12,58 @@ import {
   Users,
   Clock,
   ArrowLeft,
-  Phone
+  Phone,
+  Pencil,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   buildVenuePayload,
   createVenue,
+  fetchVenueBySlug,
   fetchVenueFormCategories,
   fetchVenueFormLocations,
   parseVenueError,
+  updateVenue,
   uploadVenueImage,
+  venueImagesToFormState,
+  venueToFormState,
   VENUE_BOOKING_TYPES,
+  VENUE_STATUS_LABELS,
+  VENUE_STATUS_STYLES,
 } from "@/apis/venues"
+
+const EMPTY_FORM = {
+  name: "",
+  category: "",
+  location: "",
+  address: "",
+  description: "",
+  capacity: "",
+  bookingType: "",
+  contactName: "",
+  contactPhone: "",
+  contactEmail: "",
+}
+
+function fieldClass(disabled, extra = "input") {
+  return `${extra} ${disabled ? "cursor-default bg-muted/40" : ""}`
+}
 
 export default function AddVenuePage() {
   const navigate = useNavigate()
+  const { slug } = useParams()
+  const isEditMode = Boolean(slug)
 
+  const [venue, setVenue] = useState(null)
   const [categories, setCategories] = useState([])
   const [locations, setLocations] = useState([])
   const [loadingOptions, setLoadingOptions] = useState(true)
+  const [loadingVenue, setLoadingVenue] = useState(isEditMode)
   const [optionsError, setOptionsError] = useState("")
+  const [loadError, setLoadError] = useState("")
+
+  const [isEditing, setIsEditing] = useState(!isEditMode)
+  const [successMessage, setSuccessMessage] = useState("")
 
   const [amenityInput, setAmenityInput] = useState("")
   const [amenities, setAmenities] = useState([])
@@ -42,19 +74,16 @@ export default function AddVenuePage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
 
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    location: "",
-    address: "",
-    description: "",
-    capacity: "",
-    bookingType: "",
-    contactName: "",
-    contactPhone: "",
-    contactEmail: "",
+  const [formData, setFormData] = useState(EMPTY_FORM)
 
-  })
+  const fieldsDisabled = isEditMode && !isEditing
+
+  const applyVenueToForm = useCallback((nextVenue) => {
+    setVenue(nextVenue)
+    setFormData(venueToFormState(nextVenue))
+    setAmenities(nextVenue.amenities ?? [])
+    setImages(venueImagesToFormState(nextVenue.images ?? []))
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,6 +106,31 @@ export default function AddVenuePage() {
 
     fetchData()
   }, [])
+
+  useEffect(() => {
+    if (!isEditMode) return undefined
+
+    let cancelled = false
+
+    const loadVenue = async () => {
+      setLoadingVenue(true)
+      setLoadError("")
+
+      try {
+        const data = await fetchVenueBySlug(slug)
+        if (!cancelled) applyVenueToForm(data)
+      } catch (err) {
+        if (!cancelled) setLoadError(parseVenueError(err))
+      } finally {
+        if (!cancelled) setLoadingVenue(false)
+      }
+    }
+
+    loadVenue()
+    return () => {
+      cancelled = true
+    }
+  }, [slug, isEditMode, applyVenueToForm])
 
 
 
@@ -134,6 +188,21 @@ const handleDrop = async (e) => {
   await uploadFiles(files)
 }
 
+  const handleCancelEdit = () => {
+    if (venue) applyVenueToForm(venue)
+    setAmenityInput("")
+    setSubmitError("")
+    setIsEditing(false)
+  }
+
+  const handleCancel = () => {
+    if (isEditMode && isEditing) {
+      handleCancelEdit()
+      return
+    }
+    navigate(-1)
+  }
+
   const handleSubmit = async () => {
     setSubmitError("")
 
@@ -158,8 +227,24 @@ const handleDrop = async (e) => {
 
     try {
       const payload = buildVenuePayload(formData, amenities, images)
-      const venue = await createVenue(payload)
-      navigate(`/venue/venues`, { replace: true, state: { createdVenue: venue.name } })
+
+      if (isEditMode) {
+        const updated = await updateVenue(slug, payload)
+        applyVenueToForm(updated)
+        setIsEditing(false)
+        setSuccessMessage("Venue updated successfully.")
+        window.setTimeout(() => setSuccessMessage(""), 4000)
+
+        if (updated.slug !== slug) {
+          navigate(`/venue/venues/${updated.slug}`, { replace: true })
+        }
+      } else {
+        const created = await createVenue(payload)
+        navigate(`/venue/venues`, {
+          replace: true,
+          state: { createdVenue: created.name },
+        })
+      }
     } catch (error) {
       setSubmitError(parseVenueError(error))
     } finally {
@@ -257,27 +342,95 @@ const uploadFiles = async (files) => {
 
 
 
+  if (isEditMode && loadingVenue) {
+    return (
+      <div className="mx-auto max-w-6xl animate-pulse space-y-6 px-1 py-2">
+        <div className="h-10 w-64 rounded-xl bg-muted/50" />
+        <div className="h-96 rounded-2xl bg-muted/40" />
+      </div>
+    )
+  }
+
+  if (isEditMode && loadError) {
+    return (
+      <div className="mx-auto max-w-6xl px-1 py-2">
+        <button
+          type="button"
+          onClick={() => navigate("/venue/venues")}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft size={16} />
+          Back to venues
+        </button>
+        <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </p>
+      </div>
+    )
+  }
+
+  const statusClass = venue
+    ? VENUE_STATUS_STYLES[venue.status] ?? "bg-slate-100 text-slate-600 border-slate-200"
+    : ""
+  const statusLabel = venue
+    ? VENUE_STATUS_LABELS[venue.status] ?? venue.status
+    : ""
+
   return (
     <div className="max-w-6xl mx-auto py-2 px-1">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <button
-            onClick={() => navigate(-1)}
+            type="button"
+            onClick={() => navigate("/venue/venues")}
             className="group inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground mb-3 transition-colors cursor-pointer"
           >
             <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
             Back to Venues
           </button>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight text-foreground">
-            Add New Venue
-          </h1>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-serif text-3xl md:text-4xl font-bold tracking-tight text-foreground">
+              {isEditMode
+                ? formData.name || venue?.name || "Venue Details"
+                : "Add New Venue"}
+            </h1>
+            {isEditMode && venue && (
+              <span
+                className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${statusClass}`}
+              >
+                {statusLabel}
+              </span>
+            )}
+          </div>
+
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
-            Create and publish a venue to showcase on our booking website.
+            {isEditMode
+              ? fieldsDisabled
+                ? "View your venue details. Click Edit to make changes."
+                : "Edit your venue details and save changes instantly."
+              : "Create and publish a venue to showcase on our booking website."}
           </p>
         </div>
 
+        {isEditMode && fieldsDisabled && (
+          <button
+            type="button"
+            onClick={() => {
+              setSubmitError("")
+              setSuccessMessage("")
+              setIsEditing(true)
+            }}
+            className="inline-flex items-center gap-2 self-start rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+          >
+            <Pencil size={16} />
+            Edit venue
+          </button>
+        )}
+
         {/* Progress Tracker Widget */}
+        {!isEditMode && (
         <div className="bg-white/80 border border-border/80 rounded-2xl p-4 shadow-sm backdrop-blur-sm min-w-[240px]">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -299,7 +452,14 @@ const uploadFiles = async (files) => {
             {completedSteps} of {totalSteps} details completed
           </span>
         </div>
+        )}
       </div>
+
+      {successMessage && (
+        <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {successMessage}
+        </p>
+      )}
 
       {optionsError && (
         <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -343,8 +503,9 @@ const uploadFiles = async (files) => {
                 <input
                   type="text"
                   placeholder="e.g., Grand Palace Ballroom"
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   value={formData.name}
+                  disabled={fieldsDisabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -361,7 +522,7 @@ const uploadFiles = async (files) => {
                 </label>
                 <div className="relative">
                   <select
-                    className="input appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235E6B5F%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.65rem_auto] bg-[right_1rem_center] bg-no-repeat pr-10"
+                    className={`${fieldClass(fieldsDisabled)} appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235E6B5F%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.65rem_auto] bg-[right_1rem_center] bg-no-repeat pr-10`}
                     value={formData.category}
                     onChange={(e) =>
                       setFormData({
@@ -369,7 +530,7 @@ const uploadFiles = async (files) => {
                         category: e.target.value,
                       })
                     }
-                    disabled={loadingOptions}
+                    disabled={fieldsDisabled || loadingOptions}
                   >
                     <option value="">Select Category</option>
                     {categories.map((item) => (
@@ -388,8 +549,9 @@ const uploadFiles = async (files) => {
                 </label>
                 <div className="relative">
                   <select
-                    className="input appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235E6B5F%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.65rem_auto] bg-[right_1rem_center] bg-no-repeat pr-10"
+                    className={`${fieldClass(fieldsDisabled)} appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%235E6B5F%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.65rem_auto] bg-[right_1rem_center] bg-no-repeat pr-10`}
                     value={formData.bookingType}
+                    disabled={fieldsDisabled}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -416,8 +578,9 @@ const uploadFiles = async (files) => {
                   type="number"
                   placeholder="e.g., 250"
                   min="1"
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   value={formData.capacity}
+                  disabled={fieldsDisabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -455,15 +618,15 @@ const uploadFiles = async (files) => {
                   City / Location <span className="text-accent font-bold">*</span>
                 </label>
                 <select
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   value={formData.location}
+                  disabled={fieldsDisabled || loadingOptions}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
                       location: e.target.value,
                     })
                   }
-                  disabled={loadingOptions}
                 >
                   <option value="">Select location</option>
                   {locations.map((item) => (
@@ -482,8 +645,9 @@ const uploadFiles = async (files) => {
                 <input
                   type="text"
                   placeholder="e.g., 5th Avenue, Palace Road"
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   value={formData.address}
+                  disabled={fieldsDisabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -526,9 +690,10 @@ const uploadFiles = async (files) => {
 
                 <input
                   type="text"
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   placeholder="John Doe"
                   value={formData.contactName}
+                  disabled={fieldsDisabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -546,9 +711,10 @@ const uploadFiles = async (files) => {
 
                 <input
                   type="tel"
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   placeholder="+91 9876543210"
                   value={formData.contactPhone}
+                  disabled={fieldsDisabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -566,9 +732,10 @@ const uploadFiles = async (files) => {
 
                 <input
                   type="email"
-                  className="input"
+                  className={fieldClass(fieldsDisabled)}
                   placeholder="booking@venue.com"
                   value={formData.contactEmail}
+                  disabled={fieldsDisabled}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -605,9 +772,10 @@ const uploadFiles = async (files) => {
               </label>
               <textarea
                 rows={5}
-                className="input resize-none"
+                className={`${fieldClass(fieldsDisabled)} resize-none`}
                 placeholder="Write something engaging about the venue environment, availability, layout, acoustics, or parking..."
                 value={formData.description}
+                disabled={fieldsDisabled}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -718,6 +886,7 @@ const uploadFiles = async (files) => {
               </div>
             </div>
 
+            {!fieldsDisabled && (
             <div className="flex gap-2">
               <input
                 type="text"
@@ -725,7 +894,7 @@ const uploadFiles = async (files) => {
                 placeholder="e.g., Free Wi-Fi"
                 value={amenityInput}
                 onChange={(e) => setAmenityInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addAmenity()}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addAmenity())}
               />
               <button
                 type="button"
@@ -736,6 +905,7 @@ const uploadFiles = async (files) => {
                 <Plus size={18} />
               </button>
             </div>
+            )}
 
             <div className="flex flex-wrap gap-1.5 mt-4 max-h-[160px] overflow-y-auto pr-1">
               <AnimatePresence>
@@ -749,6 +919,7 @@ const uploadFiles = async (files) => {
                     className="flex items-center gap-1.5 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-semibold text-primary"
                   >
                     {item}
+                    {!fieldsDisabled && (
                     <button
                       type="button"
                       onClick={() => removeAmenity(index)}
@@ -756,6 +927,7 @@ const uploadFiles = async (files) => {
                     >
                       <X size={12} />
                     </button>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -787,6 +959,7 @@ const uploadFiles = async (files) => {
             </div>
 
             {/* Drag & Drop Area */}
+            {!fieldsDisabled && (
             <label
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -812,6 +985,7 @@ const uploadFiles = async (files) => {
                 onChange={handleImages}
               />
             </label>
+            )}
 
             {/* File List / Previews */}
             {images.length > 0 && (
@@ -821,12 +995,15 @@ const uploadFiles = async (files) => {
                     Uploaded ({images.length})
                   </span>
 
+                  {!fieldsDisabled && (
                   <button
+                    type="button"
                     onClick={() => setImages([])}
                     className="text-[11px] font-bold text-accent hover:underline cursor-pointer"
                   >
                     Clear All
                   </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -851,11 +1028,13 @@ const uploadFiles = async (files) => {
                           </span>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => removeImage(idx)}
-                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white rounded-xl cursor-pointer"
-                        >
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity text-white rounded-xl cursor-pointer ${
+                      fieldsDisabled ? "hidden" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
                           <X size={16} />
                         </button>
                       </motion.div>
@@ -880,6 +1059,7 @@ const uploadFiles = async (files) => {
       </motion.div>
 
       {/* Footer Form Submission buttons */}
+      {(!isEditMode || isEditing) && (
       <div className="flex flex-col items-end gap-3 mt-8 border-t border-border/40 pt-6">
         {submitError && (
           <p className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -889,7 +1069,8 @@ const uploadFiles = async (files) => {
 
         <div className="flex items-center justify-end gap-3">
         <button
-          onClick={() => navigate(-1)}
+          type="button"
+          onClick={handleCancel}
           className="btn btn-outline"
           disabled={submitting}
         >
@@ -897,62 +1078,22 @@ const uploadFiles = async (files) => {
         </button>
 
         <button
+          type="button"
           onClick={handleSubmit}
           className="btn btn-primary"
-          disabled={submitting || loadingOptions}
+          disabled={submitting || loadingOptions || uploading}
         >
-          {submitting ? "Creating Venue..." : "Create Venue"}
+          {submitting
+            ? isEditMode
+              ? "Saving..."
+              : "Creating Venue..."
+            : isEditMode
+              ? "Save changes"
+              : "Create Venue"}
         </button>
         </div>
       </div>
+      )}
     </div>
   )
 }
-
-
-
-// sample form object
-// {
-//     "name": "Godha",
-//     "category": "Sports",
-//     "location": "Trivandrum",
-//     "address": "Kazhakkottam",
-//     "description": "skfjasldjflsadflaskdjflskf",
-//     "capacity": "50",
-//     "bookingType": "Hourly",
-//     "contactName": "owner",
-//     "contactPhone": "9847987478",
-//     "contactEmail": "booking@example.coma",
-//     "amenities": [
-//         "parking",
-//         "water",
-//         "dressing rooms"
-//     ],
-//     "images": [
-//         {}
-//     ]
-// }
-
-// will modify this to
-// {
-//     "name": "Godha",
-//     "category_id": "Sports",
-//     "location_id": "Trivandrum",
-//     "address": "Kazhakkottam",
-//     "description": "skfjasldjflsadflaskdjflskf",
-//     "capacity": "50",
-//     "bookingType_id": "Hourly",
-//     "contactName": "owner",
-//     "contactPhone": "9847987478",
-//     "contactEmail": "booking@example.coma",
-//     "amenities": [
-//         "parking",
-//         "water",
-//         "dressing rooms"
-//     ],
-//     "images": [
-//         {}
-//     ]
-// }
-
-
