@@ -22,8 +22,8 @@ export default function AppRoutes() {
         <Route path="/" element={<UserLayout />}>
           <Route index element={<HomePage />} />
           <Route path="venues" element={<ExploreVenuesPage />} />
+          <Route path="venues/:slug" element={<VenueDetailsPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="venue/:slug" element={<VenueDetailsPage />} />
         </Route>
 
         <Route

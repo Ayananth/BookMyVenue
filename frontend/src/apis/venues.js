@@ -149,6 +149,101 @@ export function formatVenuePrice(price) {
   }).format(numeric)
 }
 
+export function formatVenueLocation(location) {
+  if (!location) return ""
+  if (typeof location === "string") return location
+  return [location.district, location.city, location.state].filter(Boolean).join(", ")
+}
+
+const BOOKING_TYPE_LABELS = {
+  hourly: "Hourly slots",
+  session: "Session slots",
+  full_day: "Full day rental",
+}
+
+function getVenueGallery(images = []) {
+  const sorted = [...images].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+  )
+  const urls = sorted.map((image) => image.image_url).filter(Boolean)
+  return urls.length > 0 ? urls : ["/placeholder.svg"]
+}
+
+function getCoverImage(images = []) {
+  if (!images.length) return "/placeholder.svg"
+  const cover = images.find((image) => image.is_cover)
+  if (cover?.image_url) return cover.image_url
+  const sorted = [...images].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+  )
+  return sorted[0]?.image_url ?? "/placeholder.svg"
+}
+
+export function toVenueDetailPage(venue) {
+  const gallery = getVenueGallery(venue.images)
+  const image = getCoverImage(venue.images)
+  const location = formatVenueLocation(venue.location)
+  const type = venue.category?.name ?? venue.type ?? ""
+  const amenities = Array.isArray(venue.amenities) ? venue.amenities : []
+  const priceValue = venue.min_price != null ? Number(venue.min_price) : null
+  const formattedPrice = formatVenuePrice(priceValue)
+  const pricePerPerson =
+    priceValue != null && venue.capacity
+      ? Math.max(1, Math.round(priceValue / venue.capacity))
+      : null
+
+  return {
+    slug: venue.slug,
+    name: venue.name,
+    location,
+    address: venue.address ?? "",
+    type,
+    capacity: venue.capacity,
+    price: formattedPrice,
+    priceValue,
+    pricePerPerson,
+    rating: venue.rating ?? null,
+    reviews: venue.reviews ?? 0,
+    image,
+    gallery,
+    description: venue.description ?? "",
+    amenities,
+    parking: venue.parking ?? null,
+    hours: BOOKING_TYPE_LABELS[venue.booking_type] ?? venue.hours ?? null,
+    phone: venue.contact_phone ?? venue.phone ?? "",
+    email: venue.contact_email ?? venue.email ?? "",
+    owner: venue.contact_name ?? venue.owner ?? "Venue manager",
+    ownerImage: image,
+    reviews_list: venue.reviews_list ?? [],
+    highlights: venue.highlights ?? amenities.slice(0, 4),
+    minEventSize: venue.minEventSize ?? null,
+    maxEventSize: venue.maxEventSize ?? venue.capacity ?? null,
+    eventTypes: venue.eventTypes ?? (type ? [type] : []),
+    categoryId: venue.category?.id ?? null,
+    bookingType: venue.booking_type,
+  }
+}
+
+export async function fetchVenueDetail(slug) {
+  const data = await fetchVenueBySlug(slug)
+  return toVenueDetailPage(data)
+}
+
+export async function fetchRelatedVenues({ categoryId, slug, limit = 3 } = {}) {
+  if (!categoryId) return []
+
+  const { data } = await api.get("/venues/", {
+    baseURL: API_BASE_URL,
+    params: { category_id: categoryId, limit: limit + 1 },
+  })
+
+  const venues = data.results ?? data
+  return venues
+    .filter((candidate) => candidate.slug !== slug)
+    .slice(0, limit)
+    .map(toExploreVenue)
+}
+
 function toExploreVenue(venue) {
   if (venue.type && typeof venue.location === "string") {
     return venue

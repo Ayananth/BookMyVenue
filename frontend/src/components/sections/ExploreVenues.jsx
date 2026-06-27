@@ -97,7 +97,7 @@ export default function ExploreVenues() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
-                    onClick={() => navigate(`/venue/${v.slug}`)}
+                    onClick={() => navigate(`/venues/${v.slug}`)}
                     className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_44px_rgba(27,36,29,0.12)]"
                   >
                     <div className="relative overflow-hidden">
