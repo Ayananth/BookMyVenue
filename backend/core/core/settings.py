@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-m5s-%c60fq_(ho3e7_0)!1=bqn=38(^a(-h))p)%19_v0s(%q%
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 
 
 # Application definition
@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "accounts",
     "venues",
     "bookings",
+    "rest_framework"
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -129,3 +130,15 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440
+JWT_ALGORITHM = "HS256"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "accounts.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
