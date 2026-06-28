@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
+import { ArrowRight, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
 import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories } from "../apis/venues"
@@ -56,6 +56,44 @@ function FilterSelect({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
+  )
+}
+
+function Pagination({ page, totalPages, onPageChange }) {
+  if (totalPages <= 1) {
+    return null
+  }
+
+  return (
+    <nav
+      aria-label="Venue pagination"
+      className="mt-10 flex flex-wrap items-center justify-center gap-2"
+    >
+      <button
+        type="button"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Previous
+      </button>
+
+      <span className="px-3 text-sm font-medium text-muted-foreground">
+        Page <span className="font-semibold text-foreground">{page}</span> of{" "}
+        <span className="font-semibold text-foreground">{totalPages}</span>
+      </span>
+
+      <button
+        type="button"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+        className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        Next
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </nav>
   )
 }
 
@@ -129,9 +167,14 @@ function VenueCard({ venue, liked, onToggleLike }) {
 }
 
 export default function ExploreVenuesPage() {
+  const resultsRef = useRef(null)
+  const isInitialLoad = useRef(true)
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([{ id: null, name: "All venues" }])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [searchInput, setSearchInput] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState(initialFilters)
@@ -149,10 +192,13 @@ export default function ExploreVenuesPage() {
       ...priceParams,
       ordering,
       category_id: filters.categoryId ?? undefined,
+      page,
     })
-      .then((venueData) => {
+      .then(({ venues: venueData, count, totalPages: pages }) => {
         if (active) {
           setVenues(venueData)
+          setTotalCount(count)
+          setTotalPages(pages)
         }
       })
       .catch((error) => console.error("Failed to load venues:", error))
@@ -165,7 +211,17 @@ export default function ExploreVenuesPage() {
     return () => {
       active = false
     }
-  }, [filters.categoryId, filters.price, filters.sort])
+  }, [filters.categoryId, filters.price, filters.sort, page])
+
+  useEffect(() => {
+    if (!loading) {
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false
+        return
+      }
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }, [page, loading])
 
   useEffect(() => {
     fetchVenueCategories()
@@ -212,6 +268,15 @@ export default function ExploreVenuesPage() {
     return results
   }, [filters, searchTerm, venues])
 
+  const hasClientFilters = searchTerm !== "" || filters.location !== "All"
+
+  const displayCount = useMemo(() => {
+    if (hasClientFilters) {
+      return filteredVenues.length
+    }
+    return totalCount
+  }, [filteredVenues.length, hasClientFilters, totalCount])
+
   const hasActiveFilters = useMemo(() => {
     return (
       searchTerm !== "" ||
@@ -225,6 +290,9 @@ export default function ExploreVenuesPage() {
 
   const updateFilter = (key, value) => {
     setFilters((state) => ({ ...state, [key]: value }))
+    if (key === "categoryId" || key === "price" || key === "sort") {
+      setPage(1)
+    }
   }
 
   const handleSearch = (event) => {
@@ -236,6 +304,7 @@ export default function ExploreVenuesPage() {
     setSearchInput("")
     setSearchTerm("")
     setFilters(initialFilters)
+    setPage(1)
   }
 
   return (
@@ -304,7 +373,7 @@ export default function ExploreVenuesPage() {
                   <div>
                     <h2 className="font-serif text-2xl font-semibold text-foreground">Browse by need</h2>
                     <p className="text-sm text-muted-foreground">
-                      {filteredVenues.length} venues match your current view
+                      {displayCount} venues match your current view
                     </p>
                   </div>
                 </div>
@@ -363,10 +432,14 @@ export default function ExploreVenuesPage() {
             </section>
           </Reveal>
 
-          <section className="mt-10">
+          <section ref={resultsRef} className="mt-10 scroll-mt-36">
             <div className="mb-5 flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filteredVenues.length}</span> venues
+                Showing <span className="font-semibold text-foreground">{filteredVenues.length}</span>
+                {!hasClientFilters && totalCount > filteredVenues.length && (
+                  <> of <span className="font-semibold text-foreground">{totalCount}</span></>
+                )}{" "}
+                venues
               </p>
               {hasActiveFilters && (
                 <button
@@ -405,6 +478,10 @@ export default function ExploreVenuesPage() {
                   ))}
                 </AnimatePresence>
               </div>
+            )}
+
+            {!loading && (
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             )}
           </section>
         </div>

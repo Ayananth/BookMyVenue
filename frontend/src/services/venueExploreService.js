@@ -1,7 +1,7 @@
 import api from "../lib/axios"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
-const EXPLORE_VENUE_MAX_LIMIT = 50
+export const EXPLORE_VENUE_PAGE_SIZE = 12
 
 function toExplorePageVenue(venue) {
   const category =
@@ -55,8 +55,15 @@ export function sortToOrdering(sort) {
   }
 }
 
-export const fetchVenues = async ({ min_price, max_price, ordering, category_id } = {}) => {
-  const params = { limit: EXPLORE_VENUE_MAX_LIMIT }
+export const fetchVenues = async ({
+  min_price,
+  max_price,
+  ordering,
+  category_id,
+  page = 1,
+  limit = EXPLORE_VENUE_PAGE_SIZE,
+} = {}) => {
+  const params = { limit, page }
 
   if (category_id != null) params.category_id = category_id
   if (min_price != null) params.min_price = min_price
@@ -69,5 +76,11 @@ export const fetchVenues = async ({ min_price, max_price, ordering, category_id 
   })
 
   const venues = data.results ?? data
-  return venues.map(toExplorePageVenue)
+  const count = data.count ?? venues.length
+
+  return {
+    venues: venues.map(toExplorePageVenue),
+    count,
+    totalPages: count != null ? Math.max(1, Math.ceil(count / limit)) : 1,
+  }
 }
