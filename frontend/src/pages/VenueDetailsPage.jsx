@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
 import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check } from "lucide-react"
 import { fetchRelatedVenues, fetchVenueDetail, formatVenuePrice } from "../apis/venues"
+import AuthModal from "../components/common/AuthModal"
 import Reveal from "../components/common/Reveal"
 import VenueBookingModal from "../components/venues/VenueBookingModal"
 import MainLayout from "../layouts/MainLayout"
@@ -18,6 +19,7 @@ export default function VenueDetailsPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
 
   useEffect(() => {
     window.scrollTo({
@@ -533,7 +535,9 @@ export default function VenueDetailsPage() {
         open={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         venue={venue}
+        onRequireAuth={() => setAuthOpen(true)}
       />
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </MainLayout>
   )
 }

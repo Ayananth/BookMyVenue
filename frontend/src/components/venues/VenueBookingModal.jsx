@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { CalendarDays, MapPin, X } from "lucide-react"
+import { CalendarDays, CheckCircle2, MapPin, X } from "lucide-react"
+import { createBookings, parseBookingError } from "../../apis/bookings"
 import { fetchVenueAvailability } from "../../apis/venueSchedules"
 import { formatVenuePrice } from "../../apis/venues"
+import { useAuth } from "../../contexts/AuthContext"
 
 function toDateInputValue(date) {
   const year = date.getFullYear()
@@ -28,12 +31,17 @@ function getSlotLabel(slot) {
   return slot.name || formatSlotTimeRange(slot.startTime, slot.endTime)
 }
 
-export default function VenueBookingModal({ open, onClose, venue }) {
+export default function VenueBookingModal({ open, onClose, venue, onRequireAuth }) {
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
   const [selectedSlotIds, setSelectedSlotIds] = useState([])
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [availabilityError, setAvailabilityError] = useState("")
+  const [submitError, setSubmitError] = useState("")
+  const [success, setSuccess] = useState(false)
 
   const bookingDateRange = useMemo(() => {
     const today = new Date()
@@ -60,7 +68,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
     if (!venue?.slug || !selectedDate) return
 
     setLoading(true)
-    setError("")
+    setAvailabilityError("")
 
     try {
       const data = await fetchVenueAvailability(venue.slug, selectedDate)
@@ -72,7 +80,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
       console.error("Failed to fetch availability:", fetchError)
       setSlots([])
       setSelectedSlotIds([])
-      setError("Could not load available slots. Please try again.")
+      setAvailabilityError("Could not load available slots. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -104,9 +112,39 @@ export default function VenueBookingModal({ open, onClose, venue }) {
       setSelectedDate(toDateInputValue(new Date()))
       setSelectedSlotIds([])
       setSlots([])
-      setError("")
+      setSelectedSlotIds([])
+      setAvailabilityError("")
+      setSubmitError("")
+      setSuccess(false)
+      setSubmitting(false)
     }
   }, [open])
+
+  const handleConfirmBooking = async () => {
+    if (!venue?.slug || selectedSlotIds.length === 0) return
+
+    if (!isAuthenticated) {
+      onRequireAuth?.()
+      return
+    }
+
+    setSubmitting(true)
+    setSubmitError("")
+
+    try {
+      await createBookings({
+        venueSlug: venue.slug,
+        bookingDate: selectedDate,
+        scheduleIds: selectedSlotIds,
+      })
+      setSuccess(true)
+    } catch (submitError) {
+      console.error("Failed to create booking:", submitError)
+      setSubmitError(parseBookingError(submitError))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const toggleSlot = (slotId) => {
     setSelectedSlotIds((current) =>
@@ -156,6 +194,37 @@ export default function VenueBookingModal({ open, onClose, venue }) {
               <X size={20} />
             </button>
 
+            {success ? (
+              <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <CheckCircle2 size={32} />
+                </div>
+                <h3 className="mt-5 font-serif text-2xl font-bold">Booking submitted</h3>
+                <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                  Your reservation is pending confirmation. You can track it from your profile.
+                </p>
+                <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose()
+                      navigate("/profile")
+                    }}
+                    className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    View My Bookings
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="mb-6 pr-8">
               <p className="text-sm font-semibold text-primary">Choose your date and slots</p>
               <h3 className="mt-1 font-serif text-2xl font-bold">Book this venue</h3>
@@ -198,9 +267,9 @@ export default function VenueBookingModal({ open, onClose, venue }) {
                   <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
                     Loading available slots...
                   </div>
-                ) : error ? (
+                ) : availabilityError ? (
                   <div className="flex h-full flex-col items-center justify-center rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
-                    <p className="text-sm text-destructive">{error}</p>
+                    <p className="text-sm text-destructive">{availabilityError}</p>
                     <button
                       type="button"
                       onClick={loadAvailability}
@@ -266,22 +335,32 @@ export default function VenueBookingModal({ open, onClose, venue }) {
               </div>
             </div>
 
+            {submitError && (
+              <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                {submitError}
+              </p>
+            )}
+
             <div className="flex flex-col gap-3 sm:flex-row">
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={selectedSlots.length === 0}
+                whileHover={{ scale: submitting ? 1 : 1.02 }}
+                whileTap={{ scale: submitting ? 1 : 0.98 }}
+                disabled={selectedSlots.length === 0 || submitting}
+                onClick={handleConfirmBooking}
                 className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Confirm Booking
+                {submitting ? "Confirming..." : "Confirm Booking"}
               </motion.button>
               <button
                 onClick={onClose}
-                className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
+                disabled={submitting}
+                className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
               >
                 Keep Browsing
               </button>
             </div>
+              </>
+            )}
           </div>
         </div>
       </motion.div>
