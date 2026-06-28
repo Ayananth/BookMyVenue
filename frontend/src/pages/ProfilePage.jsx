@@ -589,33 +589,7 @@ export default function ProfilePage() {
   }
 
   const renderContent = () => {
-    if (authLoading) {
-      return (
-        <div className="rounded-2xl border border-border bg-card py-16 text-center text-muted-foreground">
-          Loading profile...
-        </div>
-      )
-    }
-
-    if (!isAuthenticated) {
-      return (
-        <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
-          <h2 className="font-serif text-3xl font-semibold text-foreground">Sign in to view your profile</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your bookings and account details are available after you sign in.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="mt-6 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-          >
-            Go to Home
-          </button>
-        </div>
-      )
-    }
-
-    if (loading || !profile) {
+    if (authLoading || loading || !profile) {
       return (
         <div className="rounded-2xl border border-border bg-card py-16 text-center text-muted-foreground">
           Loading profile...

@@ -6,6 +6,7 @@ import { createBookings, parseBookingError } from "../../apis/bookings"
 import { fetchVenueAvailability } from "../../apis/venueSchedules"
 import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
+import { useAuthModal } from "../../contexts/AuthModalContext"
 
 function toDateInputValue(date) {
   const year = date.getFullYear()
@@ -31,9 +32,10 @@ function getSlotLabel(slot) {
   return slot.name || formatSlotTimeRange(slot.startTime, slot.endTime)
 }
 
-export default function VenueBookingModal({ open, onClose, venue, onRequireAuth }) {
+export default function VenueBookingModal({ open, onClose, venue }) {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
+  const { openAuthModal } = useAuthModal()
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
   const [selectedSlotIds, setSelectedSlotIds] = useState([])
   const [slots, setSlots] = useState([])
@@ -112,7 +114,6 @@ export default function VenueBookingModal({ open, onClose, venue, onRequireAuth 
       setSelectedDate(toDateInputValue(new Date()))
       setSelectedSlotIds([])
       setSlots([])
-      setSelectedSlotIds([])
       setAvailabilityError("")
       setSubmitError("")
       setSuccess(false)
@@ -120,13 +121,8 @@ export default function VenueBookingModal({ open, onClose, venue, onRequireAuth 
     }
   }, [open])
 
-  const handleConfirmBooking = async () => {
+  const submitBooking = async () => {
     if (!venue?.slug || selectedSlotIds.length === 0) return
-
-    if (!isAuthenticated) {
-      onRequireAuth?.()
-      return
-    }
 
     setSubmitting(true)
     setSubmitError("")
@@ -138,12 +134,28 @@ export default function VenueBookingModal({ open, onClose, venue, onRequireAuth 
         scheduleIds: selectedSlotIds,
       })
       setSuccess(true)
-    } catch (submitError) {
-      console.error("Failed to create booking:", submitError)
-      setSubmitError(parseBookingError(submitError))
+    } catch (bookingError) {
+      console.error("Failed to create booking:", bookingError)
+      setSubmitError(parseBookingError(bookingError))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleConfirmBooking = async () => {
+    if (!venue?.slug || selectedSlotIds.length === 0) return
+
+    if (!isAuthenticated) {
+      openAuthModal({
+        message: "Sign in to confirm your booking.",
+        onSuccess: () => {
+          submitBooking()
+        },
+      })
+      return
+    }
+
+    await submitBooking()
   }
 
   const toggleSlot = (slotId) => {

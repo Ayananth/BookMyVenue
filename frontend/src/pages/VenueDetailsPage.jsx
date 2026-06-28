@@ -3,14 +3,17 @@ import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
 import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check } from "lucide-react"
 import { fetchRelatedVenues, fetchVenueDetail, formatVenuePrice } from "../apis/venues"
-import AuthModal from "../components/common/AuthModal"
 import Reveal from "../components/common/Reveal"
 import VenueBookingModal from "../components/venues/VenueBookingModal"
+import { useAuth } from "../contexts/AuthContext"
+import { useAuthModal } from "../contexts/AuthModalContext"
 import MainLayout from "../layouts/MainLayout"
 
 export default function VenueDetailsPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
+  const { openAuthModal } = useAuthModal()
   const [venue, setVenue] = useState(null)
   const [relatedVenues, setRelatedVenues] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +22,18 @@ export default function VenueDetailsPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [isBookingOpen, setIsBookingOpen] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
+
+  const handleBookNow = () => {
+    if (!isAuthenticated) {
+      openAuthModal({
+        message: "Sign in to book this venue.",
+        onSuccess: () => setIsBookingOpen(true),
+      })
+      return
+    }
+
+    setIsBookingOpen(true)
+  }
 
   useEffect(() => {
     window.scrollTo({
@@ -431,7 +445,7 @@ export default function VenueDetailsPage() {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsBookingOpen(true)}
+                    onClick={handleBookNow}
                     className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold mb-3 hover:opacity-90 transition"
                   >
                     Book Now
@@ -535,9 +549,7 @@ export default function VenueDetailsPage() {
         open={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         venue={venue}
-        onRequireAuth={() => setAuthOpen(true)}
       />
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </MainLayout>
   )
 }
