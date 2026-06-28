@@ -9,7 +9,8 @@ from bookings.models import Booking, BookingStatus
 from venues.availability import get_available_slots
 from venues.models import (
     BookingType,
-    Location,
+    City,
+    District,
     Venue,
     VenueCategory,
     VenueSchedule,
@@ -30,15 +31,12 @@ class AvailabilityTestCase(TestCase):
             role="venue",
         )
         self.category = VenueCategory.objects.create(name="Hall")
-        self.location = Location.objects.create(
-            city="Mumbai",
-            district="Andheri",
-            state="Maharashtra",
-        )
+        self.district = District.objects.create(name="Andheri")
+        self.city = City.objects.create(district=self.district, name="Mumbai")
         self.venue = Venue.objects.create(
             owner=self.owner,
             category=self.category,
-            location=self.location,
+            city=self.city,
             name="Test Venue",
             slug="test-venue",
             address="123 Test St",
@@ -168,15 +166,12 @@ class VenueAvailabilityAPITestCase(TestCase):
             role="venue",
         )
         self.category = VenueCategory.objects.create(name="Hall")
-        self.location = Location.objects.create(
-            city="Mumbai",
-            district="Andheri",
-            state="Maharashtra",
-        )
+        self.district = District.objects.create(name="Andheri")
+        self.city = City.objects.create(district=self.district, name="Mumbai")
         self.venue = Venue.objects.create(
             owner=self.owner,
             category=self.category,
-            location=self.location,
+            city=self.city,
             name="API Venue",
             slug="api-venue",
             address="123 Test St",

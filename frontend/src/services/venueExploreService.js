@@ -9,10 +9,12 @@ function toExplorePageVenue(venue) {
       ? venue.category
       : { id: venue.category_id, name: venue.category }
 
-  const location =
-    typeof venue.location === "object" && venue.location
-      ? venue.location
-      : { state: venue.state, district: venue.district, city: venue.city }
+  const city =
+    typeof venue.city === "object" && venue.city
+      ? venue.city
+      : typeof venue.location === "object" && venue.location
+        ? venue.location
+        : { name: venue.city, district: { name: venue.district } }
 
   const price = venue.min_price ?? venue.price
 
@@ -20,7 +22,7 @@ function toExplorePageVenue(venue) {
     slug: venue.slug ?? venue.id?.toString(),
     name: venue.name,
     category,
-    location,
+    city,
     capacity: venue.capacity,
     price: price != null ? Number(price) : 0,
     rating: venue.rating ?? 0,

@@ -10,9 +10,9 @@ class VenueFilterBackend:
         if category_id:
             queryset = queryset.filter(category_id=category_id)
 
-        location_id = request.query_params.get("location_id")
-        if location_id:
-            queryset = queryset.filter(location_id=location_id)
+        city_id = request.query_params.get("city_id")
+        if city_id:
+            queryset = queryset.filter(city_id=city_id)
 
         min_price = _parse_decimal(request.query_params.get("min_price"))
         if min_price is not None:

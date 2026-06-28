@@ -4,10 +4,11 @@ from venues.views import (
     ImageUploadView,
     VenueAvailabilityView,
     VenueCategoryListView,
+    VenueCityListView,
     VenueCreateView,
     VenueDetailView,
+    VenueDistrictListView,
     VenueListCreateView,
-    VenueLocationListView,
     VenueScheduleGroupDetailView,
     VenueScheduleGroupListCreateView,
     VenueScheduleOverrideDetailView,
@@ -16,7 +17,8 @@ from venues.views import (
 
 urlpatterns = [
     path("categories", VenueCategoryListView.as_view(), name="venue-categories"),
-    path("locations", VenueLocationListView.as_view(), name="venue-locations"),
+    path("districts", VenueDistrictListView.as_view(), name="venue-districts"),
+    path("cities", VenueCityListView.as_view(), name="venue-cities"),
     path("", VenueListCreateView.as_view(), name="venue-list-create"),
     path("add", VenueCreateView.as_view(), name="venue-add"),
     path(

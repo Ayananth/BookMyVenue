@@ -22,7 +22,8 @@ import {
   createVenue,
   fetchVenueBySlug,
   fetchVenueFormCategories,
-  fetchVenueFormLocations,
+  fetchVenueFormCities,
+  fetchVenueFormDistricts,
   parseVenueError,
   updateVenue,
   uploadVenueImage,
@@ -40,7 +41,8 @@ import ScheduleOverridesPanel from "@/apps/venue/components/ScheduleOverridesPan
 const EMPTY_FORM = {
   name: "",
   category: "",
-  location: "",
+  district: "",
+  city: "",
   address: "",
   description: "",
   capacity: "",
@@ -61,7 +63,8 @@ export default function AddVenuePage() {
 
   const [venue, setVenue] = useState(null)
   const [categories, setCategories] = useState([])
-  const [locations, setLocations] = useState([])
+  const [districts, setDistricts] = useState([])
+  const [cities, setCities] = useState([])
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [loadingVenue, setLoadingVenue] = useState(isEditMode)
   const [optionsError, setOptionsError] = useState("")
@@ -97,14 +100,14 @@ export default function AddVenuePage() {
       setOptionsError("")
 
       try {
-        const [categoryData, locationData] = await Promise.all([
+        const [categoryData, districtData] = await Promise.all([
           fetchVenueFormCategories(),
-          fetchVenueFormLocations(),
+          fetchVenueFormDistricts(),
         ])
         setCategories(categoryData)
-        setLocations(locationData)
+        setDistricts(districtData)
       } catch {
-        setOptionsError("Failed to load categories and locations.")
+        setOptionsError("Failed to load categories and districts.")
       } finally {
         setLoadingOptions(false)
       }
@@ -112,6 +115,29 @@ export default function AddVenuePage() {
 
     fetchData()
   }, [])
+
+  useEffect(() => {
+    if (!formData.district) {
+      setCities([])
+      return undefined
+    }
+
+    let cancelled = false
+
+    const loadCities = async () => {
+      try {
+        const cityData = await fetchVenueFormCities(formData.district)
+        if (!cancelled) setCities(cityData)
+      } catch {
+        if (!cancelled) setCities([])
+      }
+    }
+
+    loadCities()
+    return () => {
+      cancelled = true
+    }
+  }, [formData.district])
 
   useEffect(() => {
     if (!isEditMode) return undefined
@@ -227,7 +253,8 @@ const handleDrop = async (e) => {
     if (!formData.category) missingFields.push("category")
     if (!formData.bookingType) missingFields.push("booking type")
     if (!formData.capacity) missingFields.push("capacity")
-    if (!formData.location) missingFields.push("location")
+    if (!formData.district) missingFields.push("district")
+    if (!formData.city) missingFields.push("city")
     if (!formData.address.trim()) missingFields.push("address")
     if (!formData.description.trim()) missingFields.push("description")
     if (!formData.contactName.trim()) missingFields.push("contact person")
@@ -271,8 +298,8 @@ const handleDrop = async (e) => {
   const selectedCategory = categories.find(
     (item) => String(item.id) === String(formData.category),
   )
-  const selectedLocation = locations.find(
-    (item) => String(item.id) === String(formData.location),
+  const selectedCity = cities.find(
+    (item) => String(item.id) === String(formData.city),
   )
   const selectedBookingType = VENUE_BOOKING_TYPES.find(
     (item) => item.value === formData.bookingType,
@@ -284,14 +311,15 @@ const handleDrop = async (e) => {
     formData.category,
     formData.bookingType,
     formData.capacity,
-    formData.location,
+    formData.district,
+    formData.city,
     formData.address,
     formData.description,
   ]
   const completedRequired = requiredFields.filter((val) => val && val.toString().trim() !== "").length
   const totalRequired = requiredFields.length
 
-  const totalSteps = totalRequired + 2 // 7 fields + amenities + images
+  const totalSteps = totalRequired + 2 // 8 fields + amenities + images
   const completedSteps =
     completedRequired + (amenities.length > 0 ? 1 : 0) + (images.length > 0 ? 1 : 0)
   const progressPercent = Math.round((completedSteps / totalSteps) * 100)
@@ -687,24 +715,50 @@ const uploadFiles = async (files) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* City/Region */}
+              {/* District */}
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
-                  City / Location <span className="text-accent font-bold">*</span>
+                  District <span className="text-accent font-bold">*</span>
                 </label>
                 <select
                   className={fieldClass(fieldsDisabled)}
-                  value={formData.location}
+                  value={formData.district}
                   disabled={fieldsDisabled || loadingOptions}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      location: e.target.value,
+                      district: e.target.value,
+                      city: "",
                     })
                   }
                 >
-                  <option value="">Select location</option>
-                  {locations.map((item) => (
+                  <option value="">Select district</option>
+                  {districts.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
+                  City <span className="text-accent font-bold">*</span>
+                </label>
+                <select
+                  className={fieldClass(fieldsDisabled)}
+                  value={formData.city}
+                  disabled={fieldsDisabled || loadingOptions || !formData.district}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      city: e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Select city</option>
+                  {cities.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
                     </option>
@@ -713,7 +767,7 @@ const uploadFiles = async (files) => {
               </div>
 
               {/* Full Address */}
-              <div>
+              <div className="md:col-span-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
                   Full Address <span className="text-accent font-bold">*</span>
                 </label>
@@ -904,8 +958,8 @@ const uploadFiles = async (files) => {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <MapPin size={14} className="text-primary/70 shrink-0" />
                   <span className="line-clamp-1">
-                    {selectedLocation
-                      ? selectedLocation.name
+                    {selectedCity
+                      ? `${selectedCity.name}, ${districts.find((d) => String(d.id) === String(formData.district))?.name ?? ""}`
                       : "City Center, Kochi"}
                     {formData.address ? `, ${formData.address}` : ""}
                   </span>

@@ -16,7 +16,8 @@ from accounts.models import UserRole
 from venues.availability import get_available_slots
 from venues.filters import annotate_min_price, filter_venue_list
 from venues.models import (
-    Location,
+    City,
+    District,
     Venue,
     VenueCategory,
     VenueSchedule,
@@ -27,7 +28,8 @@ from venues.models import (
 )
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
 from venues.serializers import (
-    LocationDropdownSerializer,
+    CityDropdownSerializer,
+    DistrictSerializer,
     VenueCategorySerializer,
     VenueDetailSerializer,
     VenueListSerializer,
@@ -50,7 +52,8 @@ def _base_queryset():
     return annotate_min_price(
         Venue.objects.select_related(
             "category",
-            "location",
+            "city",
+            "city__district",
             "owner",
         ).prefetch_related("images"),
     )
@@ -124,12 +127,27 @@ class VenueCategoryListView(APIView):
         return Response(serializer.data)
 
 
-class VenueLocationListView(APIView):
+class VenueDistrictListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        locations = Location.objects.filter(is_active=True).order_by("city", "district")
-        serializer = LocationDropdownSerializer(locations, many=True)
+        districts = District.objects.order_by("name")
+        serializer = DistrictSerializer(districts, many=True)
+        return Response(serializer.data)
+
+
+class VenueCityListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        queryset = City.objects.select_related("district").order_by(
+            "district__name",
+            "name",
+        )
+        district_id = request.query_params.get("district_id")
+        if district_id:
+            queryset = queryset.filter(district_id=district_id)
+        serializer = CityDropdownSerializer(queryset, many=True)
         return Response(serializer.data)
 
 

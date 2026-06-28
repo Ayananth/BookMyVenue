@@ -35,7 +35,13 @@ function formatCurrency(value) {
 }
 
 function getVenueLocation(venue) {
-  return [venue.location.city, venue.location.district, venue.location.state].join(", ")
+  const city = venue.city ?? venue.location
+  if (!city || typeof city === "string") return city ?? ""
+  const districtName =
+    typeof city.district === "object" && city.district
+      ? city.district.name
+      : city.district
+  return [city.name, districtName].filter(Boolean).join(", ")
 }
 
 function FilterSelect({ label, value, options, onChange }) {
@@ -239,21 +245,22 @@ export default function ExploreVenuesPage() {
     const normalizedSearch = searchTerm.trim().toLowerCase()
 
     const results = venues.filter((venue) => {
+      const city = venue.city ?? venue.location
       const searchValues = [
         venue.name,
         venue.category.name,
-        venue.location.city,
-        venue.location.district,
-        venue.location.state,
+        city?.name,
+        typeof city?.district === "object" ? city.district?.name : city?.district,
       ]
 
       const matchesSearch =
         !normalizedSearch ||
-        searchValues.some((value) => value.toLowerCase().includes(normalizedSearch))
+        searchValues.some((value) => value?.toLowerCase().includes(normalizedSearch))
 
+      const cityName = city?.name ?? ""
       return (
         matchesSearch &&
-        (filters.location === "All" || venue.location.city === filters.location)
+        (filters.location === "All" || cityName === filters.location)
       )
     })
 

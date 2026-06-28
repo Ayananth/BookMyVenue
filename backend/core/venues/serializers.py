@@ -4,7 +4,8 @@ from rest_framework import serializers
 from accounts.models import UserRole
 from venues.models import (
     BookingType,
-    Location,
+    City,
+    District,
     Venue,
     VenueCategory,
     VenueImage,
@@ -27,21 +28,30 @@ WEEKDAY_LABELS = {
 }
 
 
-class LocationDropdownSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
-
+class DistrictSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Location
+        model = District
         fields = ("id", "name")
 
-    def get_name(self, obj) -> str:
-        return f"{obj.city}, {obj.district}"
 
+class CitySerializer(serializers.ModelSerializer):
+    district = DistrictSerializer(read_only=True)
 
-class LocationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Location
-        fields = ("id", "city", "district", "state")
+        model = City
+        fields = ("id", "name", "district")
+
+
+class CityDropdownSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    district_id = serializers.IntegerField(source="district.id", read_only=True)
+
+    class Meta:
+        model = City
+        fields = ("id", "name", "district_id")
+
+    def get_name(self, obj) -> str:
+        return f"{obj.name}, {obj.district.name}"
 
 
 class VenueCategorySerializer(serializers.ModelSerializer):
@@ -65,7 +75,7 @@ class VenueImageCreateSerializer(serializers.ModelSerializer):
 
 class VenueListSerializer(serializers.ModelSerializer):
     category = VenueCategorySerializer(read_only=True)
-    location = LocationSerializer(read_only=True)
+    city = CitySerializer(read_only=True)
     min_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -85,7 +95,7 @@ class VenueListSerializer(serializers.ModelSerializer):
             "is_active",
             "booking_type",
             "category",
-            "location",
+            "city",
             "min_price",
             "cover_image",
             "created_at",
@@ -102,7 +112,7 @@ class VenueListSerializer(serializers.ModelSerializer):
 
 class VenueDetailSerializer(serializers.ModelSerializer):
     category = VenueCategorySerializer(read_only=True)
-    location = LocationSerializer(read_only=True)
+    city = CitySerializer(read_only=True)
     images = VenueImageSerializer(many=True, read_only=True)
     owner_id = serializers.IntegerField(source="owner.id", read_only=True)
     min_price = serializers.DecimalField(
@@ -129,7 +139,7 @@ class VenueDetailSerializer(serializers.ModelSerializer):
             "booking_type",
             "is_active",
             "category",
-            "location",
+            "city",
             "images",
             "min_price",
             "created_at",
@@ -159,9 +169,9 @@ class VenueWriteSerializer(serializers.ModelSerializer):
         source="category",
         queryset=VenueCategory.objects.filter(is_active=True),
     )
-    location_id = serializers.PrimaryKeyRelatedField(
-        source="location",
-        queryset=Location.objects.filter(is_active=True),
+    city_id = serializers.PrimaryKeyRelatedField(
+        source="city",
+        queryset=City.objects.all(),
     )
     images = VenueImageCreateSerializer(many=True, required=False, default=list)
 
@@ -169,7 +179,7 @@ class VenueWriteSerializer(serializers.ModelSerializer):
         model = Venue
         fields = (
             "category_id",
-            "location_id",
+            "city_id",
             "name",
             "description",
             "address",
@@ -231,9 +241,9 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
         queryset=VenueCategory.objects.filter(is_active=True),
         required=False,
     )
-    location_id = serializers.PrimaryKeyRelatedField(
-        source="location",
-        queryset=Location.objects.filter(is_active=True),
+    city_id = serializers.PrimaryKeyRelatedField(
+        source="city",
+        queryset=City.objects.all(),
         required=False,
     )
     images = VenueImageCreateSerializer(many=True, required=False)
@@ -244,7 +254,7 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
         fields = (
             "slug",
             "category_id",
-            "location_id",
+            "city_id",
             "name",
             "description",
             "address",

@@ -22,9 +22,13 @@ function bookingTypeLabel(value) {
   return VENUE_BOOKING_TYPES.find((item) => item.value === value)?.label ?? value
 }
 
-function formatLocation(location) {
-  if (!location) return "—"
-  return [location.city, location.district].filter(Boolean).join(", ")
+function formatLocation(city) {
+  if (!city) return "—"
+  const districtName =
+    typeof city.district === "object" && city.district
+      ? city.district.name
+      : city.district
+  return [city.name, districtName].filter(Boolean).join(", ")
 }
 
 function VenueCard({ venue }) {
@@ -79,7 +83,7 @@ function VenueCard({ venue }) {
           <div className="flex items-center gap-2">
             <MapPin size={14} className="shrink-0 text-primary/70" />
             <span className="line-clamp-1">
-              {formatLocation(venue.location)}
+              {formatLocation(venue.city)}
               {venue.address ? ` · ${venue.address}` : ""}
             </span>
           </div>
