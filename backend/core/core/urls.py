@@ -26,6 +26,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("users/", include("accounts.urls")),
     path("venues/", include("venues.urls")),
+    path("bookings/", include("bookings.urls")),
     path("uploads/image", ImageUploadView.as_view(), name="image-upload"),
 ]
 
