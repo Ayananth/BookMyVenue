@@ -5,7 +5,7 @@ import { ArrowRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } 
 import Reveal from "../components/common/Reveal"
 import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories } from "../apis/venues"
-import { fetchVenues } from "../services/venueExploreService"
+import { fetchVenues, priceRangeToParams, sortToOrdering } from "../services/venueExploreService"
 
 const initialFilters = {
   category: "All",
@@ -36,21 +36,6 @@ function formatCurrency(value) {
 
 function getVenueLocation(venue) {
   return [venue.location.city, venue.location.district, venue.location.state].join(", ")
-}
-
-function matchesPriceRange(price, range) {
-  switch (range) {
-    case "Below INR 10,000":
-      return price < 10000
-    case "INR 10,000 - INR 25,000":
-      return price >= 10000 && price <= 25000
-    case "INR 25,000 - INR 50,000":
-      return price > 25000 && price <= 50000
-    case "Above INR 50,000":
-      return price > 50000
-    default:
-      return true
-  }
 }
 
 function FilterSelect({ label, value, options, onChange }) {
@@ -157,7 +142,10 @@ export default function ExploreVenuesPage() {
 
     setLoading(true)
 
-    fetchVenues()
+    const priceParams = priceRangeToParams(filters.price)
+    const ordering = sortToOrdering(filters.sort)
+
+    fetchVenues({ ...priceParams, ordering })
       .then((venueData) => {
         if (active) {
           setVenues(venueData)
@@ -173,7 +161,7 @@ export default function ExploreVenuesPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [filters.price, filters.sort])
 
   useEffect(() => {
     fetchVenueCategories()
@@ -211,25 +199,19 @@ export default function ExploreVenuesPage() {
       return (
         matchesSearch &&
         (filters.category === "All" || venue.category.name === filters.category) &&
-        (filters.location === "All" || venue.location.city === filters.location) &&
-        matchesPriceRange(venue.price, filters.price)
+        (filters.location === "All" || venue.location.city === filters.location)
       )
     })
 
-    return [...results].sort((a, b) => {
-      switch (filters.sort) {
-        case "price-low":
-          return a.price - b.price
-        case "price-high":
-          return b.price - a.price
-        case "rating-high":
-          return b.rating - a.rating
-        case "rating-low":
-          return a.rating - b.rating
-        default:
-          return 0
-      }
-    })
+    if (filters.sort === "rating-high") {
+      return [...results].sort((a, b) => b.rating - a.rating)
+    }
+
+    if (filters.sort === "rating-low") {
+      return [...results].sort((a, b) => a.rating - b.rating)
+    }
+
+    return results
   }, [filters, searchTerm, venues])
 
   const hasActiveFilters = useMemo(() => {
