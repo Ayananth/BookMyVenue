@@ -1,4 +1,4 @@
-const CACHE_KEY = "bmv_explore_cities_v1"
+const CACHE_KEY = "bmv_explore_cities_v2"
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 export function getCachedCities() {

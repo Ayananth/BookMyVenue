@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
 import { fetchExploreVenues, fetchVenueCategories, formatVenuePrice } from "../../apis/venues"
+import LocationSearch from "../venues/LocationSearch"
+import { fetchExploreCities } from "../../services/venueExploreService"
 import Reveal from "../common/Reveal"
 
 const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
@@ -10,6 +12,9 @@ const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
 export default function ExploreVenues() {
   const navigate = useNavigate()
   const [activeCategory, setActiveCategory] = useState(ALL_VENUES_CATEGORY)
+  const [selectedCityId, setSelectedCityId] = useState(null)
+  const [locationQuery, setLocationQuery] = useState("")
+  const [cities, setCities] = useState([])
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([ALL_VENUES_CATEGORY])
   const [loading, setLoading] = useState(true)
@@ -22,13 +27,36 @@ export default function ExploreVenues() {
   }, [])
 
   useEffect(() => {
+    fetchExploreCities()
+      .then((cityData) => setCities(cityData))
+      .catch((error) => console.error("Failed to fetch cities:", error))
+  }, [])
+
+  useEffect(() => {
     setLoading(true)
 
-    fetchExploreVenues({ categoryId: activeCategory.id })
+    fetchExploreVenues({ categoryId: activeCategory.id, cityId: selectedCityId })
       .then((venueData) => setVenues(venueData))
       .catch((error) => console.error("Failed to fetch venues:", error))
       .finally(() => setLoading(false))
-  }, [activeCategory])
+  }, [activeCategory, selectedCityId])
+
+  const handleLocationQueryChange = (value) => {
+    setLocationQuery(value)
+    if (selectedCityId != null) {
+      setSelectedCityId(null)
+    }
+  }
+
+  const handleLocationSelect = (city) => {
+    setLocationQuery(city.name)
+    setSelectedCityId(city.id)
+  }
+
+  const handleLocationClear = () => {
+    setLocationQuery("")
+    setSelectedCityId(null)
+  }
 
   return (
     <section id="explore" className="px-4 py-24">
@@ -55,7 +83,19 @@ export default function ExploreVenues() {
           </a>
         </Reveal>
 
-        <Reveal delay={0.1} className="mt-10 flex flex-wrap gap-2">
+        <Reveal delay={0.1} className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <LocationSearch
+            cities={cities}
+            value={locationQuery}
+            selectedCityId={selectedCityId}
+            onChange={handleLocationQueryChange}
+            onSelect={handleLocationSelect}
+            onClear={handleLocationClear}
+            className="w-full sm:max-w-xs"
+          />
+        </Reveal>
+
+        <Reveal delay={0.12} className="mt-4 flex flex-wrap gap-2">
           {categories.map((category) => (
             <button
               key={category.id ?? "all"}
@@ -80,7 +120,7 @@ export default function ExploreVenues() {
 
           {!loading && venues.length === 0 && (
             <p className="col-span-full text-center text-muted-foreground">
-              No venues found for this category.
+              No venues found for this category{selectedCityId ? " and location" : ""}.
             </p>
           )}
 
