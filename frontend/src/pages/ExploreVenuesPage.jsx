@@ -8,7 +8,7 @@ import { fetchVenueCategories } from "../apis/venues"
 import { fetchVenues, priceRangeToParams, sortToOrdering } from "../services/venueExploreService"
 
 const initialFilters = {
-  category: "All",
+  categoryId: null,
   location: "All",
   price: "All",
   sort: "recommended",
@@ -130,7 +130,7 @@ function VenueCard({ venue, liked, onToggleLike }) {
 
 export default function ExploreVenuesPage() {
   const [venues, setVenues] = useState([])
-  const [categories, setCategories] = useState(["All"])
+  const [categories, setCategories] = useState([{ id: null, name: "All venues" }])
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
@@ -145,7 +145,11 @@ export default function ExploreVenuesPage() {
     const priceParams = priceRangeToParams(filters.price)
     const ordering = sortToOrdering(filters.sort)
 
-    fetchVenues({ ...priceParams, ordering })
+    fetchVenues({
+      ...priceParams,
+      ordering,
+      category_id: filters.categoryId ?? undefined,
+    })
       .then((venueData) => {
         if (active) {
           setVenues(venueData)
@@ -161,16 +165,11 @@ export default function ExploreVenuesPage() {
     return () => {
       active = false
     }
-  }, [filters.price, filters.sort])
+  }, [filters.categoryId, filters.price, filters.sort])
 
   useEffect(() => {
     fetchVenueCategories()
-      .then((categoryData) => {
-        const names = categoryData
-          .filter((category) => category.id != null)
-          .map((category) => category.name)
-        setCategories(["All", ...names])
-      })
+      .then((categoryData) => setCategories(categoryData))
       .catch((error) => console.error("Failed to load categories:", error))
   }, [])
 
@@ -198,7 +197,6 @@ export default function ExploreVenuesPage() {
 
       return (
         matchesSearch &&
-        (filters.category === "All" || venue.category.name === filters.category) &&
         (filters.location === "All" || venue.location.city === filters.location)
       )
     })
@@ -218,7 +216,7 @@ export default function ExploreVenuesPage() {
     return (
       searchTerm !== "" ||
       searchInput !== "" ||
-      filters.category !== initialFilters.category ||
+      filters.categoryId !== initialFilters.categoryId ||
       filters.location !== initialFilters.location ||
       filters.price !== initialFilters.price ||
       filters.sort !== initialFilters.sort
@@ -313,20 +311,20 @@ export default function ExploreVenuesPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {categories.map((category) => {
-                    const isActive = filters.category === category
+                    const isActive = filters.categoryId === category.id
 
                     return (
                       <button
-                        key={category}
+                        key={category.id ?? "all"}
                         type="button"
-                        onClick={() => updateFilter("category", category)}
+                        onClick={() => updateFilter("categoryId", category.id)}
                         className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                           isActive
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
                         }`}
                       >
-                        {category}
+                        {category.name}
                       </button>
                     )
                   })}
