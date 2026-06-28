@@ -5,17 +5,23 @@ import { ArrowRight, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHo
 import Reveal from "../components/common/Reveal"
 import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories } from "../apis/venues"
-import { fetchVenues, priceRangeToParams, sortToOrdering } from "../services/venueExploreService"
+import {
+  fetchExploreCities,
+  fetchVenues,
+  priceRangeToParams,
+  sortToOrdering,
+} from "../services/venueExploreService"
+
+const MIN_LOCATION_QUERY_LENGTH = 2
 
 const initialFilters = {
   categoryId: null,
-  location: "All",
+  cityId: null,
   price: "All",
   sort: "recommended",
 }
 
 const filterOptions = {
-  location: ["Thrissur", "Kochi", "Calicut", "Trivandrum"],
   price: ["All", "Below INR 10,000", "INR 10,000 - INR 25,000", "INR 25,000 - INR 50,000", "Above INR 50,000"],
   sort: [
     { value: "recommended", label: "Recommended" },
@@ -42,6 +48,99 @@ function getVenueLocation(venue) {
       ? city.district.name
       : city.district
   return [city.name, districtName].filter(Boolean).join(", ")
+}
+
+function LocationSearch({ cities, value, selectedCityId, onChange, onSelect, onClear }) {
+  const containerRef = useRef(null)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const suggestions = useMemo(() => {
+    const query = value.trim().toLowerCase()
+    if (query.length < MIN_LOCATION_QUERY_LENGTH) return []
+
+    return cities
+      .filter((city) => city.name.toLowerCase().includes(query))
+      .slice(0, 8)
+  }, [cities, value])
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const showSuggestions = isOpen && suggestions.length > 0
+
+  return (
+    <label ref={containerRef} className="relative min-w-0">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Location
+      </span>
+      <div className="relative">
+        <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={value}
+          placeholder="Search city..."
+          autoComplete="off"
+          onChange={(event) => {
+            onChange(event.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => {
+            if (value.trim().length >= MIN_LOCATION_QUERY_LENGTH) {
+              setIsOpen(true)
+            }
+          }}
+          className="h-11 w-full rounded-full border border-border bg-card py-2 pl-10 pr-10 text-sm font-semibold text-foreground outline-none transition hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+        />
+        {(value || selectedCityId) && (
+          <button
+            type="button"
+            onClick={() => {
+              onClear()
+              setIsOpen(false)
+            }}
+            aria-label="Clear location"
+            className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {showSuggestions && (
+        <ul
+          role="listbox"
+          className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-2xl border border-border bg-card py-2 shadow-[0_12px_40px_rgba(27,36,29,0.12)]"
+        >
+          {suggestions.map((city) => (
+            <li key={city.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={selectedCityId === city.id}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  onSelect(city)
+                  setIsOpen(false)
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-foreground transition hover:bg-primary/5"
+              >
+                <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
+                <span>{city.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </label>
+  )
 }
 
 function FilterSelect({ label, value, options, onChange }) {
@@ -184,6 +283,8 @@ export default function ExploreVenuesPage() {
   const [searchInput, setSearchInput] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState(initialFilters)
+  const [locationQuery, setLocationQuery] = useState("")
+  const [cities, setCities] = useState([])
   const [liked, setLiked] = useState({})
 
   useEffect(() => {
@@ -198,6 +299,7 @@ export default function ExploreVenuesPage() {
       ...priceParams,
       ordering,
       category_id: filters.categoryId ?? undefined,
+      city_id: filters.cityId ?? undefined,
       page,
     })
       .then(({ venues: venueData, count, totalPages: pages }) => {
@@ -217,7 +319,21 @@ export default function ExploreVenuesPage() {
     return () => {
       active = false
     }
-  }, [filters.categoryId, filters.price, filters.sort, page])
+  }, [filters.categoryId, filters.cityId, filters.price, filters.sort, page])
+
+  useEffect(() => {
+    let active = true
+
+    fetchExploreCities()
+      .then((cityData) => {
+        if (active) setCities(cityData)
+      })
+      .catch((error) => console.error("Failed to load cities:", error))
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     if (!loading) {
@@ -253,14 +369,9 @@ export default function ExploreVenuesPage() {
         typeof city?.district === "object" ? city.district?.name : city?.district,
       ]
 
-      const matchesSearch =
+      return (
         !normalizedSearch ||
         searchValues.some((value) => value?.toLowerCase().includes(normalizedSearch))
-
-      const cityName = city?.name ?? ""
-      return (
-        matchesSearch &&
-        (filters.location === "All" || cityName === filters.location)
       )
     })
 
@@ -275,7 +386,7 @@ export default function ExploreVenuesPage() {
     return results
   }, [filters, searchTerm, venues])
 
-  const hasClientFilters = searchTerm !== "" || filters.location !== "All"
+  const hasClientFilters = searchTerm !== ""
 
   const displayCount = useMemo(() => {
     if (hasClientFilters) {
@@ -289,7 +400,7 @@ export default function ExploreVenuesPage() {
       searchTerm !== "" ||
       searchInput !== "" ||
       filters.categoryId !== initialFilters.categoryId ||
-      filters.location !== initialFilters.location ||
+      filters.cityId !== initialFilters.cityId ||
       filters.price !== initialFilters.price ||
       filters.sort !== initialFilters.sort
     )
@@ -297,9 +408,27 @@ export default function ExploreVenuesPage() {
 
   const updateFilter = (key, value) => {
     setFilters((state) => ({ ...state, [key]: value }))
-    if (key === "categoryId" || key === "price" || key === "sort") {
+    if (key === "categoryId" || key === "cityId" || key === "price" || key === "sort") {
       setPage(1)
     }
+  }
+
+  const handleLocationQueryChange = (value) => {
+    setLocationQuery(value)
+    if (filters.cityId != null) {
+      setFilters((state) => ({ ...state, cityId: null }))
+      setPage(1)
+    }
+  }
+
+  const handleLocationSelect = (city) => {
+    setLocationQuery(city.name)
+    updateFilter("cityId", city.id)
+  }
+
+  const handleLocationClear = () => {
+    setLocationQuery("")
+    updateFilter("cityId", null)
   }
 
   const handleSearch = (event) => {
@@ -310,6 +439,7 @@ export default function ExploreVenuesPage() {
   const clearFilters = () => {
     setSearchInput("")
     setSearchTerm("")
+    setLocationQuery("")
     setFilters(initialFilters)
     setPage(1)
   }
@@ -406,12 +536,14 @@ export default function ExploreVenuesPage() {
                   })}
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.25fr_auto] lg:items-end">
-                  <FilterSelect
-                    label="Location"
-                    value={filters.location}
-                    options={["All", ...filterOptions.location]}
-                    onChange={(value) => updateFilter("location", value)}
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-end">
+                  <LocationSearch
+                    cities={cities}
+                    value={locationQuery}
+                    selectedCityId={filters.cityId}
+                    onChange={handleLocationQueryChange}
+                    onSelect={handleLocationSelect}
+                    onClear={handleLocationClear}
                   />
                   <FilterSelect
                     label="Price"

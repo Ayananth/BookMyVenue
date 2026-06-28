@@ -1,4 +1,6 @@
 import api from "../lib/axios"
+import { fetchVenueFormCities } from "../apis/venues"
+import { getCachedCities, setCachedCities } from "./cityCache"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000"
 export const EXPLORE_VENUE_PAGE_SIZE = 12
@@ -62,12 +64,14 @@ export const fetchVenues = async ({
   max_price,
   ordering,
   category_id,
+  city_id,
   page = 1,
   limit = EXPLORE_VENUE_PAGE_SIZE,
 } = {}) => {
   const params = { limit, page }
 
   if (category_id != null) params.category_id = category_id
+  if (city_id != null) params.city_id = city_id
   if (min_price != null) params.min_price = min_price
   if (max_price != null) params.max_price = max_price
   if (ordering) params.ordering = ordering
@@ -85,4 +89,13 @@ export const fetchVenues = async ({
     count,
     totalPages: count != null ? Math.max(1, Math.ceil(count / limit)) : 1,
   }
+}
+
+export async function fetchExploreCities() {
+  const cached = getCachedCities()
+  if (cached) return cached
+
+  const cities = await fetchVenueFormCities()
+  setCachedCities(cities)
+  return cities
 }
