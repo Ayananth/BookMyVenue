@@ -124,10 +124,10 @@ export default function VenueBookingModal({ open, onClose, venue }) {
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 24, scale: 0.98 }}
-        className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-card shadow-2xl"
+        className="relative max-h-[92vh] w-full min-h-[580px] max-w-3xl overflow-y-auto rounded-2xl bg-card shadow-2xl md:min-h-[620px]"
       >
-        <div className="grid md:grid-cols-[0.95fr_1.4fr]">
-          <div className="relative min-h-56 bg-muted md:min-h-full">
+        <div className="grid min-h-[580px] md:min-h-[620px] md:grid-cols-[0.95fr_1.4fr]">
+          <div className="relative min-h-56 bg-muted md:min-h-[620px]">
             <img
               src={venue.image}
               alt={venue.name}
@@ -193,13 +193,13 @@ export default function VenueBookingModal({ open, onClose, venue }) {
                 )}
               </div>
 
-              <div className="max-h-64 overflow-y-auto pr-1">
+              <div className="h-64 overflow-y-auto pr-1">
                 {loading ? (
-                  <div className="rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
                     Loading available slots...
                   </div>
                 ) : error ? (
-                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
+                  <div className="flex h-full flex-col items-center justify-center rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
                     <p className="text-sm text-destructive">{error}</p>
                     <button
                       type="button"
@@ -210,7 +210,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
                     </button>
                   </div>
                 ) : slots.length === 0 ? (
-                  <div className="rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                  <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
                     No slots available for this date.
                   </div>
                 ) : (
