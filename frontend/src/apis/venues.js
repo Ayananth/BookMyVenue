@@ -280,13 +280,16 @@ function toExploreVenue(venue) {
   }
 }
 
-export async function fetchExploreVenues({ categoryId, cityId } = {}) {
+export async function fetchExploreVenues({ categoryId, cityId, search } = {}) {
   const params = { limit: 12 }
   if (categoryId != null) {
     params.category_id = categoryId
   }
   if (cityId != null) {
     params.city_id = cityId
+  }
+  if (search) {
+    params.search = search
   }
 
   const { data } = await api.get("/venues/", {

@@ -1,19 +1,23 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
-import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
+import { Star, Users, MapPin, ArrowRight, Heart, Search, X } from "lucide-react"
 import { fetchExploreVenues, fetchVenueCategories, formatVenuePrice } from "../../apis/venues"
 import LocationSearch from "../venues/LocationSearch"
 import { fetchExploreCities } from "../../services/venueExploreService"
 import Reveal from "../common/Reveal"
 
 const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
+const SEARCH_DEBOUNCE_MS = 400
 
 export default function ExploreVenues() {
   const navigate = useNavigate()
+  const debounceTimerRef = useRef(null)
   const [activeCategory, setActiveCategory] = useState(ALL_VENUES_CATEGORY)
   const [selectedCityId, setSelectedCityId] = useState(null)
   const [locationQuery, setLocationQuery] = useState("")
+  const [searchInput, setSearchInput] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [cities, setCities] = useState([])
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([ALL_VENUES_CATEGORY])
@@ -33,13 +37,74 @@ export default function ExploreVenues() {
   }, [])
 
   useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
     setLoading(true)
 
-    fetchExploreVenues({ categoryId: activeCategory.id, cityId: selectedCityId })
-      .then((venueData) => setVenues(venueData))
+    fetchExploreVenues({
+      categoryId: activeCategory.id,
+      cityId: selectedCityId,
+      search: searchQuery || undefined,
+    })
+      .then((venueData) => {
+        if (active) setVenues(venueData)
+      })
       .catch((error) => console.error("Failed to fetch venues:", error))
-      .finally(() => setLoading(false))
-  }, [activeCategory, selectedCityId])
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [activeCategory, selectedCityId, searchQuery])
+
+  const applySearchQuery = (value) => {
+    const trimmed = value.trim()
+    setSearchQuery((current) => (current === trimmed ? current : trimmed))
+  }
+
+  const handleSearchInputChange = (value) => {
+    setSearchInput(value)
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    if (value.trim() === "") {
+      applySearchQuery("")
+      return
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      applySearchQuery(value)
+    }, SEARCH_DEBOUNCE_MS)
+  }
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key !== "Enter") return
+
+    event.preventDefault()
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    applySearchQuery(searchInput)
+  }
+
+  const handleSearchClear = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    setSearchInput("")
+    applySearchQuery("")
+  }
 
   const handleLocationQueryChange = (value) => {
     setLocationQuery(value)
@@ -83,7 +148,34 @@ export default function ExploreVenues() {
           </a>
         </Reveal>
 
-        <Reveal delay={0.1} className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <Reveal delay={0.1} className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-end">
+          <label className="relative min-w-0 w-full sm:max-w-xs">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Search
+            </span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchInput}
+                placeholder="Search by venue name..."
+                autoComplete="off"
+                onChange={(event) => handleSearchInputChange(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                className="h-11 w-full rounded-full border border-border bg-card py-2 pl-10 pr-10 text-sm font-semibold text-foreground outline-none transition hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={handleSearchClear}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </label>
           <LocationSearch
             cities={cities}
             value={locationQuery}
@@ -120,7 +212,10 @@ export default function ExploreVenues() {
 
           {!loading && venues.length === 0 && (
             <p className="col-span-full text-center text-muted-foreground">
-              No venues found for this category{selectedCityId ? " and location" : ""}.
+              No venues found
+              {searchQuery ? ` matching "${searchQuery}"` : ""}
+              {activeCategory.id ? " in this category" : ""}
+              {selectedCityId ? " for this location" : ""}.
             </p>
           )}
 

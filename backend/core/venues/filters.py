@@ -8,6 +8,12 @@ from venues.models import City
 
 class VenueFilterBackend:
     def filter_queryset(self, request, queryset):
+        search = request.query_params.get("search")
+        if search is not None:
+            search = search.strip()
+            if search:
+                queryset = queryset.filter(name__icontains=search)
+
         category_id = request.query_params.get("category_id")
         if category_id:
             queryset = queryset.filter(category_id=category_id)

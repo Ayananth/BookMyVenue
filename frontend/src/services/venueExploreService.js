@@ -65,6 +65,7 @@ export const fetchVenues = async ({
   ordering,
   category_id,
   city_id,
+  search,
   page = 1,
   limit = EXPLORE_VENUE_PAGE_SIZE,
 } = {}) => {
@@ -75,6 +76,7 @@ export const fetchVenues = async ({
   if (min_price != null) params.min_price = min_price
   if (max_price != null) params.max_price = max_price
   if (ordering) params.ordering = ordering
+  if (search) params.search = search
 
   const { data } = await api.get("/venues/", {
     baseURL: API_BASE_URL,
