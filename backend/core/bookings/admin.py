@@ -10,3 +10,4 @@ class BookingAdmin(admin.ModelAdmin):
     search_fields = ("venue__name", "user__email", "user__phone")
     readonly_fields = ("created_at", "updated_at")
     ordering = ("-booking_date", "-start_time")
+    autocomplete_fields = ("venue", "user")
