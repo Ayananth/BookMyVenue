@@ -48,3 +48,90 @@
 .brand-text {
   font-weight: 600;
 }
+
+.bmv-dashboard-stats {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.bmv-stat-card {
+  display: block;
+  height: 100%;
+  border-radius: 1rem;
+  border: 1px solid var(--bmv-border);
+  background-color: #fffdf8;
+  color: var(--bmv-foreground, #1b241d);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bmv-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(27, 36, 29, 0.08);
+  text-decoration: none;
+  color: inherit;
+}
+
+.bmv-stat-card-body {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+}
+
+.bmv-stat-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.85rem;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.bmv-stat-card-label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.72;
+}
+
+.bmv-stat-card-value {
+  margin: 0.15rem 0 0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.bmv-stat-card-warning .bmv-stat-card-icon {
+  background-color: rgba(217, 138, 78, 0.18);
+  color: #b86d2f;
+}
+
+.bmv-stat-card-success .bmv-stat-card-icon {
+  background-color: rgba(20, 98, 74, 0.14);
+  color: var(--bmv-primary);
+}
+
+.bmv-stat-card-info .bmv-stat-card-icon {
+  background-color: rgba(23, 162, 184, 0.14);
+  color: #117a8b;
+}
+
+.bmv-stat-card-primary .bmv-stat-card-icon {
+  background-color: rgba(20, 98, 74, 0.22);
+  color: var(--bmv-primary-dark);
+}
+
+.bmv-stat-card-secondary .bmv-stat-card-icon {
+  background-color: rgba(94, 107, 95, 0.14);
+  color: #5e6b5f;
+}
+
+.bmv-stat-card-dark .bmv-stat-card-icon {
+  background-color: rgba(27, 36, 29, 0.1);
+  color: #1b241d;
+}
