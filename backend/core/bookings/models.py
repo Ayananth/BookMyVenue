@@ -87,24 +87,10 @@ class BookingSession(models.Model):
         verbose_name = "booking session"
         verbose_name_plural = "booking sessions"
         indexes = [
-            models.Index(fields=["status"], name="ix_booking_sessions_status"),
-            models.Index(fields=["expires_at"], name="ix_booking_sessions_expires_at"),
-            models.Index(fields=["booking_date"], name="ix_booking_sessions_date"),
             models.Index(
-                fields=["venue_schedule", "booking_date"],
-                name="ix_bs_schedule_date",
-            ),
-            models.Index(
-                fields=["venue_schedule", "booking_date", "status"],
-                name="ix_bs_schedule_date_status",
-            ),
-            models.Index(
-                fields=["venue_schedule", "booking_date", "status", "expires_at"],
-                name="ix_bs_schedule_date_active",
-            ),
-            models.Index(
-                fields=["user", "venue_schedule", "booking_date"],
-                name="ix_bs_user_schedule_date",
+                fields=["expires_at"],
+                name="ix_bs_active_expires",
+                condition=Q(status=BookingSessionStatus.ACTIVE),
             ),
         ]
         constraints = [
@@ -189,18 +175,6 @@ class Payment(models.Model):
         db_table = "payments"
         verbose_name = "payment"
         verbose_name_plural = "payments"
-        indexes = [
-            models.Index(fields=["status"], name="ix_payments_status"),
-            models.Index(fields=["razorpay_order_id"], name="ix_payments_razorpay_order"),
-            models.Index(
-                fields=["razorpay_payment_id"],
-                name="ix_payments_razorpay_payment",
-            ),
-            models.Index(
-                fields=["booking_session", "status"],
-                name="ix_payments_session_status",
-            ),
-        ]
         constraints = [
             models.CheckConstraint(
                 condition=Q(amount__gte=0),
@@ -264,16 +238,9 @@ class Booking(models.Model):
         verbose_name = "booking"
         verbose_name_plural = "bookings"
         indexes = [
-            models.Index(fields=["user"], name="ix_bookings_user_id"),
-            models.Index(fields=["status"], name="ix_bookings_status"),
-            models.Index(fields=["booking_date"], name="ix_bookings_date"),
             models.Index(
-                fields=["venue_schedule", "booking_date"],
-                name="ix_bookings_schedule_date",
-            ),
-            models.Index(
-                fields=["venue_schedule", "booking_date", "status"],
-                name="ix_bookings_schedule_date_status",
+                fields=["booking_date", "venue_schedule"],
+                name="ix_bookings_date_schedule",
             ),
         ]
         constraints = [
@@ -338,9 +305,6 @@ class Refund(models.Model):
         verbose_name = "refund"
         verbose_name_plural = "refunds"
         indexes = [
-            models.Index(fields=["payment"], name="ix_refunds_payment"),
-            models.Index(fields=["booking"], name="ix_refunds_booking"),
-            models.Index(fields=["status"], name="ix_refunds_status"),
             models.Index(
                 fields=["provider_refund_id"],
                 name="ix_refunds_provider_refund_id",
@@ -409,8 +373,6 @@ class BookingAuditLog(models.Model):
                 fields=["payment", "created_at"],
                 name="ix_audit_logs_payment_created",
             ),
-            models.Index(fields=["event"], name="ix_audit_logs_event"),
-            models.Index(fields=["created_at"], name="ix_audit_logs_created_at"),
         ]
 
     def __str__(self) -> str:
