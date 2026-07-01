@@ -82,6 +82,7 @@ class VenueListSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    has_slots = serializers.BooleanField(read_only=True)
     cover_image = serializers.SerializerMethodField()
 
     class Meta:
@@ -97,6 +98,7 @@ class VenueListSerializer(serializers.ModelSerializer):
             "category",
             "city",
             "min_price",
+            "has_slots",
             "cover_image",
             "created_at",
         )

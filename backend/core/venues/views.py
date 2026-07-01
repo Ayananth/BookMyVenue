@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 
 from accounts.models import UserRole
 from venues.availability import get_available_slots
-from venues.filters import annotate_min_price, filter_venue_list
+from venues.filters import annotate_has_slots, annotate_min_price, filter_venue_list
 from venues.models import (
     City,
     District,
@@ -49,13 +49,15 @@ class VenuePagination(PageNumberPagination):
 
 
 def _base_queryset():
-    return annotate_min_price(
-        Venue.objects.select_related(
-            "category",
-            "city",
-            "city__district",
-            "owner",
-        ).prefetch_related("images"),
+    return annotate_has_slots(
+        annotate_min_price(
+            Venue.objects.select_related(
+                "category",
+                "city",
+                "city__district",
+                "owner",
+            ).prefetch_related("images"),
+        ),
     )
 
 

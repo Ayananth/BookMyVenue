@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useLocation, useNavigate, useParams } from "react-router-dom"
 import {
   Upload,
   Plus,
@@ -58,6 +58,7 @@ function fieldClass(disabled, extra = "input") {
 
 export default function AddVenuePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { slug } = useParams()
   const isEditMode = Boolean(slug)
 
@@ -83,7 +84,9 @@ export default function AddVenuePage() {
   const [submitError, setSubmitError] = useState("")
 
   const [formData, setFormData] = useState(EMPTY_FORM)
-  const [activeTab, setActiveTab] = useState("details")
+  const [activeTab, setActiveTab] = useState(
+    () => (location.state?.activeTab === "slots" ? "slots" : "details"),
+  )
 
   const fieldsDisabled = isEditMode && !isEditing
 
@@ -93,6 +96,19 @@ export default function AddVenuePage() {
     setAmenities(nextVenue.amenities ?? [])
     setImages(venueImagesToFormState(nextVenue.images ?? []))
   }, [])
+
+  useEffect(() => {
+    if (location.state?.activeTab === "slots") {
+      setActiveTab("slots")
+    }
+  }, [location.state, slug])
+
+  useEffect(() => {
+    if (!location.state?.activeTab) return undefined
+
+    window.history.replaceState({}, document.title)
+    return undefined
+  }, [location.state])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -283,9 +299,9 @@ const handleDrop = async (e) => {
         }
       } else {
         const created = await createVenue(payload)
-        navigate(`/venue/venues`, {
+        navigate(`/venue/venues/${created.slug}`, {
           replace: true,
-          state: { createdVenue: created.name },
+          state: { activeTab: "slots" },
         })
       }
     } catch (error) {

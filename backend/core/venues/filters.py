@@ -1,9 +1,9 @@
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Case, IntegerField, Min, Q, Value, When
+from django.db.models import Case, Exists, IntegerField, Min, OuterRef, Q, Value, When
 from rest_framework.filters import OrderingFilter
 
-from venues.models import City
+from venues.models import City, VenueSchedule
 
 
 class VenueFilterBackend:
@@ -41,6 +41,17 @@ def annotate_min_price(queryset):
             filter=Q(
                 schedule_groups__is_active=True,
                 schedule_groups__schedules__is_available=True,
+            ),
+        ),
+    )
+
+
+def annotate_has_slots(queryset):
+    return queryset.annotate(
+        has_slots=Exists(
+            VenueSchedule.objects.filter(
+                group__venue=OuterRef("pk"),
+                group__is_active=True,
             ),
         ),
     )

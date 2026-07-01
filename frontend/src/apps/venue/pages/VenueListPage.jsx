@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
   Building2,
+  CalendarClock,
   MapPin,
   Plus,
   Users,
@@ -35,9 +36,14 @@ function VenueCard({ venue }) {
   const statusClass =
     VENUE_STATUS_STYLES[venue.status] ?? "bg-slate-100 text-slate-600 border-slate-200"
   const statusLabel = VENUE_STATUS_LABELS[venue.status] ?? venue.status
+  const needsSlots = venue.has_slots === false
 
   return (
-    <Link to={`/venue/venues/${venue.slug}`} className="block">
+    <Link
+      to={`/venue/venues/${venue.slug}`}
+      state={needsSlots ? { activeTab: "slots" } : undefined}
+      className="block"
+    >
     <motion.article
       layout
       initial={{ opacity: 0, y: 12 }}
@@ -103,6 +109,16 @@ function VenueCard({ venue }) {
             <p className="text-sm font-semibold text-foreground">
               From {formatVenuePrice(venue.min_price)}
             </p>
+          )}
+
+          {needsSlots && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <CalendarClock size={14} className="mt-0.5 shrink-0 text-amber-700" />
+              <span>
+                No slots configured yet. Set up availability to start accepting
+                bookings.
+              </span>
+            </div>
           )}
         </div>
       </div>
