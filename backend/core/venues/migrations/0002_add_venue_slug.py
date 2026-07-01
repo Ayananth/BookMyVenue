@@ -36,10 +36,10 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="venue",
             name="slug",
-            field=models.SlugField(max_length=220, unique=True),
+            field=models.SlugField(max_length=220),
         ),
-        migrations.AddIndex(
+        migrations.AddConstraint(
             model_name="venue",
-            index=models.Index(fields=["slug"], name="ix_venues_slug"),
+            constraint=models.UniqueConstraint(fields=["slug"], name="unique_venue_slug"),
         ),
     ]

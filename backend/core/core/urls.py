@@ -20,9 +20,11 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from core.health import health_check
 from venues.views import ImageUploadView
 
 urlpatterns = [
+    path("health/", health_check, name="health"),
     path("admin/", admin.site.urls),
     path("users/", include("accounts.urls")),
     path("venues/", include("venues.urls")),

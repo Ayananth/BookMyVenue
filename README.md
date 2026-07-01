@@ -24,56 +24,118 @@ BookMyVenue acts as a completely free and open bridge between space owners and t
 ## 🗺️ Project Roadmap
 
 We are building BookMyVenue iteratively through **4 Phases**:
+
 - **Phase 1: MVP (Current):** Anyone can contribute in *any stack*. If it's good, we merge it!
 - **Phase 2 & 3: Feature & Modularization:** Implementing features module by module and refining the architecture.
 - **Phase 4: Scalability:** Building a fully scalable, cloud-native solution for high traffic.
 
-## 📁 Backend Structure
+## 🛠️ Tech Stack
 
-The FastAPI backend is organized by responsibility:
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React, Vite, Tailwind CSS |
+| Backend | Django, Django REST Framework |
+| Data | PostgreSQL, Redis |
+| Background jobs | Celery, Celery Beat |
 
-```text
-app/
-├── api/
-│   ├── router.py
-│   └── routes/
-├── core/
-│   └── config.py
-├── db/
-│   ├── base.py
-│   └── session.py
-├── models/
-├── schemas/
-└── main.py
-```
+---
 
-- `app/api/` contains HTTP routers and route composition.
-- `app/core/` contains shared app configuration.
-- `app/db/` contains SQLAlchemy base and async session setup.
-- `app/models/` contains ORM models split by domain.
-- `app/schemas/` contains Pydantic request and response models.
+## 🚀 Getting Started
 
-## 🌱 Seed Data
+### Prerequisites
 
-To create sample users for local development:
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
+
+### Run the project
 
 ```bash
-cd /home/ayananth/Documents/BookMyVenue/BookMyVenue
-python3 -m scripts.seed_users
+git clone https://github.com/your-org/BookMyVenue.git
+cd BookMyVenue
+docker compose up --build
 ```
 
-This seeds email-based auth accounts for a few default users and skips any email that already exists.
+That starts everything you need:
+
+| Service | URL |
+| --- | --- |
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:8000 |
+| Django Admin | http://localhost:8000/admin/ |
+
+On first run, the backend applies database migrations automatically.
+
+### Seed demo data (optional)
+
+```bash
+make seed
+```
+
+| Email | Password | Role |
+| --- | --- | --- |
+| `admin@bookmyvenue.local` | `admin12345` | Admin |
+| `user@bookmyvenue.local` | `user12345` | User |
+| `venue@bookmyvenue.local` | `venue12345` | Venue owner |
+
+### Environment variables
+
+Local defaults are already in `backend/.env` and `frontend/.env`. Copy the examples only if you need to customize something:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+Backend and frontend env files are kept separate — never put backend secrets in the frontend `.env`.
+
+### Useful commands
+
+```bash
+make down              # stop containers
+make logs              # follow logs
+make migrate           # run migrations
+make makemigrations    # create migrations
+make createsuperuser   # create admin user
+make shell             # Django shell
+make test              # run backend tests
+```
+
+To reset the database:
+
+```bash
+docker compose down -v
+```
+
+---
+
+## 📁 Project Structure
+
+```text
+bookmyvenue/
+├── frontend/       # React + Vite
+├── backend/        # Django + DRF
+├── compose.yml     # Docker services
+├── Makefile        # shortcuts
+└── README.md
+```
+
+Production Dockerfiles (`backend/Dockerfile`, `frontend/Dockerfile`) are included for future deployment but are not used by the local Compose setup.
+
+---
 
 ## 🤝 How to Contribute
 
-This is a collective effort, and everyone in the WeCode community shares the benefits of what we build! Whether you're a beginner or a pro, we would love your help. 
+This is a collective effort, and everyone in the WeCode community shares the benefits of what we build! Whether you're a beginner or a pro, we would love your help.
+
 Please check out our full [Contribution Guidelines](CONTRIBUTING.md) to learn how to:
+
 - Fork and clone the repository.
 - Create your feature branch (`feat/<branch-name>`).
 - Submit a Pull Request.
 
 ### 📝 Pull Request Format
+
 To maintain a high standard of code, all Pull Requests must use our [standard template](.github/PULL_REQUEST_TEMPLATE.md). When you open a PR, you will be prompted to:
+
 1. **Select the Phase Category** (e.g., Phase 1 MVP).
 2. **Document your Tech Stack** (Frontend, Backend, Database).
 3. **Complete the Review Checklist** (Self-review, community standards).
