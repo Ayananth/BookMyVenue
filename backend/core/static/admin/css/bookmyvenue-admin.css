@@ -1,0 +1,50 @@
+/* BookMyVenue admin — minimal brand overrides (matches frontend primary #14624a) */
+
+:root {
+  --bmv-primary: #14624a;
+  --bmv-primary-dark: #0f4d3a;
+  --bmv-cream: #f6f2e9;
+  --bmv-border: #ddd5c4;
+}
+
+.main-header.navbar {
+  background-color: var(--bmv-primary) !important;
+}
+
+.main-sidebar.sidebar-dark-success,
+.main-sidebar.sidebar-dark-success .brand-link {
+  background-color: var(--bmv-primary) !important;
+}
+
+.sidebar-dark-success .nav-sidebar > .nav-item > .nav-link.active,
+.sidebar-dark-success .nav-sidebar > .nav-item > .nav-link.active:hover {
+  background-color: var(--bmv-primary-dark) !important;
+  color: var(--bmv-cream) !important;
+}
+
+.login-page {
+  background-color: var(--bmv-cream);
+}
+
+.login-box .card,
+.register-box .card {
+  border-radius: 1.25rem;
+  border: 1px solid var(--bmv-border);
+}
+
+.btn-primary,
+.btn-success {
+  background-color: var(--bmv-primary);
+  border-color: var(--bmv-primary);
+}
+
+.btn-primary:hover,
+.btn-success:hover {
+  background-color: var(--bmv-primary-dark);
+  border-color: var(--bmv-primary-dark);
+}
+
+.content-header h1,
+.brand-text {
+  font-weight: 600;
+}

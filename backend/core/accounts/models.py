@@ -109,6 +109,25 @@ class User(AbstractBaseUser):
     def is_superuser(self) -> bool:
         return self.role == UserRole.ADMIN
 
+    def get_user_permissions(self, obj=None) -> set[str]:
+        return set()
+
+    def get_group_permissions(self, obj=None) -> set[str]:
+        return set()
+
+    def get_all_permissions(self, obj=None) -> set[str]:
+        if not self.is_active or self.is_blocked or self.role != UserRole.ADMIN:
+            return set()
+
+        if not hasattr(self, "_perm_cache"):
+            from django.contrib.auth.models import Permission
+
+            self._perm_cache = {
+                f"{perm.content_type.app_label}.{perm.codename}"
+                for perm in Permission.objects.select_related("content_type")
+            }
+        return self._perm_cache
+
     def has_perm(self, perm, obj=None) -> bool:
         return self.is_active and not self.is_blocked and self.role == UserRole.ADMIN
 

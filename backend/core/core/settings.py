@@ -26,6 +26,7 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -106,6 +107,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -183,3 +185,52 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+
+JAZZMIN_SETTINGS = {
+    "site_title": "BookMyVenue Admin",
+    "site_header": "BookMyVenue",
+    "site_brand": "BookMyVenue",
+    "welcome_sign": "Welcome to BookMyVenue Admin",
+    "copyright": "BookMyVenue",
+    "search_model": "accounts.User",
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": ["django_celery_results"],
+    "order_with_respect_to": ["accounts", "venues", "bookings", "auth"],
+    "icons": {
+        "accounts": "fas fa-users-cog",
+        "accounts.user": "fas fa-user",
+        "accounts.signuprequest": "fas fa-user-plus",
+        "accounts.otprequest": "fas fa-key",
+        "venues": "fas fa-building",
+        "venues.venue": "fas fa-map-marker-alt",
+        "venues.district": "fas fa-map",
+        "venues.city": "fas fa-city",
+        "venues.venueschedule": "fas fa-calendar-alt",
+        "venues.venueschedulegroup": "fas fa-calendar-week",
+        "bookings": "fas fa-calendar-check",
+        "auth": "fas fa-shield-alt",
+        "auth.group": "fas fa-users",
+    },
+    "custom_css": "admin/css/bookmyvenue-admin.css",
+    "show_ui_builder": False,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly",
+    "navbar": "navbar-dark",
+    "sidebar": "sidebar-dark-success",
+    "accent": "accent-success",
+    "navbar_fixed": True,
+    "sidebar_fixed": True,
+    "sidebar_nav_child_indent": True,
+    "button_classes": {
+        "primary": "btn-success",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
+    },
+}
