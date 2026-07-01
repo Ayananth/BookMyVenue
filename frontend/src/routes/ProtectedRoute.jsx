@@ -41,13 +41,25 @@ export function UserProtectedRoute({
   message,
 }) {
   const { user, loading, isAuthenticated } = useAuth()
-  const { openAuthModal } = useAuthModal()
+  const { openAuthModal, closeAuthModal } = useAuthModal()
   const location = useLocation()
   const promptedRef = useRef(false)
+  const wasAuthenticatedRef = useRef(false)
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      wasAuthenticatedRef.current = true
+    }
+  }, [loading, isAuthenticated])
 
   useEffect(() => {
     if (loading || isAuthenticated) {
       promptedRef.current = false
+      return
+    }
+
+    if (wasAuthenticatedRef.current) {
+      closeAuthModal()
       return
     }
 
@@ -57,13 +69,18 @@ export function UserProtectedRoute({
       })
       promptedRef.current = true
     }
-  }, [loading, isAuthenticated, openAuthModal, message])
+  }, [loading, isAuthenticated, openAuthModal, closeAuthModal, message])
 
   if (loading) {
     return <AuthLoading />
   }
 
   if (!isAuthenticated) {
+    if (wasAuthenticatedRef.current) {
+      wasAuthenticatedRef.current = false
+      return <Navigate to="/" replace />
+    }
+
     return (
       <UserAuthGate
         message={message || "Sign in to access this page."}

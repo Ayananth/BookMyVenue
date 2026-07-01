@@ -583,9 +583,9 @@ export default function ProfilePage() {
   }
 
   const handleLogout = () => {
-    logout()
     setLogoutOpen(false)
-    navigate("/")
+    navigate("/", { replace: true })
+    logout()
   }
 
   const renderContent = () => {
