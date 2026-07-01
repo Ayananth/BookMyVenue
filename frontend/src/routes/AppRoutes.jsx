@@ -13,7 +13,7 @@ import AddVenuePage from "@/apps/venue/pages/AddVenuePage"
 import AdminLayout from "../layouts/AdminLayout"
 import UserLayout from "../layouts/UserLayout"
 import VenueLayout from "../layouts/VenueLayout"
-import { GuestRoute, ProtectedRoute } from "./ProtectedRoute"
+import { GuestRoute, ProtectedRoute, UserProtectedRoute } from "./ProtectedRoute"
 
 export default function AppRoutes() {
   return (
@@ -23,7 +23,14 @@ export default function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="venues" element={<ExploreVenuesPage />} />
           <Route path="venues/:slug" element={<VenueDetailsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route
+            path="profile"
+            element={
+              <UserProtectedRoute message="Sign in to view your profile and bookings.">
+                <ProfilePage />
+              </UserProtectedRoute>
+            }
+          />
         </Route>
 
         <Route

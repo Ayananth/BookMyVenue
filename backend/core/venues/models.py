@@ -18,45 +18,39 @@ class VenueStatus(models.TextChoices):
     SUSPENDED = "suspended", "Suspended"
 
 
-class Location(models.Model):
-    city = models.CharField(max_length=100)
-    district = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
-    latitude = models.DecimalField(
-        max_digits=10,
-        decimal_places=7,
-        blank=True,
-        null=True,
-    )
-    longitude = models.DecimalField(
-        max_digits=10,
-        decimal_places=7,
-        blank=True,
-        null=True,
-    )
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+class District(models.Model):
+    name = models.CharField(max_length=100, unique=True)
 
     class Meta:
-        db_table = "locations"
+        db_table = "districts"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class City(models.Model):
+    district = models.ForeignKey(
+        District,
+        on_delete=models.PROTECT,
+        related_name="cities",
+    )
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        db_table = "cities"
+        verbose_name_plural = "cities"
         constraints = [
-            models.CheckConstraint(
-                condition=Q(latitude__isnull=True)
-                | (Q(latitude__gte=-90) & Q(latitude__lte=90)),
-                name="ck_locations_latitude",
-            ),
-            models.CheckConstraint(
-                condition=Q(longitude__isnull=True)
-                | (Q(longitude__gte=-180) & Q(longitude__lte=180)),
-                name="ck_locations_longitude",
+            models.UniqueConstraint(
+                fields=["district", "name"],
+                name="uq_cities_district_name",
             ),
         ]
         indexes = [
-            models.Index(fields=["city"], name="ix_locations_city"),
+            models.Index(fields=["district"], name="ix_cities_district_id"),
         ]
 
     def __str__(self) -> str:
-        return f"{self.city}, {self.district}"
+        return f"{self.name}, {self.district.name}"
 
 
 class VenueCategory(models.Model):
@@ -83,8 +77,8 @@ class Venue(models.Model):
         on_delete=models.PROTECT,
         related_name="venues",
     )
-    location = models.ForeignKey(
-        Location,
+    city = models.ForeignKey(
+        City,
         on_delete=models.PROTECT,
         related_name="venues",
     )
@@ -119,15 +113,15 @@ class Venue(models.Model):
             models.Index(fields=["slug"], name="ix_venues_slug"),
             models.Index(fields=["owner"], name="ix_venues_owner_id"),
             models.Index(fields=["category"], name="ix_venues_category_id"),
-            models.Index(fields=["location"], name="ix_venues_location_id"),
+            models.Index(fields=["city"], name="ix_venues_city_id"),
             models.Index(fields=["status"], name="ix_venues_status"),
             models.Index(
                 fields=["category", "status"],
                 name="ix_venues_category_status",
             ),
             models.Index(
-                fields=["location", "status"],
-                name="ix_venues_location_status",
+                fields=["city", "status"],
+                name="ix_venues_city_status",
             ),
         ]
 

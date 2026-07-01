@@ -2,20 +2,29 @@ import { useEffect, useState } from "react"
 import { GoogleLogin } from "@react-oauth/google"
 import { motion, AnimatePresence } from "framer-motion"
 import { Mail, Phone, X } from "lucide-react"
-import { loginWithGoogle } from "../../apis/auth"
+import {
+  loginUser,
+  loginWithGoogle,
+  parseAuthError,
+  registerUser,
+} from "../../apis/auth"
 import { useAuth } from "../../contexts/AuthContext"
 
 const methods = [
-  { id: "phone", label: "Phone", icon: Phone },
   { id: "email", label: "Email", icon: Mail },
+  { id: "phone", label: "Phone", icon: Phone },
 ]
 
-export default function AuthModal({ open, onClose }) {
+export default function AuthModal({ open, onClose, onSuccess, message }) {
   const { login } = useAuth()
-  const [method, setMethod] = useState("phone")
-  const [phone, setPhone] = useState("")
+  const [mode, setMode] = useState("login")
+  const [method, setMethod] = useState("email")
+  const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
   const [googleError, setGoogleError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
   useEffect(() => {
@@ -36,14 +45,45 @@ export default function AuthModal({ open, onClose }) {
 
   useEffect(() => {
     if (!open) {
+      setMode("login")
+      setMethod("email")
+      setFullName("")
+      setEmail("")
+      setPassword("")
+      setError("")
       setGoogleError("")
+      setSubmitting(false)
       setGoogleLoading(false)
     }
   }, [open])
 
-  const handleSubmit = (event) => {
+  const completeAuth = (data) => {
+    login(data.access_token, data.user)
+    onSuccess?.()
+  }
+
+  const handleEmailSubmit = async (event) => {
     event.preventDefault()
-    onClose()
+    setError("")
+    setSubmitting(true)
+
+    try {
+      const payload =
+        mode === "register"
+          ? { email, password, full_name: fullName || undefined }
+          : { email, password }
+
+      const data =
+        mode === "register"
+          ? await registerUser(payload)
+          : await loginUser(payload)
+
+      completeAuth(data)
+    } catch (err) {
+      setError(parseAuthError(err))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -58,13 +98,18 @@ export default function AuthModal({ open, onClose }) {
 
     try {
       const data = await loginWithGoogle(idToken)
-      login(data.access_token, data.user)
-      onClose()
+      completeAuth(data)
     } catch {
       setGoogleError("Google sign-in failed. Please try again.")
     } finally {
       setGoogleLoading(false)
     }
+  }
+
+  const toggleMode = () => {
+    setMode((current) => (current === "login" ? "register" : "login"))
+    setError("")
+    setPassword("")
   }
 
   return (
@@ -90,7 +135,7 @@ export default function AuthModal({ open, onClose }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-border bg-card shadow-[0_24px_60px_rgba(27,36,29,0.18)]"
+            className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[2rem] border border-border bg-card shadow-[0_24px_60px_rgba(27,36,29,0.18)]"
           >
             <button
               type="button"
@@ -103,16 +148,19 @@ export default function AuthModal({ open, onClose }) {
 
             <div className="p-7 sm:p-8">
               <span className="text-sm font-semibold uppercase tracking-wider text-accent">
-                Welcome back
+                {mode === "login" ? "Welcome back" : "Get started"}
               </span>
               <h2
                 id="auth-modal-title"
                 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-foreground"
               >
-                Sign in to BookMyVenue
+                {mode === "login" ? "Sign in to BookMyVenue" : "Create your account"}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Choose how you&apos;d like to continue.
+                {message ||
+                  (mode === "login"
+                    ? "Sign in to book venues and manage your reservations."
+                    : "Create an account to book venues and track your bookings.")}
               </p>
 
               <div className="mt-6 flex w-full justify-center">
@@ -168,26 +216,32 @@ export default function AuthModal({ open, onClose }) {
                 ))}
               </div>
 
-              <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-                {method === "phone" ? (
-                  <div>
-                    <label
-                      htmlFor="auth-phone"
-                      className="text-sm font-medium text-foreground"
-                    >
-                      Phone number
-                    </label>
-                    <input
-                      id="auth-phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      autoComplete="tel"
-                    />
-                  </div>
-                ) : (
+              {method === "phone" ? (
+                <div className="mt-5 rounded-xl border border-border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
+                  Phone sign-in is coming soon. Please use email for now.
+                </div>
+              ) : (
+                <form onSubmit={handleEmailSubmit} className="mt-5 space-y-4">
+                  {mode === "register" && (
+                    <div>
+                      <label
+                        htmlFor="auth-full-name"
+                        className="text-sm font-medium text-foreground"
+                      >
+                        Full name
+                      </label>
+                      <input
+                        id="auth-full-name"
+                        type="text"
+                        value={fullName}
+                        onChange={(event) => setFullName(event.target.value)}
+                        placeholder="Your name"
+                        className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        autoComplete="name"
+                      />
+                    </div>
+                  )}
+
                   <div>
                     <label
                       htmlFor="auth-email"
@@ -201,19 +255,64 @@ export default function AuthModal({ open, onClose }) {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder="you@example.com"
+                      required
                       className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       autoComplete="email"
                     />
                   </div>
-                )}
 
+                  <div>
+                    <label
+                      htmlFor="auth-password"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Password
+                    </label>
+                    <input
+                      id="auth-password"
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder={mode === "login" ? "Your password" : "Create a password"}
+                      required
+                      minLength={8}
+                      className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      autoComplete={
+                        mode === "login" ? "current-password" : "new-password"
+                      }
+                    />
+                  </div>
+
+                  {error && (
+                    <p className="text-sm text-red-600">{error}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full rounded-full bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting
+                      ? mode === "login"
+                        ? "Signing in..."
+                        : "Creating account..."
+                      : mode === "login"
+                        ? "Sign in with email"
+                        : "Create account"}
+                  </button>
+                </form>
+              )}
+
+              <p className="mt-5 text-center text-sm text-muted-foreground">
+                {mode === "login" ? "New to BookMyVenue?" : "Already have an account?"}
                 <button
-                  type="submit"
-                  className="w-full rounded-full bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+                  type="button"
+                  onClick={toggleMode}
+                  className="ml-2 font-semibold text-primary hover:underline"
                 >
-                  {method === "phone" ? "Continue with phone" : "Continue with email"}
+                  {mode === "login" ? "Create account" : "Sign in"}
                 </button>
-              </form>
+              </p>
 
               <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
                 By continuing, you agree to our Terms of Service and Privacy Policy.

@@ -36,6 +36,16 @@ export async function loginWithGoogleVenue(idToken) {
   return data
 }
 
+export async function loginUser(credentials) {
+  const { data } = await api.post("/users/login", credentials, authConfig)
+  return data
+}
+
+export async function registerUser(payload) {
+  const { data } = await api.post("/users/register", payload, authConfig)
+  return data
+}
+
 export async function loginVenue(credentials) {
   const { data } = await api.post("/users/venue/login", credentials, authConfig)
   return data

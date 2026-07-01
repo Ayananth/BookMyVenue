@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { MapPin, Menu, User, X } from "lucide-react"
-import AuthModal from "./AuthModal"
 import { useAuth } from "../../contexts/AuthContext"
+import { useAuthModal } from "../../contexts/AuthModalContext"
 
 const links = [
   { label: "Explore", href: "/venues" },
@@ -14,9 +15,9 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const { isAuthenticated } = useAuth()
+  const { openAuthModal } = useAuthModal()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12)
@@ -58,17 +59,17 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
-            <a
-              href="/profile"
+            <Link
+              to="/profile"
               className="inline-flex items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-primary"
             >
               <User className="h-4 w-4" />
               Profile
-            </a>
+            </Link>
           ) : (
             <button
               type="button"
-              onClick={() => setAuthOpen(true)}
+              onClick={() => openAuthModal()}
               className="text-sm font-semibold text-foreground transition-colors hover:text-primary"
             >
               Sign in
@@ -113,20 +114,20 @@ export default function Navbar() {
               ))}
             </ul>
             {isAuthenticated ? (
-              <a
-                href="/profile"
+              <Link
+                to="/profile"
                 onClick={() => setOpen(false)}
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground hover:bg-muted"
               >
                 <User className="h-4 w-4" />
                 Profile
-              </a>
+              </Link>
             ) : (
               <button
                 type="button"
                 onClick={() => {
                   setOpen(false)
-                  setAuthOpen(true)
+                  openAuthModal()
                 }}
                 className="mt-3 block w-full rounded-xl border border-border px-5 py-3 text-center text-sm font-semibold text-foreground hover:bg-muted"
               >
@@ -143,8 +144,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   )
 }

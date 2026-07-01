@@ -133,3 +133,25 @@ export async function deleteVenueScheduleOverride(slug, overrideId) {
     apiConfig,
   )
 }
+
+export function availabilitySlotFromApi(slot) {
+  return {
+    id: slot.id,
+    name: slot.name || "",
+    startTime: slot.start_time?.slice(0, 5) ?? slot.start_time,
+    endTime: slot.end_time?.slice(0, 5) ?? slot.end_time,
+    price: Number(slot.price),
+  }
+}
+
+export async function fetchVenueAvailability(slug, date) {
+  const { data } = await api.get(`/venues/${slug}/availability/`, {
+    ...apiConfig,
+    params: { date },
+  })
+
+  return {
+    ...data,
+    slots: (data.slots ?? []).map(availabilitySlotFromApi),
+  }
+}

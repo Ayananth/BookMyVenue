@@ -1,21 +1,28 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
+import { ArrowRight, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
+import LocationSearch from "../components/venues/LocationSearch"
 import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories } from "../apis/venues"
-import { fetchVenues } from "../services/venueExploreService"
+import {
+  fetchExploreCities,
+  fetchVenues,
+  priceRangeToParams,
+  sortToOrdering,
+} from "../services/venueExploreService"
+
+const SEARCH_DEBOUNCE_MS = 400
 
 const initialFilters = {
-  category: "All",
-  location: "All",
+  categoryId: null,
+  cityId: null,
   price: "All",
   sort: "recommended",
 }
 
 const filterOptions = {
-  location: ["Thrissur", "Kochi", "Calicut", "Trivandrum"],
   price: ["All", "Below INR 10,000", "INR 10,000 - INR 25,000", "INR 25,000 - INR 50,000", "Above INR 50,000"],
   sort: [
     { value: "recommended", label: "Recommended" },
@@ -35,22 +42,13 @@ function formatCurrency(value) {
 }
 
 function getVenueLocation(venue) {
-  return [venue.location.city, venue.location.district, venue.location.state].join(", ")
-}
-
-function matchesPriceRange(price, range) {
-  switch (range) {
-    case "Below INR 10,000":
-      return price < 10000
-    case "INR 10,000 - INR 25,000":
-      return price >= 10000 && price <= 25000
-    case "INR 25,000 - INR 50,000":
-      return price > 25000 && price <= 50000
-    case "Above INR 50,000":
-      return price > 50000
-    default:
-      return true
-  }
+  const city = venue.city ?? venue.location
+  if (!city || typeof city === "string") return city ?? ""
+  const districtName =
+    typeof city.district === "object" && city.district
+      ? city.district.name
+      : city.district
+  return [city.name, districtName].filter(Boolean).join(", ")
 }
 
 function FilterSelect({ label, value, options, onChange }) {
@@ -71,6 +69,44 @@ function FilterSelect({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
+  )
+}
+
+function Pagination({ page, totalPages, onPageChange }) {
+  if (totalPages <= 1) {
+    return null
+  }
+
+  return (
+    <nav
+      aria-label="Venue pagination"
+      className="mt-10 flex flex-wrap items-center justify-center gap-2"
+    >
+      <button
+        type="button"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+        className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Previous
+      </button>
+
+      <span className="px-3 text-sm font-medium text-muted-foreground">
+        Page <span className="font-semibold text-foreground">{page}</span> of{" "}
+        <span className="font-semibold text-foreground">{totalPages}</span>
+      </span>
+
+      <button
+        type="button"
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(page + 1)}
+        className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+      >
+        Next
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </nav>
   )
 }
 
@@ -144,23 +180,51 @@ function VenueCard({ venue, liked, onToggleLike }) {
 }
 
 export default function ExploreVenuesPage() {
+  const resultsRef = useRef(null)
+  const isInitialLoad = useRef(true)
+  const debounceTimerRef = useRef(null)
   const [venues, setVenues] = useState([])
-  const [categories, setCategories] = useState(["All"])
+  const [categories, setCategories] = useState([{ id: null, name: "All venues" }])
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [searchInput, setSearchInput] = useState("")
-  const [searchTerm, setSearchTerm] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState(initialFilters)
+  const [locationQuery, setLocationQuery] = useState("")
+  const [cities, setCities] = useState([])
   const [liked, setLiked] = useState({})
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
 
     setLoading(true)
 
-    fetchVenues()
-      .then((venueData) => {
+    const priceParams = priceRangeToParams(filters.price)
+    const ordering = sortToOrdering(filters.sort)
+
+    fetchVenues({
+      ...priceParams,
+      ordering,
+      category_id: filters.categoryId ?? undefined,
+      city_id: filters.cityId ?? undefined,
+      search: searchQuery || undefined,
+      page,
+    })
+      .then(({ venues: venueData, count, totalPages: pages }) => {
         if (active) {
           setVenues(venueData)
+          setTotalCount(count)
+          setTotalPages(pages)
         }
       })
       .catch((error) => console.error("Failed to load venues:", error))
@@ -173,89 +237,140 @@ export default function ExploreVenuesPage() {
     return () => {
       active = false
     }
+  }, [filters.categoryId, filters.cityId, filters.price, filters.sort, page, searchQuery])
+
+  useEffect(() => {
+    let active = true
+
+    fetchExploreCities()
+      .then((cityData) => {
+        if (active) setCities(cityData)
+      })
+      .catch((error) => console.error("Failed to load cities:", error))
+
+    return () => {
+      active = false
+    }
   }, [])
+
+  useEffect(() => {
+    if (!loading) {
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false
+        return
+      }
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }, [page, loading])
 
   useEffect(() => {
     fetchVenueCategories()
-      .then((categoryData) => {
-        const names = categoryData
-          .filter((category) => category.id != null)
-          .map((category) => category.name)
-        setCategories(["All", ...names])
-      })
+      .then((categoryData) => setCategories(categoryData))
       .catch((error) => console.error("Failed to load categories:", error))
   }, [])
 
-  useEffect(() => {
-    if (searchInput === "") {
-      setSearchTerm("")
-    }
-  }, [searchInput])
-
   const filteredVenues = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (filters.sort === "rating-high") {
+      return [...venues].sort((a, b) => b.rating - a.rating)
+    }
 
-    const results = venues.filter((venue) => {
-      const searchValues = [
-        venue.name,
-        venue.category.name,
-        venue.location.city,
-        venue.location.district,
-        venue.location.state,
-      ]
+    if (filters.sort === "rating-low") {
+      return [...venues].sort((a, b) => a.rating - b.rating)
+    }
 
-      const matchesSearch =
-        !normalizedSearch ||
-        searchValues.some((value) => value.toLowerCase().includes(normalizedSearch))
-
-      return (
-        matchesSearch &&
-        (filters.category === "All" || venue.category.name === filters.category) &&
-        (filters.location === "All" || venue.location.city === filters.location) &&
-        matchesPriceRange(venue.price, filters.price)
-      )
-    })
-
-    return [...results].sort((a, b) => {
-      switch (filters.sort) {
-        case "price-low":
-          return a.price - b.price
-        case "price-high":
-          return b.price - a.price
-        case "rating-high":
-          return b.rating - a.rating
-        case "rating-low":
-          return a.rating - b.rating
-        default:
-          return 0
-      }
-    })
-  }, [filters, searchTerm, venues])
+    return venues
+  }, [filters.sort, venues])
 
   const hasActiveFilters = useMemo(() => {
     return (
-      searchTerm !== "" ||
+      searchQuery !== "" ||
       searchInput !== "" ||
-      filters.category !== initialFilters.category ||
-      filters.location !== initialFilters.location ||
+      filters.categoryId !== initialFilters.categoryId ||
+      filters.cityId !== initialFilters.cityId ||
       filters.price !== initialFilters.price ||
       filters.sort !== initialFilters.sort
     )
-  }, [filters, searchInput, searchTerm])
+  }, [filters, searchInput, searchQuery])
+
+  const applySearchQuery = (value) => {
+    const trimmed = value.trim()
+    setSearchQuery((current) => {
+      if (current !== trimmed) {
+        setPage(1)
+      }
+      return current === trimmed ? current : trimmed
+    })
+  }
+
+  const handleSearchInputChange = (value) => {
+    setSearchInput(value)
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    if (value.trim() === "") {
+      applySearchQuery("")
+      return
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      applySearchQuery(value)
+    }, SEARCH_DEBOUNCE_MS)
+  }
 
   const updateFilter = (key, value) => {
     setFilters((state) => ({ ...state, [key]: value }))
+    if (key === "categoryId" || key === "cityId" || key === "price" || key === "sort") {
+      setPage(1)
+    }
+  }
+
+  const handleLocationQueryChange = (value) => {
+    setLocationQuery(value)
+    if (filters.cityId != null) {
+      setFilters((state) => ({ ...state, cityId: null }))
+      setPage(1)
+    }
+  }
+
+  const handleLocationSelect = (city) => {
+    setLocationQuery(city.name)
+    updateFilter("cityId", city.id)
+  }
+
+  const handleLocationClear = () => {
+    setLocationQuery("")
+    updateFilter("cityId", null)
   }
 
   const handleSearch = (event) => {
     event.preventDefault()
-    setSearchTerm(searchInput)
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    applySearchQuery(searchInput)
+  }
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key !== "Enter") return
+
+    event.preventDefault()
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    applySearchQuery(searchInput)
   }
 
   const clearFilters = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
     setSearchInput("")
-    setSearchTerm("")
+    applySearchQuery("")
+    setLocationQuery("")
     setFilters(initialFilters)
+    setPage(1)
   }
 
   return (
@@ -286,8 +401,9 @@ export default function ExploreVenuesPage() {
                 <input
                   type="text"
                   value={searchInput}
-                  onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Search venues by name, category, city, district or state"
+                  onChange={(event) => handleSearchInputChange(event.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search by venue name..."
                   className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 />
               </div>
@@ -295,8 +411,11 @@ export default function ExploreVenuesPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (debounceTimerRef.current) {
+                      clearTimeout(debounceTimerRef.current)
+                    }
                     setSearchInput("")
-                    setSearchTerm("")
+                    applySearchQuery("")
                   }}
                   className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:text-foreground sm:w-auto"
                 >
@@ -324,38 +443,40 @@ export default function ExploreVenuesPage() {
                   <div>
                     <h2 className="font-serif text-2xl font-semibold text-foreground">Browse by need</h2>
                     <p className="text-sm text-muted-foreground">
-                      {filteredVenues.length} venues match your current view
+                      {totalCount} venues match your current view
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {categories.map((category) => {
-                    const isActive = filters.category === category
+                    const isActive = filters.categoryId === category.id
 
                     return (
                       <button
-                        key={category}
+                        key={category.id ?? "all"}
                         type="button"
-                        onClick={() => updateFilter("category", category)}
+                        onClick={() => updateFilter("categoryId", category.id)}
                         className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                           isActive
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
                         }`}
                       >
-                        {category}
+                        {category.name}
                       </button>
                     )
                   })}
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.25fr_auto] lg:items-end">
-                  <FilterSelect
-                    label="Location"
-                    value={filters.location}
-                    options={["All", ...filterOptions.location]}
-                    onChange={(value) => updateFilter("location", value)}
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-end">
+                  <LocationSearch
+                    cities={cities}
+                    value={locationQuery}
+                    selectedCityId={filters.cityId}
+                    onChange={handleLocationQueryChange}
+                    onSelect={handleLocationSelect}
+                    onClear={handleLocationClear}
                   />
                   <FilterSelect
                     label="Price"
@@ -383,10 +504,14 @@ export default function ExploreVenuesPage() {
             </section>
           </Reveal>
 
-          <section className="mt-10">
+          <section ref={resultsRef} className="mt-10 scroll-mt-36">
             <div className="mb-5 flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground">
-                Showing <span className="font-semibold text-foreground">{filteredVenues.length}</span> venues
+                Showing <span className="font-semibold text-foreground">{filteredVenues.length}</span>
+                {totalCount > filteredVenues.length && (
+                  <> of <span className="font-semibold text-foreground">{totalCount}</span></>
+                )}{" "}
+                venues
               </p>
               {hasActiveFilters && (
                 <button
@@ -425,6 +550,10 @@ export default function ExploreVenuesPage() {
                   ))}
                 </AnimatePresence>
               </div>
+            )}
+
+            {!loading && (
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             )}
           </section>
         </div>

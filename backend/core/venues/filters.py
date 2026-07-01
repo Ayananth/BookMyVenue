@@ -1,18 +1,22 @@
 from decimal import Decimal, InvalidOperation
 
-from django.db.models import Min, Q
+from django.db.models import Case, IntegerField, Min, Q, Value, When
 from rest_framework.filters import OrderingFilter
+
+from venues.models import City
 
 
 class VenueFilterBackend:
     def filter_queryset(self, request, queryset):
+        search = request.query_params.get("search")
+        if search is not None:
+            search = search.strip()
+            if search:
+                queryset = queryset.filter(name__icontains=search)
+
         category_id = request.query_params.get("category_id")
         if category_id:
             queryset = queryset.filter(category_id=category_id)
-
-        location_id = request.query_params.get("location_id")
-        if location_id:
-            queryset = queryset.filter(location_id=location_id)
 
         min_price = _parse_decimal(request.query_params.get("min_price"))
         if min_price is not None:
@@ -42,12 +46,58 @@ def annotate_min_price(queryset):
     )
 
 
+def apply_city_district_priority(queryset, city_id):
+    try:
+        city_pk = int(city_id)
+    except (TypeError, ValueError):
+        return queryset, False
+
+    district_id = (
+        City.objects.filter(pk=city_pk)
+        .values_list("district_id", flat=True)
+        .first()
+    )
+    if district_id is None:
+        return queryset.none(), False
+
+    queryset = queryset.filter(city__district_id=district_id)
+    queryset = queryset.annotate(
+        location_priority=Case(
+            When(city_id=city_pk, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+    )
+    return queryset, True
+
+
 def filter_venue_list(queryset, request):
     queryset = VenueFilterBackend().filter_queryset(request, queryset)
-    return VenueOrderingFilter().filter_queryset(
+
+    city_id = request.query_params.get("city_id")
+    uses_location_priority = False
+    if city_id:
+        queryset, uses_location_priority = apply_city_district_priority(
+            queryset,
+            city_id,
+        )
+
+    ordering_filter = VenueOrderingFilter()
+    secondary_ordering = ordering_filter.get_ordering(
         request,
         queryset,
-        view=_ListFilterView(),
+        _ListFilterView(),
+    )
+    if not secondary_ordering:
+        secondary_ordering = VenueOrderingFilter.ordering
+
+    if uses_location_priority:
+        return queryset.order_by("location_priority", *secondary_ordering)
+
+    return ordering_filter.filter_queryset(
+        request,
+        queryset,
+        _ListFilterView(),
     )
 
 

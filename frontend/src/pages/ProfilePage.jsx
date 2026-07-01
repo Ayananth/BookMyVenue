@@ -20,6 +20,7 @@ import {
   fetchProfile,
   updateProfile,
 } from "../services/profileService"
+import { cancelBooking } from "../apis/bookings"
 
 const navItems = [
   { id: "profile", label: "Profile Information", icon: User },
@@ -261,7 +262,33 @@ function ProfileInformation({ profile, onSave }) {
   )
 }
 
-function BookingCard({ booking }) {
+function formatTimeRange(startTime, endTime) {
+  if (!startTime || !endTime) return "—"
+
+  const formatTime = (timeStr) => {
+    const [hours, minutes] = timeStr.split(":").map(Number)
+    const period = hours >= 12 ? "PM" : "AM"
+    const hour = hours % 12 || 12
+    return `${hour}:${String(minutes).padStart(2, "0")} ${period}`
+  }
+
+  return `${formatTime(startTime)} - ${formatTime(endTime)}`
+}
+
+function isUpcomingBooking(booking) {
+  const upcomingStatuses = ["confirmed", "pending"]
+  if (!upcomingStatuses.includes(booking.status)) {
+    return false
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return new Date(booking.eventDate) >= today
+}
+
+function BookingCard({ booking, onCancel, cancelling }) {
+  const canCancel = booking.status === "pending" || booking.status === "confirmed"
+
   return (
     <motion.article
       layout
@@ -280,13 +307,19 @@ function BookingCard({ booking }) {
         </span>
       </div>
 
-      <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-3">
+      <div className="mt-5 grid gap-4 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Event Date</p>
           <p className="mt-1 font-semibold text-foreground">{formatDate(booking.eventDate)}</p>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Booking Date</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time Slot</p>
+          <p className="mt-1 font-semibold text-foreground">
+            {formatTimeRange(booking.startTime, booking.endTime)}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Booked On</p>
           <p className="mt-1 font-semibold text-foreground">{formatDate(booking.bookingDate)}</p>
         </div>
         <div>
@@ -295,25 +328,28 @@ function BookingCard({ booking }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="mt-5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
-      >
-        View Details
-      </button>
+      {canCancel && (
+        <button
+          type="button"
+          onClick={() => onCancel(booking.id)}
+          disabled={cancelling}
+          className="mt-5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-red-300 hover:text-red-700 disabled:opacity-60"
+        >
+          {cancelling ? "Cancelling..." : "Cancel Booking"}
+        </button>
+      )}
     </motion.article>
   )
 }
 
-function BookingsSection({ bookings }) {
+function BookingsSection({ bookings, onCancelBooking, cancellingId }) {
   const [activeTab, setActiveTab] = useState("upcoming")
 
   const visibleBookings = useMemo(() => {
-    const upcomingStatuses = ["confirmed", "pending"]
     return bookings.filter((booking) =>
       activeTab === "upcoming"
-        ? upcomingStatuses.includes(booking.status)
-        : !upcomingStatuses.includes(booking.status)
+        ? isUpcomingBooking(booking)
+        : !isUpcomingBooking(booking),
     )
   }, [activeTab, bookings])
 
@@ -347,7 +383,12 @@ function BookingsSection({ bookings }) {
       <div className="mt-5 space-y-4">
         <AnimatePresence mode="popLayout">
           {visibleBookings.map((booking) => (
-            <BookingCard key={booking.id} booking={booking} />
+            <BookingCard
+              key={booking.id}
+              booking={booking}
+              onCancel={onCancelBooking}
+              cancelling={cancellingId === booking.id}
+            />
           ))}
         </AnimatePresence>
 
@@ -483,15 +524,20 @@ function LogoutModal({ open, onCancel, onLogout }) {
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, isAuthenticated, loading: authLoading } = useAuth()
   const [activeSection, setActiveSection] = useState("profile")
   const [profile, setProfile] = useState(null)
   const [bookings, setBookings] = useState([])
   const [favouriteVenues, setFavouriteVenues] = useState([])
   const [loading, setLoading] = useState(true)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [cancellingId, setCancellingId] = useState(null)
 
   useEffect(() => {
+    if (authLoading || !isAuthenticated) {
+      return undefined
+    }
+
     let active = true
 
     setLoading(true)
@@ -514,20 +560,36 @@ export default function ProfilePage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [authLoading, isAuthenticated])
 
   const removeFavourite = (venueSlug) => {
     setFavouriteVenues((venues) => venues.filter((venue) => venue.slug !== venueSlug))
   }
 
+  const handleCancelBooking = async (bookingId) => {
+    setCancellingId(bookingId)
+    try {
+      const updatedBooking = await cancelBooking(bookingId)
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === bookingId ? updatedBooking : booking,
+        ),
+      )
+    } catch (error) {
+      console.error("Failed to cancel booking:", error)
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
   const handleLogout = () => {
-    logout()
     setLogoutOpen(false)
-    navigate("/")
+    navigate("/", { replace: true })
+    logout()
   }
 
   const renderContent = () => {
-    if (loading || !profile) {
+    if (authLoading || loading || !profile) {
       return (
         <div className="rounded-2xl border border-border bg-card py-16 text-center text-muted-foreground">
           Loading profile...
@@ -536,7 +598,13 @@ export default function ProfilePage() {
     }
 
     if (activeSection === "bookings") {
-      return <BookingsSection bookings={bookings} />
+      return (
+        <BookingsSection
+          bookings={bookings}
+          onCancelBooking={handleCancelBooking}
+          cancellingId={cancellingId}
+        />
+      )
     }
 
     if (activeSection === "favourites") {

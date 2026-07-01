@@ -1,0 +1,20 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment (keep examples tracked)
+.env
+.env.local
+!.env.example
+
+# Docker local overrides
+compose.override.yml
+
+# Logs
+*.log

@@ -32,7 +32,8 @@ export function venueToFormState(venue) {
   return {
     name: venue.name ?? "",
     category: venue.category?.id ? String(venue.category.id) : "",
-    location: venue.location?.id ? String(venue.location.id) : "",
+    district: venue.city?.district?.id ? String(venue.city.district.id) : "",
+    city: venue.city?.id ? String(venue.city.id) : "",
     address: venue.address ?? "",
     description: venue.description ?? "",
     capacity: venue.capacity != null ? String(venue.capacity) : "",
@@ -65,8 +66,14 @@ export async function fetchVenueFormCategories() {
   return data
 }
 
-export async function fetchVenueFormLocations() {
-  const { data } = await api.get("/venues/locations", apiConfig)
+export async function fetchVenueFormDistricts() {
+  const { data } = await api.get("/venues/districts", apiConfig)
+  return data
+}
+
+export async function fetchVenueFormCities(districtId) {
+  const params = districtId ? { district_id: districtId } : undefined
+  const { data } = await api.get("/venues/cities", { ...apiConfig, params })
   return data
 }
 
@@ -109,7 +116,7 @@ export function buildVenuePayload(formData, amenities, images) {
   return {
     name: formData.name.trim(),
     category_id: Number(formData.category),
-    location_id: Number(formData.location),
+    city_id: Number(formData.city),
     address: formData.address.trim(),
     description: formData.description.trim(),
     capacity: Number(formData.capacity),
@@ -149,10 +156,14 @@ export function formatVenuePrice(price) {
   }).format(numeric)
 }
 
-export function formatVenueLocation(location) {
-  if (!location) return ""
-  if (typeof location === "string") return location
-  return [location.district, location.city, location.state].filter(Boolean).join(", ")
+export function formatVenueLocation(city) {
+  if (!city) return ""
+  if (typeof city === "string") return city
+  const districtName =
+    typeof city.district === "object" && city.district
+      ? city.district.name
+      : city.district
+  return [city.name, districtName].filter(Boolean).join(", ")
 }
 
 const BOOKING_TYPE_LABELS = {
@@ -182,7 +193,7 @@ function getCoverImage(images = []) {
 export function toVenueDetailPage(venue) {
   const gallery = getVenueGallery(venue.images)
   const image = getCoverImage(venue.images)
-  const location = formatVenueLocation(venue.location)
+  const location = formatVenueLocation(venue.city)
   const type = venue.category?.name ?? venue.type ?? ""
   const amenities = Array.isArray(venue.amenities) ? venue.amenities : []
   const priceValue = venue.min_price != null ? Number(venue.min_price) : null
@@ -249,12 +260,7 @@ function toExploreVenue(venue) {
     return venue
   }
 
-  const location =
-    typeof venue.location === "object" && venue.location
-      ? [venue.location.district, venue.location.city, venue.location.state]
-          .filter(Boolean)
-          .join(", ")
-      : [venue.district, venue.city, venue.state].filter(Boolean).join(", ")
+  const location = formatVenueLocation(venue.city ?? venue.location)
 
   const categoryName =
     typeof venue.category === "object" && venue.category
@@ -274,10 +280,16 @@ function toExploreVenue(venue) {
   }
 }
 
-export async function fetchExploreVenues({ categoryId } = {}) {
+export async function fetchExploreVenues({ categoryId, cityId, search } = {}) {
   const params = { limit: 12 }
   if (categoryId != null) {
     params.category_id = categoryId
+  }
+  if (cityId != null) {
+    params.city_id = cityId
+  }
+  if (search) {
+    params.search = search
   }
 
   const { data } = await api.get("/venues/", {
