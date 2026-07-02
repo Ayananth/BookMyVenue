@@ -19,16 +19,20 @@ export function parseBookingError(error) {
 }
 
 export function bookingFromApi(entry) {
+  const venue = entry.venue ?? {}
+  const schedule = entry.schedule ?? {}
+  const payment = entry.payment ?? {}
+
   return {
     id: entry.id,
-    venueName: entry.venue_name,
-    venueSlug: entry.venue_slug,
+    venueName: venue.name ?? entry.venue_name,
+    venueSlug: venue.slug ?? entry.venue_slug,
     bookingDate: entry.created_at?.slice(0, 10) ?? entry.created_at,
     eventDate: entry.booking_date,
-    amount: Number(entry.price),
+    amount: Number(entry.booking_amount ?? payment.amount ?? entry.price ?? schedule.price),
     status: entry.status,
-    startTime: entry.start_time?.slice(0, 5) ?? entry.start_time,
-    endTime: entry.end_time?.slice(0, 5) ?? entry.end_time,
+    startTime: schedule.start_time?.slice(0, 5) ?? entry.start_time?.slice(0, 5) ?? entry.start_time,
+    endTime: schedule.end_time?.slice(0, 5) ?? entry.end_time?.slice(0, 5) ?? entry.end_time,
   }
 }
 
