@@ -7,7 +7,10 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from rest_framework.exceptions import PermissionDenied
+
 from bookings.exceptions import (
+    BookingNotFoundError,
     BookingSessionExpiredError,
     BookingSessionNotActiveError,
     BookingSessionNotFoundError,
@@ -61,6 +64,29 @@ class BookingService:
             )
             .order_by("-booking_date", "-confirmed_at")
         )
+
+    @staticmethod
+    def get_booking_detail(*, booking_id: UUID, user) -> Booking:
+        booking = (
+            Booking.objects.select_related(
+                "payment",
+                "user",
+                "venue_schedule",
+                "venue_schedule__group",
+                "venue_schedule__group__venue",
+                "venue_schedule__group__venue__city",
+            )
+            .prefetch_related("venue_schedule__group__venue__images")
+            .filter(pk=booking_id)
+            .first()
+        )
+        if booking is None:
+            raise BookingNotFoundError("Booking not found.")
+        if booking.user_id != user.id:
+            raise PermissionDenied(
+                "You do not have permission to access this booking.",
+            )
+        return booking
 
     @staticmethod
     def start_booking(

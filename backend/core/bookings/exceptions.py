@@ -4,6 +4,10 @@ class BookingError(Exception):
         super().__init__(message)
 
 
+class BookingNotFoundError(BookingError):
+    pass
+
+
 class VenueScheduleNotFoundError(BookingError):
     pass
 

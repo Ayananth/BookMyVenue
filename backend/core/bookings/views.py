@@ -1,4 +1,3 @@
-from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
@@ -7,6 +6,7 @@ from rest_framework.views import APIView
 
 from bookings.exceptions import (
     BookingError,
+    BookingNotFoundError,
     InvalidBookingDateError,
     RazorpayOrderCreationError,
     ScheduleUnavailableError,
@@ -15,8 +15,6 @@ from bookings.exceptions import (
     VenueNotAvailableError,
     VenueScheduleNotFoundError,
 )
-from bookings.models import Booking
-from bookings.permissions import CanAccessBooking
 from bookings.serializers import (
     BookingDetailSerializer,
     BookingListSerializer,
@@ -27,6 +25,7 @@ from bookings.serializers import (
 from bookings.services.booking_service import BookingService
 
 BOOKING_ERROR_STATUS = {
+    BookingNotFoundError: status.HTTP_404_NOT_FOUND,
     VenueScheduleNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidBookingDateError: status.HTTP_400_BAD_REQUEST,
     VenueNotAvailableError: status.HTTP_400_BAD_REQUEST,
@@ -41,17 +40,6 @@ class BookingPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "limit"
     max_page_size = 100
-
-
-BOOKING_DETAIL_SELECT_RELATED = (
-    "payment",
-    "venue_schedule",
-    "venue_schedule__group",
-    "venue_schedule__group__venue",
-    "venue_schedule__group__venue__category",
-    "venue_schedule__group__venue__city",
-    "venue_schedule__group__venue__city__district",
-)
 
 
 class BookingStartView(APIView):
@@ -92,22 +80,33 @@ class BookingListView(APIView):
 
 
 class BookingDetailView(APIView):
-    permission_classes = [IsAuthenticated, CanAccessBooking]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, booking_id):
-        booking = get_object_or_404(
-            Booking.objects.select_related(*BOOKING_DETAIL_SELECT_RELATED),
-            pk=booking_id,
-        )
-        self.check_object_permissions(request, booking)
+        try:
+            booking = BookingService.get_booking_detail(
+                booking_id=booking_id,
+                user=request.user,
+            )
+        except BookingNotFoundError as exc:
+            return Response(
+                {"message": exc.message},
+                status=BOOKING_ERROR_STATUS[type(exc)],
+            )
+
         return Response(BookingDetailSerializer(booking).data)
 
     def patch(self, request, booking_id):
-        booking = get_object_or_404(
-            Booking.objects.select_related(*BOOKING_DETAIL_SELECT_RELATED),
-            pk=booking_id,
-        )
-        self.check_object_permissions(request, booking)
+        try:
+            booking = BookingService.get_booking_detail(
+                booking_id=booking_id,
+                user=request.user,
+            )
+        except BookingNotFoundError as exc:
+            return Response(
+                {"message": exc.message},
+                status=BOOKING_ERROR_STATUS[type(exc)],
+            )
 
         serializer = BookingStatusUpdateSerializer(
             data=request.data,

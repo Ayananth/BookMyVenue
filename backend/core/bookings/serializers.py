@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from bookings.models import Booking, BookingStatus, Payment
 from venues.models import Venue, VenueSchedule
-from venues.serializers import CitySerializer, VenueCategorySerializer
+from venues.serializers import CitySerializer
 
 
 class BookingStartSerializer(serializers.Serializer):
@@ -81,86 +81,83 @@ class BookingListSerializer(serializers.ModelSerializer):
         return data
 
 
-class BookingDetailVenueSerializer(serializers.ModelSerializer):
-    category = VenueCategorySerializer(read_only=True)
-    city = CitySerializer(read_only=True)
+class VenueSummarySerializer(serializers.ModelSerializer):
+    city = serializers.SerializerMethodField()
+    cover_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
         fields = (
             "id",
-            "slug",
             "name",
+            "slug",
             "address",
-            "capacity",
-            "booking_type",
-            "category",
             "city",
+            "contact_name",
+            "contact_phone",
+            "cover_image",
         )
         read_only_fields = fields
 
+    def get_city(self, obj) -> str:
+        return obj.city.name
 
-class BookingDetailScheduleSerializer(serializers.ModelSerializer):
+    def get_cover_image(self, obj) -> str | None:
+        images = list(obj.images.all())
+        if not images:
+            return None
+        cover = next((image for image in images if image.is_cover), None)
+        image = cover or min(images, key=lambda item: item.sort_order)
+        return image.image_url
+
+
+class ScheduleSummarySerializer(serializers.ModelSerializer):
+    start_time = serializers.SerializerMethodField()
+    end_time = serializers.SerializerMethodField()
+
     class Meta:
         model = VenueSchedule
-        fields = ("id", "name", "start_time", "end_time", "price", "is_available")
+        fields = ("id", "name", "start_time", "end_time")
         read_only_fields = fields
 
+    def get_start_time(self, obj) -> str:
+        return obj.start_time.strftime("%H:%M")
 
-class BookingDetailPaymentSerializer(serializers.ModelSerializer):
+    def get_end_time(self, obj) -> str:
+        return obj.end_time.strftime("%H:%M")
+
+
+class PaymentSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = (
-            "id",
-            "provider",
-            "status",
-            "amount",
-            "currency",
-            "razorpay_order_id",
-            "verified_at",
-            "created_at",
-        )
+        fields = ("provider", "status", "amount", "currency")
         read_only_fields = fields
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["provider"] = instance.provider.lower()
-        data["status"] = instance.status.lower()
-        return data
 
 
 class BookingDetailSerializer(serializers.ModelSerializer):
-    venue = BookingDetailVenueSerializer(
+    venue = VenueSummarySerializer(
         source="venue_schedule.group.venue",
         read_only=True,
     )
-    schedule = BookingDetailScheduleSerializer(
+    schedule = ScheduleSummarySerializer(
         source="venue_schedule",
         read_only=True,
     )
-    payment = BookingDetailPaymentSerializer(read_only=True)
+    payment = PaymentSummarySerializer(read_only=True)
 
     class Meta:
         model = Booking
         fields = (
             "id",
+            "status",
             "booking_date",
             "booking_amount",
-            "status",
             "confirmed_at",
-            "cancelled_at",
-            "created_at",
-            "updated_at",
             "venue",
             "schedule",
             "payment",
         )
         read_only_fields = fields
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["status"] = instance.status.lower()
-        return data
 
 
 class BookingStatusUpdateSerializer(serializers.Serializer):
