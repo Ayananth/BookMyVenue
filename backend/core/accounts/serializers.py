@@ -5,6 +5,7 @@ from rest_framework import serializers
 from accounts.google_auth import login_or_register_with_google, verify_google_id_token
 from accounts.models import User, UserRole
 from accounts.security import create_access_token
+from accounts.validators import validate_full_name, validate_phone
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -25,6 +26,27 @@ class UserSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = fields
+
+
+class UserUpdateSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(required=True, allow_blank=False, max_length=255)
+    phone = serializers.CharField(required=True, allow_blank=False, max_length=20)
+
+    class Meta:
+        model = User
+        fields = ("full_name", "phone")
+
+    def validate_phone(self, value):
+        try:
+            return validate_phone(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+
+    def validate_full_name(self, value):
+        try:
+            return validate_full_name(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class RegisterSerializer(serializers.Serializer):

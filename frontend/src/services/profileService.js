@@ -1,4 +1,8 @@
-import { fetchCurrentUser } from "../apis/auth"
+import { fetchCurrentUser, updateCurrentUser } from "../apis/auth"
+import {
+  normalizeProfileName,
+  normalizeProfilePhone,
+} from "../utils/profileValidation"
 import { fetchBookings as fetchBookingsFromApi } from "../apis/bookings"
 
 const mockFavouriteVenues = [
@@ -46,6 +50,15 @@ export const fetchFavouriteVenues = async () => {
 }
 
 export const updateProfile = async (profile) => {
-  // Future API integration: replace with PATCH /profile.
-  return profile
+  const user = await updateCurrentUser({
+    full_name: normalizeProfileName(profile.name),
+    phone: normalizeProfilePhone(profile.phone),
+  })
+
+  return {
+    id: user.id,
+    name: user.full_name ?? "",
+    email: user.email ?? "",
+    phone: user.phone ?? "",
+  }
 }

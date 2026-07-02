@@ -8,6 +8,7 @@ import {
   Heart,
   LogOut,
   Mail,
+  MapPin,
   Star,
   TicketCheck,
   User,
@@ -15,6 +16,13 @@ import {
 } from "lucide-react"
 import MainLayout from "../layouts/MainLayout"
 import { useAuth } from "../contexts/AuthContext"
+import { parseAuthError } from "../apis/auth"
+import {
+  normalizeProfileName,
+  normalizeProfilePhone,
+  validateProfileName,
+  validateProfilePhone,
+} from "../utils/profileValidation"
 import {
   fetchBookings,
   fetchFavouriteVenues,
@@ -143,23 +151,34 @@ function ProfileInformation({ profile, onSave }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(profile)
   const [errors, setErrors] = useState({})
+  const [saveError, setSaveError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setForm(profile)
   }, [profile])
 
-  const validate = () => {
-    const nextErrors = {}
-
-    if (!form.name.trim()) {
-      nextErrors.name = "Full name is required."
+  useEffect(() => {
+    if (!successMessage) {
+      return undefined
     }
 
-    if (!form.phone.trim()) {
-      nextErrors.phone = "Phone number is required."
-    } else if (!/^\+?[0-9\s-]{8,}$/.test(form.phone.trim())) {
-      nextErrors.phone = "Enter a valid phone number."
+    const timer = window.setTimeout(() => setSuccessMessage(""), 4000)
+    return () => window.clearTimeout(timer)
+  }, [successMessage])
+
+  const validate = () => {
+    const nextErrors = {}
+    const nameError = validateProfileName(form.name)
+    const phoneError = validateProfilePhone(form.phone)
+
+    if (nameError) {
+      nextErrors.name = nameError
+    }
+
+    if (phoneError) {
+      nextErrors.phone = phoneError
     }
 
     setErrors(nextErrors)
@@ -172,15 +191,40 @@ function ProfileInformation({ profile, onSave }) {
     }
 
     setSaving(true)
-    const updatedProfile = await updateProfile(form)
-    onSave(updatedProfile)
-    setSaving(false)
-    setEditing(false)
+    setSaveError("")
+
+    try {
+      const updatedProfile = await updateProfile(form)
+      onSave(updatedProfile)
+      setEditing(false)
+      setSuccessMessage("Profile updated successfully.")
+    } catch (error) {
+      const data = error.response?.data
+      if (data?.full_name) {
+        setErrors((current) => ({
+          ...current,
+          name: Array.isArray(data.full_name) ? data.full_name[0] : data.full_name,
+        }))
+      }
+      if (data?.phone) {
+        setErrors((current) => ({
+          ...current,
+          phone: Array.isArray(data.phone) ? data.phone[0] : data.phone,
+        }))
+      }
+      if (!data?.full_name && !data?.phone) {
+        setSaveError(parseAuthError(error))
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleCancel = () => {
     setForm(profile)
     setErrors({})
+    setSaveError("")
+    setSuccessMessage("")
     setEditing(false)
   }
 
@@ -198,13 +242,23 @@ function ProfileInformation({ profile, onSave }) {
         {!editing && (
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setSaveError("")
+              setSuccessMessage("")
+              setEditing(true)
+            }}
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             Edit Profile
           </button>
         )}
       </div>
+
+      {successMessage && (
+        <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {successMessage}
+        </p>
+      )}
 
       <div className="mt-6 grid gap-5 md:grid-cols-2">
         <label className="block">
@@ -213,8 +267,10 @@ function ProfileInformation({ profile, onSave }) {
             type="text"
             value={form.name}
             disabled={!editing}
+            maxLength={255}
             onChange={(event) => setForm((state) => ({ ...state, name: event.target.value }))}
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground outline-none transition disabled:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Enter your full name"
           />
           {errors.name && <p className="mt-2 text-sm text-red-700">{errors.name}</p>}
         </label>
@@ -225,8 +281,10 @@ function ProfileInformation({ profile, onSave }) {
             type="tel"
             value={form.phone}
             disabled={!editing}
+            maxLength={15}
             onChange={(event) => setForm((state) => ({ ...state, phone: event.target.value }))}
             className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground outline-none transition disabled:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="10-digit mobile number"
           />
           {errors.phone && <p className="mt-2 text-sm text-red-700">{errors.phone}</p>}
         </label>
@@ -242,6 +300,9 @@ function ProfileInformation({ profile, onSave }) {
 
       {editing && (
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          {saveError && (
+            <p className="w-full text-sm text-red-700 sm:order-first sm:basis-full">{saveError}</p>
+          )}
           <button
             type="button"
             onClick={handleSave}
@@ -575,7 +636,7 @@ function LogoutModal({ open, onCancel, onLogout }) {
 export default function ProfilePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { logout, isAuthenticated, loading: authLoading } = useAuth()
+  const { logout, isAuthenticated, loading: authLoading, user, updateUser } = useAuth()
   const sectionParam = searchParams.get("section")
   const [activeSection, setActiveSection] = useState(() =>
     validSections.has(sectionParam) ? sectionParam : "profile",
@@ -683,7 +744,21 @@ export default function ProfilePage() {
       return <FavouritesSection venues={favouriteVenues} onRemove={removeFavourite} />
     }
 
-    return <ProfileInformation profile={profile} onSave={setProfile} />
+    return (
+      <ProfileInformation
+        profile={profile}
+        onSave={(updatedProfile) => {
+          setProfile(updatedProfile)
+          if (user) {
+            updateUser({
+              ...user,
+              full_name: updatedProfile.name,
+              phone: updatedProfile.phone,
+            })
+          }
+        }}
+      />
+    )
   }
 
   return (

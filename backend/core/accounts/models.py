@@ -68,7 +68,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser):
     full_name = models.CharField(max_length=255, blank=True, null=True)
     email = models.CharField(max_length=255, blank=True, null=True, unique=True)
-    phone = models.CharField(max_length=20, blank=True, null=True, unique=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     avatar_url = models.TextField(blank=True, null=True)
     role = models.CharField(
         max_length=20,

@@ -60,3 +60,8 @@ export async function fetchCurrentUser() {
   const { data } = await api.get("/users/me", authConfig)
   return data
 }
+
+export async function updateCurrentUser(payload) {
+  const { data } = await api.patch("/users/me", payload, authConfig)
+  return data
+}

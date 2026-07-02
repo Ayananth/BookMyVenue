@@ -9,6 +9,7 @@ from accounts.serializers import (
     LoginSerializer,
     RegisterSerializer,
     UserSerializer,
+    UserUpdateSerializer,
     build_token_response,
 )
 
@@ -85,3 +86,14 @@ class MeView(APIView):
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UserUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user).data)

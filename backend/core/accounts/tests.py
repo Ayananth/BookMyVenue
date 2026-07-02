@@ -8,6 +8,125 @@ from accounts.google_auth import GoogleUserInfo
 from accounts.models import AuthAccount, AuthProvider, User, UserRole
 
 
+def auth_headers(client, user):
+    response = client.post(
+        "/users/login",
+        {"email": user.email, "password": "SecurePass123!"},
+        format="json",
+    )
+    token = response.data["access_token"]
+    return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+
+
+class MeViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email="user@example.com",
+            password="SecurePass123!",
+            full_name="Old Name",
+            phone="9876543210",
+            role=UserRole.USER,
+        )
+        self.auth = auth_headers(self.client, self.user)
+
+    def test_get_me_returns_current_user(self):
+        response = self.client.get("/users/me", **self.auth)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["email"], "user@example.com")
+        self.assertEqual(response.data["full_name"], "Old Name")
+        self.assertEqual(response.data["phone"], "9876543210")
+
+    def test_patch_me_updates_name_and_phone(self):
+        response = self.client.patch(
+            "/users/me",
+            {"full_name": "New Name", "phone": "9123456789"},
+            format="json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["full_name"], "New Name")
+        self.assertEqual(response.data["phone"], "9123456789")
+        self.assertEqual(response.data["email"], "user@example.com")
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.full_name, "New Name")
+        self.assertEqual(self.user.phone, "9123456789")
+
+    def test_patch_me_rejects_blank_name(self):
+        response = self.client.patch(
+            "/users/me",
+            {"full_name": "   "},
+            format="json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("full_name", response.data)
+
+    def test_patch_me_rejects_invalid_name(self):
+        response = self.client.patch(
+            "/users/me",
+            {"full_name": "A"},
+            format="json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("full_name", response.data)
+
+    def test_patch_me_rejects_invalid_phone(self):
+        response = self.client.patch(
+            "/users/me",
+            {"phone": "5123456789"},
+            format="json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("phone", response.data)
+
+    def test_patch_me_allows_duplicate_phone(self):
+        User.objects.create_user(
+            email="other@example.com",
+            password="SecurePass123!",
+            phone="9000000000",
+            role=UserRole.USER,
+        )
+
+        response = self.client.patch(
+            "/users/me",
+            {"phone": "9000000000"},
+            format="json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], "9000000000")
+
+    def test_patch_me_normalizes_phone_with_country_code(self):
+        response = self.client.patch(
+            "/users/me",
+            {"phone": "+91 98765 43210"},
+            format="json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["phone"], "9876543210")
+
+    def test_patch_me_requires_authentication(self):
+        response = self.client.patch(
+            "/users/me",
+            {"full_name": "New Name"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class GoogleLoginViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
