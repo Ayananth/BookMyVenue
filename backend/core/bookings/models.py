@@ -66,6 +66,11 @@ class BookingSession(models.Model):
         verbose_name="venue schedule",
     )
     booking_date = models.DateField(verbose_name="booking date")
+    locked_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        verbose_name="locked price",
+    )
     status = models.CharField(
         max_length=20,
         choices=BookingSessionStatus.choices,
@@ -94,6 +99,10 @@ class BookingSession(models.Model):
             ),
         ]
         constraints = [
+            models.CheckConstraint(
+                condition=Q(locked_price__gte=0),
+                name="ck_booking_session_locked_price",
+            ),
             models.UniqueConstraint(
                 fields=["venue_schedule", "booking_date"],
                 condition=Q(status=BookingSessionStatus.ACTIVE),
