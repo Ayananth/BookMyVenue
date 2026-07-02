@@ -5,13 +5,15 @@ services:
       POSTGRES_USER: bookmyvenue
       POSTGRES_PASSWORD: bookmyvenue
       POSTGRES_DB: bookmyvenue
+    ports:
+      - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bookmyvenue"]
       interval: 5s
       retries: 5
-
+      
   redis:
     image: redis:7-alpine
     healthcheck:
