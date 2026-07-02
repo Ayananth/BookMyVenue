@@ -7,6 +7,7 @@ const apiConfig = {
 export function parseBookingError(error) {
   const data = error.response?.data
   if (!data) return "Something went wrong. Please try again."
+  if (typeof data.message === "string") return data.message
   if (typeof data.detail === "string") return data.detail
   if (typeof data === "object") {
     const firstKey = Object.keys(data)[0]
@@ -31,6 +32,18 @@ export function bookingFromApi(entry) {
   }
 }
 
+export async function startBooking({ venueScheduleId, bookingDate }) {
+  const { data } = await api.post(
+    "/bookings/start/",
+    {
+      venue_schedule_id: venueScheduleId,
+      booking_date: bookingDate,
+    },
+    apiConfig,
+  )
+  return data
+}
+
 export async function fetchBookings(params = {}) {
   const { data } = await api.get("/bookings/", {
     ...apiConfig,
@@ -38,19 +51,6 @@ export async function fetchBookings(params = {}) {
   })
   const results = data.results ?? data
   return (Array.isArray(results) ? results : []).map(bookingFromApi)
-}
-
-export async function createBookings({ venueSlug, bookingDate, scheduleIds }) {
-  const { data } = await api.post(
-    "/bookings/",
-    {
-      venue_slug: venueSlug,
-      booking_date: bookingDate,
-      schedule_ids: scheduleIds,
-    },
-    apiConfig,
-  )
-  return (Array.isArray(data) ? data : []).map(bookingFromApi)
 }
 
 export async function cancelBooking(bookingId) {

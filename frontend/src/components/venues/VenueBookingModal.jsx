@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { CalendarDays, CheckCircle2, MapPin, X } from "lucide-react"
-import { createBookings, parseBookingError } from "../../apis/bookings"
+import { parseBookingError, startBooking } from "../../apis/bookings"
 import { fetchVenueAvailability } from "../../apis/venueSchedules"
 import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
@@ -122,20 +122,19 @@ export default function VenueBookingModal({ open, onClose, venue }) {
   }, [open])
 
   const submitBooking = async () => {
-    if (!venue?.slug || selectedSlotIds.length === 0) return
+    if (selectedSlotIds.length === 0) return
 
     setSubmitting(true)
     setSubmitError("")
 
     try {
-      await createBookings({
-        venueSlug: venue.slug,
+      await startBooking({
+        venueScheduleId: selectedSlotIds[0],
         bookingDate: selectedDate,
-        scheduleIds: selectedSlotIds,
       })
       setSuccess(true)
     } catch (bookingError) {
-      console.error("Failed to create booking:", bookingError)
+      console.error("Failed to start booking:", bookingError)
       setSubmitError(parseBookingError(bookingError))
     } finally {
       setSubmitting(false)
@@ -143,7 +142,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
   }
 
   const handleConfirmBooking = async () => {
-    if (!venue?.slug || selectedSlotIds.length === 0) return
+    if (selectedSlotIds.length === 0) return
 
     if (!isAuthenticated) {
       openAuthModal({
