@@ -10,6 +10,10 @@ class BookingStartSerializer(serializers.Serializer):
     booking_date = serializers.DateField()
 
 
+class BookingSessionAbandonSerializer(serializers.Serializer):
+    booking_session_id = serializers.UUIDField()
+
+
 class BookingStartResponseSerializer(serializers.Serializer):
     booking_session_id = serializers.UUIDField(source="booking_session.id")
     razorpay_order_id = serializers.CharField(source="payment.razorpay_order_id")

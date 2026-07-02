@@ -157,6 +157,48 @@ class BookingService:
         )
 
     @staticmethod
+    def abandon_booking_session(*, booking_session_id: UUID, user) -> None:
+        with transaction.atomic():
+            session = (
+                BookingSession.objects.select_for_update()
+                .filter(pk=booking_session_id, user=user)
+                .first()
+            )
+            if session is None:
+                raise BookingSessionNotFoundError("Booking session not found.")
+
+            if session.status != BookingSessionStatus.ACTIVE:
+                return
+
+            now = timezone.now()
+            session.status = BookingSessionStatus.EXPIRED
+            session.lock_released_at = now
+            session.remarks = "Payment cancelled or failed"
+            session.save(
+                update_fields=["status", "lock_released_at", "remarks", "updated_at"],
+            )
+
+            payment = (
+                Payment.objects.select_for_update()
+                .filter(booking_session=session)
+                .first()
+            )
+            if payment is not None and payment.status == PaymentStatus.ORDER_CREATED:
+                payment.status = PaymentStatus.FAILED
+                payment.save(update_fields=["status", "updated_at"])
+
+            BookingAuditLog.objects.create(
+                booking_session=session,
+                payment=payment,
+                event=BookingAuditEvent.PAYMENT_FAILED,
+                description=(
+                    f"Booking lock released after payment was cancelled or failed "
+                    f"for {session.booking_date} on schedule "
+                    f"{session.venue_schedule_id}."
+                ),
+            )
+
+    @staticmethod
     def complete_booking(booking_session_id: UUID) -> Booking:
         with transaction.atomic():
             session = (

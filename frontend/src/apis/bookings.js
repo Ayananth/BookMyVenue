@@ -66,6 +66,14 @@ export async function startBooking({ venueScheduleId, bookingDate }) {
   return data
 }
 
+export async function abandonBookingSession(bookingSessionId) {
+  await api.post(
+    "/bookings/abandon/",
+    { booking_session_id: bookingSessionId },
+    apiConfig,
+  )
+}
+
 export function bookingDetailFromApi(entry) {
   const venue = entry.venue ?? {}
   const schedule = entry.schedule ?? {}

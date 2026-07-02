@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from bookings.exceptions import (
     BookingError,
     BookingNotFoundError,
+    BookingSessionNotFoundError,
     InvalidBookingDateError,
     RazorpayOrderCreationError,
     ScheduleUnavailableError,
@@ -18,6 +19,7 @@ from bookings.exceptions import (
 from bookings.serializers import (
     BookingDetailSerializer,
     BookingListSerializer,
+    BookingSessionAbandonSerializer,
     BookingStartResponseSerializer,
     BookingStartSerializer,
     BookingStatusUpdateSerializer,
@@ -26,6 +28,7 @@ from bookings.services.booking_service import BookingService
 
 BOOKING_ERROR_STATUS = {
     BookingNotFoundError: status.HTTP_404_NOT_FOUND,
+    BookingSessionNotFoundError: status.HTTP_404_NOT_FOUND,
     VenueScheduleNotFoundError: status.HTTP_404_NOT_FOUND,
     InvalidBookingDateError: status.HTTP_400_BAD_REQUEST,
     VenueNotAvailableError: status.HTTP_400_BAD_REQUEST,
@@ -40,6 +43,30 @@ class BookingPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "limit"
     max_page_size = 100
+
+
+class BookingSessionAbandonView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = BookingSessionAbandonSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            BookingService.abandon_booking_session(
+                booking_session_id=serializer.validated_data["booking_session_id"],
+                user=request.user,
+            )
+        except BookingError as exc:
+            return Response(
+                {"message": exc.message},
+                status=BOOKING_ERROR_STATUS.get(
+                    type(exc),
+                    status.HTTP_400_BAD_REQUEST,
+                ),
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class BookingStartView(APIView):

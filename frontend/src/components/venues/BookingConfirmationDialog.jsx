@@ -6,6 +6,7 @@ import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
 import {
   getStartBookingErrorMessage,
+  releaseBookingLock,
   startBooking,
 } from "../../services/bookingService"
 import { verifyPayment } from "../../services/paymentService"
@@ -109,11 +110,14 @@ export default function BookingConfirmationContent({
     setPaymentError("")
     setPendingPayment(null)
 
+    let bookingSessionId = null
+
     try {
       const bookingStart = await startBooking({
         venueScheduleId: selectedSchedule.id,
         bookingDate,
       })
+      bookingSessionId = bookingStart.bookingSession.id
 
       const checkoutResult = await razorpayService.openCheckout(bookingStart, {
         prefill: {
@@ -124,10 +128,12 @@ export default function BookingConfirmationContent({
       })
 
       if (checkoutResult.status === RazorpayCheckoutStatus.PAYMENT_CANCELLED) {
+        await releaseBookingLock(bookingSessionId)
         return
       }
 
       if (checkoutResult.status === RazorpayCheckoutStatus.ERROR) {
+        await releaseBookingLock(bookingSessionId)
         setPaymentError(
           checkoutResult.message ||
             "Unable to open payment checkout. Please try again.",
@@ -142,6 +148,7 @@ export default function BookingConfirmationContent({
       }
     } catch (error) {
       console.error("Failed to start booking:", error)
+      await releaseBookingLock(bookingSessionId)
       setPaymentError(getStartBookingErrorMessage(error))
     } finally {
       setIsPreparingPayment(false)

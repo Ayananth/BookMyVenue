@@ -1,4 +1,5 @@
 import {
+  abandonBookingSession,
   fetchBookingDetail as fetchBookingDetailFromApi,
   getStartBookingErrorMessage,
   startBooking as startBookingFromApi,
@@ -29,6 +30,16 @@ export async function startBooking({ venueScheduleId, bookingDate }) {
 
 export async function fetchBookingDetail(bookingId) {
   return fetchBookingDetailFromApi(bookingId)
+}
+
+export async function releaseBookingLock(bookingSessionId) {
+  if (!bookingSessionId) return
+
+  try {
+    await abandonBookingSession(bookingSessionId)
+  } catch (error) {
+    console.error("Failed to release booking lock:", error)
+  }
 }
 
 export { getStartBookingErrorMessage }
