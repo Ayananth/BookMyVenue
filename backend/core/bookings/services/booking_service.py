@@ -48,6 +48,21 @@ class BookingStartResult:
 
 class BookingService:
     @staticmethod
+    def get_user_bookings(user):
+        return (
+            Booking.objects.filter(user=user)
+            .select_related(
+                "payment",
+                "venue_schedule",
+                "venue_schedule__group",
+                "venue_schedule__group__venue",
+                "venue_schedule__group__venue__city",
+                "venue_schedule__group__venue__city__district",
+            )
+            .order_by("-booking_date", "-confirmed_at")
+        )
+
+    @staticmethod
     def start_booking(
         *,
         user,

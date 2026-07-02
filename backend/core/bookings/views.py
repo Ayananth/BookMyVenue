@@ -5,7 +5,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import UserRole
 from bookings.exceptions import (
     BookingError,
     InvalidBookingDateError,
@@ -19,7 +18,8 @@ from bookings.exceptions import (
 from bookings.models import Booking
 from bookings.permissions import CanAccessBooking
 from bookings.serializers import (
-    BookingSerializer,
+    BookingDetailSerializer,
+    BookingListSerializer,
     BookingStartResponseSerializer,
     BookingStartSerializer,
     BookingStatusUpdateSerializer,
@@ -43,31 +43,15 @@ class BookingPagination(PageNumberPagination):
     max_page_size = 100
 
 
-def _booking_queryset(request):
-    user = request.user
-    queryset = Booking.objects.select_related(
-        "user",
-        "venue_schedule",
-        "venue_schedule__group",
-        "venue_schedule__group__venue",
-    ).order_by("-booking_date", "-created_at")
-
-    if user.role == UserRole.ADMIN:
-        pass
-    elif user.role == UserRole.VENUE:
-        queryset = queryset.filter(venue_schedule__group__venue__owner=user)
-    else:
-        queryset = queryset.filter(user=user)
-
-    venue_slug = request.query_params.get("venue")
-    if venue_slug:
-        queryset = queryset.filter(venue_schedule__group__venue__slug=venue_slug)
-
-    status_param = request.query_params.get("status")
-    if status_param:
-        queryset = queryset.filter(status=status_param.upper())
-
-    return queryset
+BOOKING_DETAIL_SELECT_RELATED = (
+    "payment",
+    "venue_schedule",
+    "venue_schedule__group",
+    "venue_schedule__group__venue",
+    "venue_schedule__group__venue__category",
+    "venue_schedule__group__venue__city",
+    "venue_schedule__group__venue__city__district",
+)
 
 
 class BookingStartView(APIView):
@@ -100,10 +84,10 @@ class BookingListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        queryset = _booking_queryset(request)
+        queryset = BookingService.get_user_bookings(request.user)
         paginator = BookingPagination()
         page = paginator.paginate_queryset(queryset, request)
-        serializer = BookingSerializer(page, many=True)
+        serializer = BookingListSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -112,25 +96,15 @@ class BookingDetailView(APIView):
 
     def get(self, request, booking_id):
         booking = get_object_or_404(
-            Booking.objects.select_related(
-                "user",
-                "venue_schedule",
-                "venue_schedule__group",
-                "venue_schedule__group__venue",
-            ),
+            Booking.objects.select_related(*BOOKING_DETAIL_SELECT_RELATED),
             pk=booking_id,
         )
         self.check_object_permissions(request, booking)
-        return Response(BookingSerializer(booking).data)
+        return Response(BookingDetailSerializer(booking).data)
 
     def patch(self, request, booking_id):
         booking = get_object_or_404(
-            Booking.objects.select_related(
-                "user",
-                "venue_schedule",
-                "venue_schedule__group",
-                "venue_schedule__group__venue",
-            ),
+            Booking.objects.select_related(*BOOKING_DETAIL_SELECT_RELATED),
             pk=booking_id,
         )
         self.check_object_permissions(request, booking)
@@ -141,4 +115,4 @@ class BookingDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         booking = serializer.save()
-        return Response(BookingSerializer(booking).data)
+        return Response(BookingDetailSerializer(booking).data)
