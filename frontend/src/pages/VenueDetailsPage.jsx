@@ -22,10 +22,8 @@ export default function VenueDetailsPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [isBookingOpen, setIsBookingOpen] = useState(false)
-  const [bookingPayment, setBookingPayment] = useState(null)
 
   const openBookingModal = () => {
-    setBookingPayment(null)
     setIsBookingOpen(true)
   }
 
@@ -39,11 +37,6 @@ export default function VenueDetailsPage() {
     }
 
     openBookingModal()
-  }
-
-  const handleBookingStarted = (bookingStart) => {
-    setBookingPayment(bookingStart)
-    setIsBookingOpen(false)
   }
 
   useEffect(() => {
@@ -560,7 +553,6 @@ export default function VenueDetailsPage() {
         open={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         venue={venue}
-        onBookingStarted={handleBookingStarted}
       />
     </MainLayout>
   )

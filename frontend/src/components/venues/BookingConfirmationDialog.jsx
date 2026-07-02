@@ -2,10 +2,14 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { CalendarDays, Clock, DollarSign, Tag } from "lucide-react"
 import { formatVenuePrice } from "../../apis/venues"
+import { useAuth } from "../../contexts/AuthContext"
 import {
   getStartBookingErrorMessage,
   startBooking,
 } from "../../services/bookingService"
+import razorpayService, {
+  RazorpayCheckoutStatus,
+} from "../../services/razorpayService"
 
 function formatBookingDate(dateValue) {
   if (!dateValue) return "—"
@@ -61,8 +65,8 @@ export default function BookingConfirmationContent({
   selectedSchedule,
   bookingDate,
   onCancel,
-  onBookingStarted,
 }) {
+  const { user } = useAuth()
   const [isPreparingPayment, setIsPreparingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState("")
 
@@ -79,7 +83,23 @@ export default function BookingConfirmationContent({
         venueScheduleId: selectedSchedule.id,
         bookingDate,
       })
-      onBookingStarted(bookingStart)
+
+      const checkoutResult = await razorpayService.openCheckout(bookingStart, {
+        prefill: {
+          name: user?.full_name,
+          email: user?.email,
+          contact: user?.phone,
+        },
+      })
+
+      console.log("Razorpay checkout result:", checkoutResult)
+
+      if (checkoutResult.status === RazorpayCheckoutStatus.ERROR) {
+        setPaymentError(
+          checkoutResult.message ||
+            "Unable to open payment checkout. Please try again.",
+        )
+      }
     } catch (error) {
       console.error("Failed to start booking:", error)
       setPaymentError(getStartBookingErrorMessage(error))

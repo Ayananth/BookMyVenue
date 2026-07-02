@@ -34,7 +34,7 @@ function getSlotLabel(slot) {
   return slot.name || formatSlotTimeRange(slot.startTime, slot.endTime)
 }
 
-export default function VenueBookingModal({ open, onClose, venue, onBookingStarted }) {
+export default function VenueBookingModal({ open, onClose, venue }) {
   const { isAuthenticated } = useAuth()
   const { openAuthModal } = useAuthModal()
   const [step, setStep] = useState("select")
@@ -221,7 +221,6 @@ export default function VenueBookingModal({ open, onClose, venue, onBookingStart
                 selectedSchedule={selectedSlot}
                 bookingDate={selectedDate}
                 onCancel={() => setStep("select")}
-                onBookingStarted={onBookingStarted}
               />
             ) : (
               <>
