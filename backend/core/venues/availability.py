@@ -78,6 +78,29 @@ def _serialize_slot(schedule: VenueSchedule) -> AvailableSlot:
     }
 
 
+def is_schedule_available_on_date(
+    schedule: VenueSchedule,
+    target_date: date,
+) -> bool:
+    group = schedule.group
+    day_of_week = target_date.weekday()
+
+    if not schedule.is_available:
+        return False
+    if not group.is_active:
+        return False
+    if not group.days.filter(day_of_week=day_of_week).exists():
+        return False
+
+    overrides = group.venue.schedule_overrides.filter(
+        override_date=target_date,
+        is_available=False,
+    )
+    return not any(
+        _slot_blocked_by_override(schedule, override) for override in overrides
+    )
+
+
 def get_available_slots(venue: Venue, target_date: date) -> AvailabilityResult:
     day_of_week = target_date.weekday()
     schedule_group = _get_matching_schedule_group(venue, day_of_week)
