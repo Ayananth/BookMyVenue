@@ -1,13 +1,19 @@
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
+from uuid import UUID
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from bookings.exceptions import (
+    BookingSessionExpiredError,
+    BookingSessionNotActiveError,
+    BookingSessionNotFoundError,
     InvalidBookingDateError,
+    PaymentNotFoundError,
+    PaymentNotSuccessfulError,
     RazorpayOrderCreationError,
     ScheduleUnavailableError,
     SlotAlreadyBookedError,
@@ -17,6 +23,8 @@ from bookings.exceptions import (
 )
 from bookings.models import (
     Booking,
+    BookingAuditEvent,
+    BookingAuditLog,
     BookingSession,
     BookingSessionStatus,
     BookingStatus,
@@ -106,6 +114,83 @@ class BookingService:
             currency="INR",
             key=settings.RAZORPAY_KEY_ID,
         )
+
+    @staticmethod
+    def complete_booking(booking_session_id: UUID) -> Booking:
+        with transaction.atomic():
+            session = (
+                BookingSession.objects.select_for_update()
+                .filter(pk=booking_session_id)
+                .first()
+            )
+            if session is None:
+                raise BookingSessionNotFoundError("Booking session not found.")
+
+            BookingService._validate_booking_session(session)
+
+            payment = (
+                Payment.objects.select_for_update()
+                .filter(booking_session=session)
+                .first()
+            )
+            if payment is None:
+                raise PaymentNotFoundError("Payment not found for this booking session.")
+
+            if payment.status != PaymentStatus.SUCCESS:
+                raise PaymentNotSuccessfulError(
+                    "Payment has not been completed successfully.",
+                )
+
+            BookingService._ensure_slot_not_booked(
+                session.venue_schedule,
+                session.booking_date,
+            )
+
+            now = timezone.now()
+
+            try:
+                booking = Booking.objects.create(
+                    booking_session=session,
+                    payment=payment,
+                    user=session.user,
+                    venue_schedule=session.venue_schedule,
+                    booking_date=session.booking_date,
+                    booking_amount=session.locked_price,
+                    status=BookingStatus.CONFIRMED,
+                    confirmed_at=now,
+                )
+            except IntegrityError as exc:
+                raise SlotAlreadyBookedError("This slot is already booked.") from exc
+
+            session.status = BookingSessionStatus.COMPLETED
+            session.lock_released_at = now
+            session.save(
+                update_fields=["status", "lock_released_at", "updated_at"],
+            )
+
+            BookingAuditLog.objects.create(
+                booking_session=session,
+                booking=booking,
+                payment=payment,
+                event=BookingAuditEvent.BOOKING_CONFIRMED,
+                description=(
+                    f"Booking confirmed for {session.booking_date} "
+                    f"on schedule {session.venue_schedule_id}."
+                ),
+            )
+
+            return booking
+
+    @staticmethod
+    def _validate_booking_session(session: BookingSession) -> None:
+        if session.status != BookingSessionStatus.ACTIVE:
+            raise BookingSessionNotActiveError(
+                "Booking session is not active.",
+            )
+        if session.is_expired:
+            raise BookingSessionExpiredError(
+                "Booking session has expired.",
+            )
 
     @staticmethod
     def _get_schedule(venue_schedule_id: int) -> VenueSchedule:

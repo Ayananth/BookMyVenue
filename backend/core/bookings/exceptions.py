@@ -30,3 +30,23 @@ class SlotLockedError(BookingError):
 
 class RazorpayOrderCreationError(BookingError):
     pass
+
+
+class BookingSessionNotFoundError(BookingError):
+    pass
+
+
+class BookingSessionNotActiveError(BookingError):
+    pass
+
+
+class BookingSessionExpiredError(BookingError):
+    pass
+
+
+class PaymentNotFoundError(BookingError):
+    pass
+
+
+class PaymentNotSuccessfulError(BookingError):
+    pass
