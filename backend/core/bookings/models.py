@@ -11,6 +11,7 @@ from venues.models import VenueSchedule
 class BookingSessionStatus(models.TextChoices):
     ACTIVE = "ACTIVE", "Active"
     EXPIRED = "EXPIRED", "Expired"
+    FAILED = "FAILED", "Failed"
     COMPLETED = "COMPLETED", "Completed"
 
 

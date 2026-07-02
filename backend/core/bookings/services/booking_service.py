@@ -171,7 +171,7 @@ class BookingService:
                 return
 
             now = timezone.now()
-            session.status = BookingSessionStatus.EXPIRED
+            session.status = BookingSessionStatus.FAILED
             session.lock_released_at = now
             session.remarks = "Payment cancelled or failed"
             session.save(
@@ -331,7 +331,7 @@ class BookingService:
 
     @staticmethod
     def _release_session(session: BookingSession) -> None:
-        session.status = BookingSessionStatus.EXPIRED
+        session.status = BookingSessionStatus.FAILED
         session.lock_released_at = timezone.now()
         session.remarks = "Razorpay order creation failed"
         session.save(
