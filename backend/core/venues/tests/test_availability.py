@@ -1,5 +1,6 @@
-from datetime import date, time
+from datetime import date, datetime, time
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -14,7 +15,7 @@ from bookings.models import (
     Payment,
     PaymentStatus,
 )
-from venues.availability import get_available_slots
+from venues.availability import get_available_slots, is_slot_time_in_past
 from venues.models import (
     BookingType,
     City,
@@ -176,6 +177,40 @@ class AvailabilityTestCase(TestCase):
 
         self.assertEqual(len(result["slots"]), 1)
         self.assertEqual(result["slots"][0]["name"], "Afternoon")
+
+    @patch("venues.availability.timezone.localtime")
+    @patch("venues.availability.timezone.localdate")
+    def test_excludes_slots_whose_time_has_passed_for_today(
+        self,
+        mock_localdate,
+        mock_localtime,
+    ):
+        today = date(2026, 6, 29)
+        mock_localdate.return_value = today
+        mock_localtime.return_value = datetime(2026, 6, 29, 20, 0)
+
+        result = get_available_slots(self.venue, today)
+
+        self.assertEqual(result["slots"], [])
+        self.assertTrue(is_slot_time_in_past(self.morning_slot, today))
+        self.assertTrue(is_slot_time_in_past(self.afternoon_slot, today))
+
+    @patch("venues.availability.timezone.localtime")
+    @patch("venues.availability.timezone.localdate")
+    def test_includes_slots_still_upcoming_for_today(
+        self,
+        mock_localdate,
+        mock_localtime,
+    ):
+        today = date(2026, 6, 29)
+        mock_localdate.return_value = today
+        mock_localtime.return_value = datetime(2026, 6, 29, 10, 0)
+
+        result = get_available_slots(self.venue, today)
+
+        self.assertEqual(len(result["slots"]), 2)
+        self.assertFalse(is_slot_time_in_past(self.morning_slot, today))
+        self.assertFalse(is_slot_time_in_past(self.afternoon_slot, today))
 
     def test_ignores_cancelled_bookings(self):
         customer = User.objects.create_user(
@@ -403,3 +438,43 @@ class VenueSlotAvailabilityCheckAPITestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
+
+    @patch("venues.availability.timezone.localtime")
+    @patch("venues.availability.timezone.localdate")
+    def test_check_returns_unavailable_for_past_slot_today(
+        self,
+        mock_localdate,
+        mock_localtime,
+    ):
+        today = date(2026, 6, 29)
+        mock_localdate.return_value = today
+        mock_localtime.return_value = datetime(2026, 6, 29, 20, 0)
+
+        response = self.client.get(
+            self._check_url(),
+            {"date": today.isoformat(), "schedule_id": self.schedule.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "UNAVAILABLE")
+        self.assertIn("passed", response.data["message"].lower())
+
+    @patch("venues.availability.timezone.localtime")
+    @patch("venues.availability.timezone.localdate")
+    def test_check_returns_unavailable_for_past_slot_today(
+        self,
+        mock_localdate,
+        mock_localtime,
+    ):
+        today = date(2026, 6, 29)
+        mock_localdate.return_value = today
+        mock_localtime.return_value = datetime(2026, 6, 29, 20, 0)
+
+        response = self.client.get(
+            self._check_url(),
+            {"date": today.isoformat(), "schedule_id": self.schedule.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "UNAVAILABLE")
+        self.assertIn("passed", response.data["message"].lower())

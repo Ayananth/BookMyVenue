@@ -16,7 +16,7 @@ from bookings.models import (
     BookingSessionStatus,
     BookingStatus,
 )
-from venues.availability import is_schedule_available_on_date
+from venues.availability import is_schedule_available_on_date, is_slot_time_in_past
 from venues.models import Venue, VenueSchedule, VenueStatus
 
 
@@ -107,6 +107,8 @@ class AvailabilityService:
 
     @staticmethod
     def _validate_schedule(schedule: VenueSchedule, booking_date: date) -> None:
+        if is_slot_time_in_past(schedule, booking_date):
+            raise ScheduleUnavailableError("This slot's time has already passed.")
         if not is_schedule_available_on_date(schedule, booking_date):
             raise ScheduleUnavailableError(
                 "This schedule is not available for the selected date.",

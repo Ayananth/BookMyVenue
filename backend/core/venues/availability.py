@@ -94,10 +94,22 @@ def _serialize_slot(schedule: VenueSchedule) -> AvailableSlot:
     }
 
 
+def is_slot_time_in_past(schedule: VenueSchedule, target_date: date) -> bool:
+    today = timezone.localdate()
+    if target_date < today:
+        return True
+    if target_date > today:
+        return False
+    return schedule.end_time <= timezone.localtime().time()
+
+
 def is_schedule_available_on_date(
     schedule: VenueSchedule,
     target_date: date,
 ) -> bool:
+    if is_slot_time_in_past(schedule, target_date):
+        return False
+
     group = schedule.group
     day_of_week = target_date.weekday()
 
@@ -143,6 +155,8 @@ def get_available_slots(venue: Venue, target_date: date) -> AvailabilityResult:
 
     available_slots = []
     for slot in base_slots:
+        if is_slot_time_in_past(slot, target_date):
+            continue
         if any(_slot_blocked_by_override(slot, override) for override in overrides):
             continue
         if _slot_blocked_by_confirmed_booking(slot, target_date):
