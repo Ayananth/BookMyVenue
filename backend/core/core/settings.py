@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "accounts",
     "venues",
     "bookings",
+    "payments",
     "rest_framework",
 ]
 

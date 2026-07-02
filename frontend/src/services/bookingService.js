@@ -1,4 +1,5 @@
 import {
+  fetchBookingDetail as fetchBookingDetailFromApi,
   getStartBookingErrorMessage,
   startBooking as startBookingFromApi,
 } from "../apis/bookings"
@@ -24,6 +25,10 @@ export function bookingStartFromApi(data) {
 export async function startBooking({ venueScheduleId, bookingDate }) {
   const data = await startBookingFromApi({ venueScheduleId, bookingDate })
   return bookingStartFromApi(data)
+}
+
+export async function fetchBookingDetail(bookingId) {
+  return fetchBookingDetailFromApi(bookingId)
 }
 
 export { getStartBookingErrorMessage }

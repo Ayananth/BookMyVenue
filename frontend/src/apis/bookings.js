@@ -66,6 +66,38 @@ export async function startBooking({ venueScheduleId, bookingDate }) {
   return data
 }
 
+export function bookingDetailFromApi(entry) {
+  const venue = entry.venue ?? {}
+  const schedule = entry.schedule ?? {}
+  const payment = entry.payment ?? {}
+
+  return {
+    id: entry.id,
+    status: typeof entry.status === "string" ? entry.status.toLowerCase() : entry.status,
+    eventDate: entry.booking_date,
+    amount: Number(entry.booking_amount ?? payment.amount ?? 0),
+    confirmedAt: entry.confirmed_at ?? null,
+    venueName: venue.name ?? "",
+    venueSlug: venue.slug ?? "",
+    venueAddress: venue.address ?? "",
+    venueCity: venue.city ?? "",
+    venueCoverImage: venue.cover_image ?? null,
+    venueContactName: venue.contact_name ?? "",
+    venueContactPhone: venue.contact_phone ?? "",
+    scheduleName: schedule.name ?? "",
+    startTime: schedule.start_time ?? "",
+    endTime: schedule.end_time ?? "",
+    paymentStatus: payment.status ?? "",
+    paymentProvider: payment.provider ?? "",
+    paymentCurrency: payment.currency ?? "INR",
+  }
+}
+
+export async function fetchBookingDetail(bookingId) {
+  const { data } = await api.get(`/bookings/${bookingId}/`, apiConfig)
+  return bookingDetailFromApi(data)
+}
+
 export async function fetchBookings(params = {}) {
   const { data } = await api.get("/bookings/", {
     ...apiConfig,

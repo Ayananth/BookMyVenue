@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
+import { useNavigate } from "react-router-dom"
 import { CalendarDays, Clock, DollarSign, Tag } from "lucide-react"
 import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
@@ -7,6 +8,7 @@ import {
   getStartBookingErrorMessage,
   startBooking,
 } from "../../services/bookingService"
+import { verifyPayment } from "../../services/paymentService"
 import razorpayService, {
   RazorpayCheckoutStatus,
 } from "../../services/razorpayService"
@@ -65,18 +67,47 @@ export default function BookingConfirmationContent({
   selectedSchedule,
   bookingDate,
   onCancel,
+  onBookingConfirmed,
 }) {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [isPreparingPayment, setIsPreparingPayment] = useState(false)
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false)
   const [paymentError, setPaymentError] = useState("")
+  const [pendingPayment, setPendingPayment] = useState(null)
 
   if (!venue || !selectedSchedule) return null
 
   const formattedPrice = formatVenuePrice(selectedSchedule.price) ?? "—"
+  const isBusy = isPreparingPayment || isVerifyingPayment
+
+  const completeVerification = async (paymentData) => {
+    setIsVerifyingPayment(true)
+    setPaymentError("")
+
+    try {
+      const verification = await verifyPayment({
+        bookingSessionId: paymentData.booking_session_id,
+        razorpayOrderId: paymentData.razorpay_order_id,
+        razorpayPaymentId: paymentData.razorpay_payment_id,
+        razorpaySignature: paymentData.razorpay_signature,
+      })
+
+      setPendingPayment(null)
+      onBookingConfirmed?.()
+      navigate(`/bookings/${verification.bookingId}`)
+    } catch (error) {
+      console.error("Failed to verify payment:", error)
+      setPaymentError("Payment verification failed.")
+    } finally {
+      setIsVerifyingPayment(false)
+    }
+  }
 
   const handleProceedToPayment = async () => {
     setIsPreparingPayment(true)
     setPaymentError("")
+    setPendingPayment(null)
 
     try {
       const bookingStart = await startBooking({
@@ -92,13 +123,22 @@ export default function BookingConfirmationContent({
         },
       })
 
-      console.log("Razorpay checkout result:", checkoutResult)
+      if (checkoutResult.status === RazorpayCheckoutStatus.PAYMENT_CANCELLED) {
+        return
+      }
 
       if (checkoutResult.status === RazorpayCheckoutStatus.ERROR) {
         setPaymentError(
           checkoutResult.message ||
             "Unable to open payment checkout. Please try again.",
         )
+        return
+      }
+
+      if (checkoutResult.status === RazorpayCheckoutStatus.SUCCESS) {
+        setPendingPayment(checkoutResult.data)
+        setIsPreparingPayment(false)
+        await completeVerification(checkoutResult.data)
       }
     } catch (error) {
       console.error("Failed to start booking:", error)
@@ -107,6 +147,26 @@ export default function BookingConfirmationContent({
       setIsPreparingPayment(false)
     }
   }
+
+  const handleRetryVerification = async () => {
+    if (!pendingPayment) return
+    await completeVerification(pendingPayment)
+  }
+
+  const handleBack = () => {
+    setPendingPayment(null)
+    setPaymentError("")
+    onCancel()
+  }
+
+  const primaryAction = pendingPayment ? handleRetryVerification : handleProceedToPayment
+  const primaryLabel = isVerifyingPayment
+    ? "Confirming your booking..."
+    : isPreparingPayment
+      ? "Preparing Payment..."
+      : pendingPayment
+        ? "Retry verification"
+        : "Proceed to Payment"
 
   return (
     <div className="flex min-h-[420px] flex-col">
@@ -164,21 +224,21 @@ export default function BookingConfirmationContent({
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
         <button
           type="button"
-          onClick={onCancel}
-          disabled={isPreparingPayment}
+          onClick={handleBack}
+          disabled={isBusy}
           className="flex-1 rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           Back
         </button>
         <motion.button
           type="button"
-          whileHover={{ scale: isPreparingPayment ? 1 : 1.02 }}
-          whileTap={{ scale: isPreparingPayment ? 1 : 0.98 }}
-          disabled={isPreparingPayment}
-          onClick={handleProceedToPayment}
+          whileHover={{ scale: isBusy ? 1 : 1.02 }}
+          whileTap={{ scale: isBusy ? 1 : 0.98 }}
+          disabled={isBusy}
+          onClick={primaryAction}
           className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isPreparingPayment ? "Preparing Payment..." : "Proceed to Payment"}
+          {primaryLabel}
         </motion.button>
       </div>
     </div>

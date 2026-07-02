@@ -221,6 +221,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
                 selectedSchedule={selectedSlot}
                 bookingDate={selectedDate}
                 onCancel={() => setStep("select")}
+                onBookingConfirmed={onClose}
               />
             ) : (
               <>

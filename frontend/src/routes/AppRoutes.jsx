@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom"
 import ExploreVenuesPage from "../pages/ExploreVenuesPage"
 import HomePage from "../pages/HomePage"
 import ProfilePage from "../pages/ProfilePage"
+import BookingDetailPage from "../pages/BookingDetailPage"
 import VenueDetailsPage from "../pages/VenueDetailsPage"
 import AdminDashboardPage from "../apps/admin/pages/AdminDashboardPage"
 import AdminUsersListPage from "../apps/admin/pages/AdminUsersListPage"
@@ -23,6 +24,14 @@ export default function AppRoutes() {
           <Route index element={<HomePage />} />
           <Route path="venues" element={<ExploreVenuesPage />} />
           <Route path="venues/:slug" element={<VenueDetailsPage />} />
+          <Route
+            path="bookings/:bookingId"
+            element={
+              <UserProtectedRoute message="Sign in to view your booking details.">
+                <BookingDetailPage />
+              </UserProtectedRoute>
+            }
+          />
           <Route
             path="profile"
             element={
