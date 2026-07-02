@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { CalendarDays, CheckCircle2, MapPin, X } from "lucide-react"
-import { parseBookingError, startBooking } from "../../apis/bookings"
+import { CalendarDays, MapPin, X } from "lucide-react"
 import { fetchVenueAvailability } from "../../apis/venueSchedules"
 import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
 import { useAuthModal } from "../../contexts/AuthModalContext"
+import BookingConfirmationDialog from "./BookingConfirmationDialog"
 
 function toDateInputValue(date) {
   const year = date.getFullYear()
@@ -33,17 +32,14 @@ function getSlotLabel(slot) {
 }
 
 export default function VenueBookingModal({ open, onClose, venue }) {
-  const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const { openAuthModal } = useAuthModal()
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
   const [selectedSlotIds, setSelectedSlotIds] = useState([])
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [availabilityError, setAvailabilityError] = useState("")
-  const [submitError, setSubmitError] = useState("")
-  const [success, setSuccess] = useState(false)
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
 
   const bookingDateRange = useMemo(() => {
     const today = new Date()
@@ -92,7 +88,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
     if (!open) return undefined
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape" && !isConfirmationOpen) onClose()
     }
 
     document.body.style.overflow = "hidden"
@@ -102,7 +98,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
       document.body.style.overflow = ""
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [open, onClose])
+  }, [open, onClose, isConfirmationOpen])
 
   useEffect(() => {
     if (!open) return
@@ -115,46 +111,24 @@ export default function VenueBookingModal({ open, onClose, venue }) {
       setSelectedSlotIds([])
       setSlots([])
       setAvailabilityError("")
-      setSubmitError("")
-      setSuccess(false)
-      setSubmitting(false)
+      setIsConfirmationOpen(false)
     }
   }, [open])
 
-  const submitBooking = async () => {
-    if (selectedSlotIds.length === 0) return
-
-    setSubmitting(true)
-    setSubmitError("")
-
-    try {
-      await startBooking({
-        venueScheduleId: selectedSlotIds[0],
-        bookingDate: selectedDate,
-      })
-      setSuccess(true)
-    } catch (bookingError) {
-      console.error("Failed to start booking:", bookingError)
-      setSubmitError(parseBookingError(bookingError))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleConfirmBooking = async () => {
+  const openConfirmation = () => {
     if (selectedSlotIds.length === 0) return
 
     if (!isAuthenticated) {
       openAuthModal({
         message: "Sign in to confirm your booking.",
         onSuccess: () => {
-          submitBooking()
+          setIsConfirmationOpen(true)
         },
       })
       return
     }
 
-    await submitBooking()
+    setIsConfirmationOpen(true)
   }
 
   const toggleSlot = (slotId) => {
@@ -167,7 +141,10 @@ export default function VenueBookingModal({ open, onClose, venue }) {
 
   if (!open || !venue) return null
 
+  const confirmationSchedule = selectedSlots[0] ?? null
+
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 px-4 py-6 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -205,37 +182,6 @@ export default function VenueBookingModal({ open, onClose, venue }) {
               <X size={20} />
             </button>
 
-            {success ? (
-              <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <CheckCircle2 size={32} />
-                </div>
-                <h3 className="mt-5 font-serif text-2xl font-bold">Booking submitted</h3>
-                <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                  Your reservation is pending confirmation. You can track it from your profile.
-                </p>
-                <div className="mt-8 flex w-full flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose()
-                      navigate("/profile")
-                    }}
-                    className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90"
-                  >
-                    View My Bookings
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex-1 rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
             <div className="mb-6 pr-8">
               <p className="text-sm font-semibold text-primary">Choose your date and slots</p>
               <h3 className="mt-1 font-serif text-2xl font-bold">Book this venue</h3>
@@ -346,35 +292,37 @@ export default function VenueBookingModal({ open, onClose, venue }) {
               </div>
             </div>
 
-            {submitError && (
-              <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                {submitError}
-              </p>
-            )}
-
             <div className="flex flex-col gap-3 sm:flex-row">
               <motion.button
-                whileHover={{ scale: submitting ? 1 : 1.02 }}
-                whileTap={{ scale: submitting ? 1 : 0.98 }}
-                disabled={selectedSlots.length === 0 || submitting}
-                onClick={handleConfirmBooking}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={selectedSlots.length === 0}
+                onClick={openConfirmation}
                 className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {submitting ? "Confirming..." : "Confirm Booking"}
+                Confirm Booking
               </motion.button>
               <button
                 onClick={onClose}
-                disabled={submitting}
-                className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted disabled:opacity-50"
+                className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
               >
                 Keep Browsing
               </button>
             </div>
-              </>
-            )}
           </div>
         </div>
       </motion.div>
     </div>
+
+    {isConfirmationOpen && confirmationSchedule && (
+      <BookingConfirmationDialog
+        venue={venue}
+        selectedSchedule={confirmationSchedule}
+        bookingDate={selectedDate}
+        onCancel={() => setIsConfirmationOpen(false)}
+        onConfirm={() => setIsConfirmationOpen(false)}
+      />
+    )}
+    </>
   )
 }
