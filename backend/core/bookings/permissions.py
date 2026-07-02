@@ -12,4 +12,4 @@ class CanAccessBooking(permissions.BasePermission):
             return True
         if obj.user_id == user.id:
             return True
-        return obj.venue.owner_id == user.id
+        return obj.venue_schedule.group.venue.owner_id == user.id
