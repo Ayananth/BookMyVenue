@@ -13,6 +13,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import UserRole
+from bookings.exceptions import (
+    InvalidBookingDateError,
+    ScheduleUnavailableError,
+    VenueNotAvailableError,
+    VenueScheduleNotFoundError,
+)
+from bookings.services.availability_service import AvailabilityService
 from venues.availability import get_available_slots
 from venues.filters import annotate_has_slots, annotate_min_price, filter_venue_list
 from venues.models import (
@@ -233,6 +240,94 @@ class VenueAvailabilityView(APIView):
             )
 
         return Response(get_available_slots(venue, target_date))
+
+
+class VenueSlotAvailabilityCheckView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug):
+        venue = _get_venue_detail(request, slug)
+        date_param = request.query_params.get("date")
+        schedule_id_param = request.query_params.get("schedule_id")
+
+        if not date_param:
+            return Response(
+                {"detail": "Query parameter 'date' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not schedule_id_param:
+            return Response(
+                {"detail": "Query parameter 'schedule_id' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_date = datetime.strptime(date_param, "%Y-%m-%d").date()
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date format. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            schedule_id = int(schedule_id_param)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "Query parameter 'schedule_id' must be a valid integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if schedule_id < 1:
+            return Response(
+                {"detail": "Query parameter 'schedule_id' must be a positive integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = AvailabilityService.get_slot_availability_for_venue(
+                venue=venue,
+                venue_schedule_id=schedule_id,
+                booking_date=target_date,
+            )
+        except VenueScheduleNotFoundError as exc:
+            return Response(
+                {"message": exc.message},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except InvalidBookingDateError as exc:
+            return Response(
+                {"message": exc.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except VenueNotAvailableError as exc:
+            return Response(
+                {"message": exc.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ScheduleUnavailableError as exc:
+            return Response(
+                {
+                    "schedule_id": schedule_id,
+                    "date": target_date.isoformat(),
+                    "status": "UNAVAILABLE",
+                    "message": exc.message,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        payload = {
+            "schedule_id": schedule_id,
+            "date": target_date.isoformat(),
+            "status": result.status.value,
+            "message": result.message,
+        }
+        if result.booking_session_expires_at is not None:
+            payload["booking_session_expires_at"] = (
+                result.booking_session_expires_at.isoformat()
+            )
+
+        return Response(payload)
 
 
 class VenueDetailView(APIView):

@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import { CalendarDays, MapPin, X } from "lucide-react"
-import { fetchVenueAvailability } from "../../apis/venueSchedules"
+import {
+  fetchVenueAvailability,
+  verifySlotAvailability,
+} from "../../apis/venueSchedules"
 import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
 import { useAuthModal } from "../../contexts/AuthModalContext"
-import BookingConfirmationDialog from "./BookingConfirmationDialog"
+import BookingConfirmationContent from "./BookingConfirmationDialog"
 
 function toDateInputValue(date) {
   const year = date.getFullYear()
@@ -34,12 +37,14 @@ function getSlotLabel(slot) {
 export default function VenueBookingModal({ open, onClose, venue }) {
   const { isAuthenticated } = useAuth()
   const { openAuthModal } = useAuthModal()
+  const [step, setStep] = useState("select")
   const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
-  const [selectedSlotIds, setSelectedSlotIds] = useState([])
+  const [selectedSlotId, setSelectedSlotId] = useState(null)
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(false)
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
   const [availabilityError, setAvailabilityError] = useState("")
-  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
+  const [bookError, setBookError] = useState("")
 
   const bookingDateRange = useMemo(() => {
     const today = new Date()
@@ -52,14 +57,10 @@ export default function VenueBookingModal({ open, onClose, venue }) {
     }
   }, [])
 
-  const selectedSlots = useMemo(
-    () => slots.filter((slot) => selectedSlotIds.includes(slot.id)),
-    [slots, selectedSlotIds],
-  )
-
-  const totalPrice = useMemo(
-    () => selectedSlots.reduce((sum, slot) => sum + slot.price, 0),
-    [selectedSlots],
+  const selectedSlot = useMemo(
+    () =>
+      slots.find((slot) => String(slot.id) === String(selectedSlotId)) ?? null,
+    [slots, selectedSlotId],
   )
 
   const loadAvailability = useCallback(async () => {
@@ -70,14 +71,20 @@ export default function VenueBookingModal({ open, onClose, venue }) {
 
     try {
       const data = await fetchVenueAvailability(venue.slug, selectedDate)
-      setSlots(data.slots ?? [])
-      setSelectedSlotIds((current) =>
-        current.filter((id) => (data.slots ?? []).some((slot) => slot.id === id)),
+      const availableSlots = (data.slots ?? []).filter(
+        (slot) => slot.status === "AVAILABLE",
+      )
+      setSlots(availableSlots)
+      setSelectedSlotId((current) =>
+        current != null &&
+        availableSlots.some((slot) => String(slot.id) === String(current))
+          ? current
+          : null,
       )
     } catch (fetchError) {
       console.error("Failed to fetch availability:", fetchError)
       setSlots([])
-      setSelectedSlotIds([])
+      setSelectedSlotId(null)
       setAvailabilityError("Could not load available slots. Please try again.")
     } finally {
       setLoading(false)
@@ -88,7 +95,12 @@ export default function VenueBookingModal({ open, onClose, venue }) {
     if (!open) return undefined
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape" && !isConfirmationOpen) onClose()
+      if (event.key !== "Escape") return
+      if (step === "confirm") {
+        setStep("select")
+        return
+      }
+      onClose()
     }
 
     document.body.style.overflow = "hidden"
@@ -98,7 +110,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
       document.body.style.overflow = ""
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [open, onClose, isConfirmationOpen])
+  }, [open, onClose, step])
 
   useEffect(() => {
     if (!open) return
@@ -107,44 +119,65 @@ export default function VenueBookingModal({ open, onClose, venue }) {
 
   useEffect(() => {
     if (!open) {
+      setStep("select")
       setSelectedDate(toDateInputValue(new Date()))
-      setSelectedSlotIds([])
+      setSelectedSlotId(null)
       setSlots([])
       setAvailabilityError("")
-      setIsConfirmationOpen(false)
+      setBookError("")
+      setCheckingAvailability(false)
     }
   }, [open])
 
-  const openConfirmation = () => {
-    if (selectedSlotIds.length === 0) return
-
-    if (!isAuthenticated) {
-      openAuthModal({
-        message: "Sign in to confirm your booking.",
-        onSuccess: () => {
-          setIsConfirmationOpen(true)
-        },
-      })
-      return
-    }
-
-    setIsConfirmationOpen(true)
+  const openConfirmationAfterAuth = () => {
+    setStep("confirm")
   }
 
-  const toggleSlot = (slotId) => {
-    setSelectedSlotIds((current) =>
-      current.includes(slotId)
-        ? current.filter((id) => id !== slotId)
-        : [...current, slotId],
-    )
+  const handleBookNow = async () => {
+    if (!selectedSlotId) return
+
+    setCheckingAvailability(true)
+    setBookError("")
+
+    try {
+      const result = await verifySlotAvailability(
+        venue.slug,
+        selectedDate,
+        selectedSlotId,
+      )
+
+      if (!result.available) {
+        setBookError(result.message)
+        await loadAvailability()
+        return
+      }
+
+      if (!isAuthenticated) {
+        openAuthModal({
+          message: "Sign in to confirm your booking.",
+          onSuccess: openConfirmationAfterAuth,
+        })
+        return
+      }
+
+      openConfirmationAfterAuth()
+    } catch (verifyError) {
+      console.error("Failed to verify slot availability:", verifyError)
+      setBookError("Could not verify availability. Please try again.")
+      await loadAvailability()
+    } finally {
+      setCheckingAvailability(false)
+    }
+  }
+
+  const selectSlot = (slotId) => {
+    setBookError("")
+    setSelectedSlotId((current) => (current === slotId ? null : slotId))
   }
 
   if (!open || !venue) return null
 
-  const confirmationSchedule = selectedSlots[0] ?? null
-
   return (
-    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 px-4 py-6 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -163,7 +196,7 @@ export default function VenueBookingModal({ open, onClose, venue }) {
             <div className="absolute bottom-0 left-0 right-0 p-6 text-primary-foreground">
               <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-background/20 px-3 py-1 text-xs font-semibold backdrop-blur">
                 <CalendarDays size={14} />
-                Instant booking
+                {step === "confirm" ? "Booking confirmation" : "Instant booking"}
               </p>
               <h2 className="font-serif text-3xl font-bold">{venue.name}</h2>
               <p className="mt-2 flex items-center gap-2 text-sm text-primary-foreground/85">
@@ -182,147 +215,153 @@ export default function VenueBookingModal({ open, onClose, venue }) {
               <X size={20} />
             </button>
 
-            <div className="mb-6 pr-8">
-              <p className="text-sm font-semibold text-primary">Choose your date and slots</p>
-              <h3 className="mt-1 font-serif text-2xl font-bold">Book this venue</h3>
-            </div>
-
-            <label className="mb-2 block text-sm font-semibold" htmlFor="booking-date">
-              Event date
-            </label>
-            <div className="relative mb-6">
-              <CalendarDays
-                size={20}
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+            {step === "confirm" && selectedSlot ? (
+              <BookingConfirmationContent
+                venue={venue}
+                selectedSchedule={selectedSlot}
+                bookingDate={selectedDate}
+                onCancel={() => setStep("select")}
+                onConfirm={() => setStep("select")}
               />
-              <input
-                id="booking-date"
-                type="date"
-                value={selectedDate}
-                min={bookingDateRange.min}
-                max={bookingDateRange.max}
-                onChange={(event) => {
-                  setSelectedDate(event.target.value)
-                  setSelectedSlotIds([])
-                }}
-                className="w-full rounded-lg border border-border bg-background py-3 pl-12 pr-4 font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+            ) : (
+              <>
+                <div className="mb-6 pr-8">
+                  <p className="text-sm font-semibold text-primary">Choose your date and slot</p>
+                  <h3 className="mt-1 font-serif text-2xl font-bold">Book this venue</h3>
+                </div>
 
-            <div className="mb-6">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">Available slots</p>
-                {selectedSlotIds.length > 0 && (
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {selectedSlotIds.length} selected
-                  </span>
-                )}
-              </div>
+                <label className="mb-2 block text-sm font-semibold" htmlFor="booking-date">
+                  Event date
+                </label>
+                <div className="relative mb-6">
+                  <CalendarDays
+                    size={20}
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+                  />
+                  <input
+                    id="booking-date"
+                    type="date"
+                    value={selectedDate}
+                    min={bookingDateRange.min}
+                    max={bookingDateRange.max}
+                    onChange={(event) => {
+                      setSelectedDate(event.target.value)
+                      setSelectedSlotId(null)
+                      setBookError("")
+                    }}
+                    className="w-full rounded-lg border border-border bg-background py-3 pl-12 pr-4 font-semibold outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
 
-              <div className="h-64 overflow-y-auto pr-1">
-                {loading ? (
-                  <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
-                    Loading available slots...
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">Available slots</p>
+                    {selectedSlot && (
+                      <span className="text-xs font-medium text-muted-foreground">
+                        1 selected
+                      </span>
+                    )}
                   </div>
-                ) : availabilityError ? (
-                  <div className="flex h-full flex-col items-center justify-center rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
-                    <p className="text-sm text-destructive">{availabilityError}</p>
-                    <button
-                      type="button"
-                      onClick={loadAvailability}
-                      className="mt-3 text-sm font-semibold text-primary hover:underline"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ) : slots.length === 0 ? (
-                  <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
-                    No slots available for this date.
-                  </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {slots.map((slot) => {
-                      const isSelected = selectedSlotIds.includes(slot.id)
 
-                      return (
+                  <div className="h-64 overflow-y-auto pr-1">
+                    {loading ? (
+                      <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                        Loading available slots...
+                      </div>
+                    ) : availabilityError ? (
+                      <div className="flex h-full flex-col items-center justify-center rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-center">
+                        <p className="text-sm text-destructive">{availabilityError}</p>
                         <button
-                          key={slot.id}
                           type="button"
-                          onClick={() => toggleSlot(slot.id)}
-                          className={`flex items-center justify-between rounded-lg border p-4 text-left transition ${
-                            isSelected
-                              ? "border-primary bg-primary/5 ring-2 ring-primary/15"
-                              : "border-border bg-background hover:border-primary/60"
-                          }`}
+                          onClick={loadAvailability}
+                          className="mt-3 text-sm font-semibold text-primary hover:underline"
                         >
-                          <span>
-                            <span className="block font-semibold">{getSlotLabel(slot)}</span>
-                            <span className="mt-1 block text-sm text-muted-foreground">
-                              {formatSlotTimeRange(slot.startTime, slot.endTime)}
-                            </span>
-                          </span>
-                          <span className="text-right">
-                            <span className="block font-serif text-lg font-bold text-primary">
-                              {formatVenuePrice(slot.price)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">venue rental</span>
-                          </span>
+                          Retry
                         </button>
-                      )
-                    })}
+                      </div>
+                    ) : slots.length === 0 ? (
+                      <div className="flex h-full items-center justify-center rounded-lg border border-border bg-muted/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                        No slots available for this date.
+                      </div>
+                    ) : (
+                      <div className="grid gap-3">
+                        {slots.map((slot) => {
+                          const isSelected = String(selectedSlotId) === String(slot.id)
+
+                          return (
+                            <button
+                              key={slot.id}
+                              type="button"
+                              onClick={() => selectSlot(slot.id)}
+                              className={`flex items-center justify-between rounded-lg border p-4 text-left transition ${
+                                isSelected
+                                  ? "border-primary bg-primary/5 ring-2 ring-primary/15"
+                                  : "border-border bg-background hover:border-primary/60"
+                              }`}
+                            >
+                              <span>
+                                <span className="block font-semibold">{getSlotLabel(slot)}</span>
+                                <span className="mt-1 block text-sm text-muted-foreground">
+                                  {formatSlotTimeRange(slot.startTime, slot.endTime)}
+                                </span>
+                              </span>
+                              <span className="text-right">
+                                <span className="block font-serif text-lg font-bold text-primary">
+                                  {formatVenuePrice(slot.price)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">venue rental</span>
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
+                </div>
+
+                <div className="mb-6 rounded-lg border border-border bg-secondary/60 p-4">
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Selected slot</span>
+                    <span className="text-right text-sm font-semibold">
+                      {selectedSlot ? getSlotLabel(selectedSlot) : "None"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-muted-foreground">Price</span>
+                    <span className="font-serif text-2xl font-bold text-primary">
+                      {selectedSlot ? formatVenuePrice(selectedSlot.price) : "—"}
+                    </span>
+                  </div>
+                </div>
+
+                {bookError && (
+                  <p className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    {bookError}
+                  </p>
                 )}
-              </div>
-            </div>
 
-            <div className="mb-6 rounded-lg border border-border bg-secondary/60 p-4">
-              <div className="mb-2 flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">Selected slots</span>
-                <span className="text-right text-sm font-semibold">
-                  {selectedSlots.length > 0
-                    ? selectedSlots.map((slot) => getSlotLabel(slot)).join(", ")
-                    : "None"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <span className="text-sm text-muted-foreground">Estimated total</span>
-                <span className="font-serif text-2xl font-bold text-primary">
-                  {selectedSlots.length > 0 ? formatVenuePrice(totalPrice) : "—"}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={selectedSlots.length === 0}
-                onClick={openConfirmation}
-                className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Confirm Booking
-              </motion.button>
-              <button
-                onClick={onClose}
-                className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
-              >
-                Keep Browsing
-              </button>
-            </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <motion.button
+                    whileHover={{ scale: checkingAvailability ? 1 : 1.02 }}
+                    whileTap={{ scale: checkingAvailability ? 1 : 0.98 }}
+                    disabled={!selectedSlot || checkingAvailability}
+                    onClick={handleBookNow}
+                    className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {checkingAvailability ? "Checking availability..." : "Book Now"}
+                  </motion.button>
+                  <button
+                    onClick={onClose}
+                    className="rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
+                  >
+                    Keep Browsing
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </motion.div>
     </div>
-
-    {isConfirmationOpen && confirmationSchedule && (
-      <BookingConfirmationDialog
-        venue={venue}
-        selectedSchedule={confirmationSchedule}
-        bookingDate={selectedDate}
-        onCancel={() => setIsConfirmationOpen(false)}
-        onConfirm={() => setIsConfirmationOpen(false)}
-      />
-    )}
-    </>
   )
 }

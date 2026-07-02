@@ -35,6 +35,22 @@ class SlotAvailabilityResult:
 
 class AvailabilityService:
     @staticmethod
+    def get_slot_availability_for_venue(
+        *,
+        venue: Venue,
+        venue_schedule_id: int,
+        booking_date: date,
+    ) -> SlotAvailabilityResult:
+        schedule = AvailabilityService._get_schedule(venue_schedule_id)
+        if schedule.group.venue_id != venue.id:
+            raise VenueScheduleNotFoundError("Venue schedule not found.")
+
+        return AvailabilityService.get_slot_availability(
+            venue_schedule_id=venue_schedule_id,
+            booking_date=booking_date,
+        )
+
+    @staticmethod
     def get_slot_availability(
         *,
         venue_schedule_id: int,

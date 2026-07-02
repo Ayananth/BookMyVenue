@@ -13,6 +13,7 @@ from venues.views import (
     VenueScheduleGroupListCreateView,
     VenueScheduleOverrideDetailView,
     VenueScheduleOverrideListCreateView,
+    VenueSlotAvailabilityCheckView,
 )
 
 urlpatterns = [
@@ -40,6 +41,11 @@ urlpatterns = [
         "<slug:slug>/schedule-overrides/<int:override_id>/",
         VenueScheduleOverrideDetailView.as_view(),
         name="venue-schedule-override-detail",
+    ),
+    path(
+        "<slug:slug>/availability/check/",
+        VenueSlotAvailabilityCheckView.as_view(),
+        name="venue-slot-availability-check",
     ),
     path(
         "<slug:slug>/availability/",

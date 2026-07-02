@@ -243,7 +243,7 @@ class VenueAvailabilityAPITestCase(TestCase):
             is_active=True,
         )
         VenueScheduleGroupDay.objects.create(group=self.group, day_of_week=0)
-        VenueSchedule.objects.create(
+        self.schedule = VenueSchedule.objects.create(
             group=self.group,
             name="Morning",
             start_time=time(9, 0),
@@ -275,3 +275,131 @@ class VenueAvailabilityAPITestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+
+class VenueSlotAvailabilityCheckAPITestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.owner = User.objects.create_user(
+            email="owner@example.com",
+            password="password123",
+            role="venue",
+        )
+        self.customer = User.objects.create_user(
+            email="customer@example.com",
+            password="password123",
+        )
+        self.category = VenueCategory.objects.create(name="Hall")
+        self.district = District.objects.create(name="Andheri")
+        self.city = City.objects.create(district=self.district, name="Mumbai")
+        self.venue = Venue.objects.create(
+            owner=self.owner,
+            category=self.category,
+            city=self.city,
+            name="API Venue",
+            slug="api-venue",
+            address="123 Test St",
+            capacity=100,
+            contact_name="Owner",
+            contact_phone="9999999999",
+            contact_email="owner@example.com",
+            status=VenueStatus.APPROVED,
+            booking_type=BookingType.HOURLY,
+        )
+        self.group = VenueScheduleGroup.objects.create(
+            venue=self.venue,
+            name="Weekdays",
+            is_active=True,
+        )
+        VenueScheduleGroupDay.objects.create(group=self.group, day_of_week=0)
+        self.schedule = VenueSchedule.objects.create(
+            group=self.group,
+            name="Morning",
+            start_time=time(9, 0),
+            end_time=time(12, 0),
+            price=Decimal("1000.00"),
+            is_available=True,
+        )
+        self.target_date = "2026-06-29"
+
+    def _check_url(self):
+        return f"/venues/{self.venue.slug}/availability/check/"
+
+    def test_returns_available_status(self):
+        response = self.client.get(
+            self._check_url(),
+            {"date": self.target_date, "schedule_id": self.schedule.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["schedule_id"], self.schedule.id)
+        self.assertEqual(response.data["date"], self.target_date)
+        self.assertEqual(response.data["status"], "AVAILABLE")
+        self.assertEqual(response.data["message"], "Available")
+
+    def test_returns_booked_status(self):
+        _create_confirmed_booking(
+            self.customer,
+            self.schedule,
+            date(2026, 6, 29),
+            Decimal("1000.00"),
+        )
+
+        response = self.client.get(
+            self._check_url(),
+            {"date": self.target_date, "schedule_id": self.schedule.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "BOOKED")
+        self.assertIn("booked", response.data["message"].lower())
+
+    def test_returns_booking_in_progress_status(self):
+        BookingSession.objects.create(
+            user=self.customer,
+            venue_schedule=self.schedule,
+            booking_date=date(2026, 6, 29),
+            locked_price=Decimal("1000.00"),
+            status=BookingSessionStatus.ACTIVE,
+            expires_at=timezone.now() + timezone.timedelta(minutes=10),
+        )
+
+        response = self.client.get(
+            self._check_url(),
+            {"date": self.target_date, "schedule_id": self.schedule.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "BOOKING_IN_PROGRESS")
+        self.assertIn("booking_session_expires_at", response.data)
+
+    def test_returns_unavailable_status_for_non_matching_weekday(self):
+        response = self.client.get(
+            self._check_url(),
+            {"date": "2026-07-04", "schedule_id": self.schedule.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "UNAVAILABLE")
+
+    def test_requires_date_and_schedule_id(self):
+        response = self.client.get(self._check_url())
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("date", response.data["detail"].lower())
+
+        response = self.client.get(
+            self._check_url(),
+            {"date": self.target_date},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("schedule_id", response.data["detail"].lower())
+
+    def test_returns_not_found_for_unknown_schedule(self):
+        response = self.client.get(
+            self._check_url(),
+            {"date": self.target_date, "schedule_id": 99999},
+        )
+
+        self.assertEqual(response.status_code, 404)

@@ -135,12 +135,16 @@ export async function deleteVenueScheduleOverride(slug, overrideId) {
 }
 
 export function availabilitySlotFromApi(slot) {
+  const scheduleId = slot.schedule_id ?? slot.id
+
   return {
-    id: slot.id,
+    id: scheduleId,
+    scheduleId,
+    status: slot.status ?? "AVAILABLE",
     name: slot.name || "",
-    startTime: slot.start_time?.slice(0, 5) ?? slot.start_time,
-    endTime: slot.end_time?.slice(0, 5) ?? slot.end_time,
-    price: Number(slot.price),
+    startTime: slot.start_time?.slice(0, 5) ?? slot.start_time ?? "",
+    endTime: slot.end_time?.slice(0, 5) ?? slot.end_time ?? "",
+    price: Number(slot.price ?? 0),
   }
 }
 
@@ -150,8 +154,68 @@ export async function fetchVenueAvailability(slug, date) {
     params: { date },
   })
 
+  const slots = (data.slots ?? []).map(availabilitySlotFromApi)
+
   return {
     ...data,
-    slots: (data.slots ?? []).map(availabilitySlotFromApi),
+    slots,
+  }
+}
+
+export function getSlotUnavailableMessage(status, fallbackMessage) {
+  if (fallbackMessage) return fallbackMessage
+
+  switch (status) {
+    case "BOOKED":
+      return "This slot has already been booked. Please choose another."
+    case "BOOKING_IN_PROGRESS":
+      return "Someone is currently booking this slot. Please try again shortly."
+    case "UNAVAILABLE":
+      return "This schedule is not available for the selected date."
+    default:
+      return "This slot is no longer available. Please choose another."
+  }
+}
+
+export async function checkSlotAvailability(slug, date, scheduleId) {
+  const { data } = await api.get(`/venues/${slug}/availability/check/`, {
+    ...apiConfig,
+    params: {
+      date,
+      schedule_id: scheduleId,
+    },
+  })
+
+  return {
+    available: data.status === "AVAILABLE",
+    status: data.status,
+    message: data.message,
+    bookingSessionExpiresAt: data.booking_session_expires_at ?? null,
+  }
+}
+
+export async function verifySlotAvailability(slug, date, scheduleId) {
+  try {
+    const result = await checkSlotAvailability(slug, date, scheduleId)
+
+    if (result.available) {
+      return { available: true }
+    }
+
+    return {
+      available: false,
+      message: getSlotUnavailableMessage(result.status, result.message),
+    }
+  } catch (error) {
+    const message =
+      error?.response?.data?.message ||
+      error?.response?.data?.detail ||
+      null
+
+    if (message) {
+      return { available: false, message }
+    }
+
+    throw error
   }
 }
