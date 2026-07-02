@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.models import UserRole
 from bookings.exceptions import (
     BookingError,
     BookingNotFoundError,
@@ -19,6 +20,7 @@ from bookings.exceptions import (
 from bookings.serializers import (
     BookingDetailSerializer,
     BookingListSerializer,
+    BookingOwnerListSerializer,
     BookingSessionAbandonSerializer,
     BookingStartResponseSerializer,
     BookingStartSerializer,
@@ -99,10 +101,28 @@ class BookingListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        queryset = BookingService.get_user_bookings(request.user)
+        user = request.user
+        mine = request.query_params.get("mine") == "true"
+        venue_slug = request.query_params.get("venue") or None
+
+        if mine:
+            if user.role not in (UserRole.VENUE, UserRole.ADMIN):
+                return Response(
+                    {"message": "Only venue owners can list their bookings."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            queryset = BookingService.get_owner_bookings(
+                user,
+                venue_slug=venue_slug,
+            )
+            serializer_class = BookingOwnerListSerializer
+        else:
+            queryset = BookingService.get_user_bookings(user)
+            serializer_class = BookingListSerializer
+
         paginator = BookingPagination()
         page = paginator.paginate_queryset(queryset, request)
-        serializer = BookingListSerializer(page, many=True)
+        serializer = serializer_class(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from accounts.models import User
 from bookings.models import Booking, BookingStatus, Payment
 from venues.models import Venue, VenueSchedule
 from venues.serializers import CitySerializer
@@ -52,6 +53,13 @@ class BookingListPaymentSerializer(serializers.ModelSerializer):
         return data
 
 
+class BookingListCustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "full_name", "email", "phone")
+        read_only_fields = fields
+
+
 class BookingListSerializer(serializers.ModelSerializer):
     venue = BookingListVenueSerializer(
         source="venue_schedule.group.venue",
@@ -83,6 +91,13 @@ class BookingListSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["status"] = instance.status.lower()
         return data
+
+
+class BookingOwnerListSerializer(BookingListSerializer):
+    customer = BookingListCustomerSerializer(source="user", read_only=True)
+
+    class Meta(BookingListSerializer.Meta):
+        fields = BookingListSerializer.Meta.fields + ("customer",)
 
 
 class VenueSummarySerializer(serializers.ModelSerializer):

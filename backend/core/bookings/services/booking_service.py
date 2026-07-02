@@ -7,6 +7,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from accounts.models import UserRole
 from rest_framework.exceptions import PermissionDenied
 
 from bookings.exceptions import (
@@ -66,6 +67,27 @@ class BookingService:
         )
 
     @staticmethod
+    def get_owner_bookings(user, *, venue_slug: str | None = None):
+        queryset = (
+            Booking.objects.filter(venue_schedule__group__venue__owner=user)
+            .select_related(
+                "user",
+                "payment",
+                "venue_schedule",
+                "venue_schedule__group",
+                "venue_schedule__group__venue",
+                "venue_schedule__group__venue__city",
+                "venue_schedule__group__venue__city__district",
+            )
+            .order_by("-booking_date", "-confirmed_at")
+        )
+        if venue_slug:
+            queryset = queryset.filter(
+                venue_schedule__group__venue__slug=venue_slug,
+            )
+        return queryset
+
+    @staticmethod
     def get_booking_detail(*, booking_id: UUID, user) -> Booking:
         booking = (
             Booking.objects.select_related(
@@ -82,11 +104,21 @@ class BookingService:
         )
         if booking is None:
             raise BookingNotFoundError("Booking not found.")
-        if booking.user_id != user.id:
+        if not BookingService._can_access_booking(user, booking):
             raise PermissionDenied(
                 "You do not have permission to access this booking.",
             )
         return booking
+
+    @staticmethod
+    def _can_access_booking(user, booking: Booking) -> bool:
+        if booking.user_id == user.id:
+            return True
+        if user.role == UserRole.ADMIN:
+            return True
+        if user.role == UserRole.VENUE:
+            return booking.venue_schedule.group.venue.owner_id == user.id
+        return False
 
     @staticmethod
     def start_booking(

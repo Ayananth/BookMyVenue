@@ -40,6 +40,7 @@ export function bookingFromApi(entry) {
   const venue = entry.venue ?? {}
   const schedule = entry.schedule ?? {}
   const payment = entry.payment ?? {}
+  const customer = entry.customer ?? {}
 
   return {
     id: entry.id,
@@ -51,6 +52,11 @@ export function bookingFromApi(entry) {
     status: entry.status,
     startTime: schedule.start_time?.slice(0, 5) ?? entry.start_time?.slice(0, 5) ?? entry.start_time,
     endTime: schedule.end_time?.slice(0, 5) ?? entry.end_time?.slice(0, 5) ?? entry.end_time,
+    confirmedAt: entry.confirmed_at ?? null,
+    cancelledAt: entry.cancelled_at ?? null,
+    customerName: customer.full_name ?? "",
+    customerEmail: customer.email ?? "",
+    customerPhone: customer.phone ?? "",
   }
 }
 
@@ -110,6 +116,15 @@ export async function fetchBookings(params = {}) {
   const { data } = await api.get("/bookings/", {
     ...apiConfig,
     params: { limit: 100, ...params },
+  })
+  const results = data.results ?? data
+  return (Array.isArray(results) ? results : []).map(bookingFromApi)
+}
+
+export async function fetchOwnerBookings(params = {}) {
+  const { data } = await api.get("/bookings/", {
+    ...apiConfig,
+    params: { mine: true, limit: 100, ...params },
   })
   const results = data.results ?? data
   return (Array.isArray(results) ? results : []).map(bookingFromApi)
