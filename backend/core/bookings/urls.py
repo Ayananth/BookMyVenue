@@ -1,8 +1,9 @@
 from django.urls import path
 
-from bookings.views import BookingDetailView, BookingListCreateView
+from bookings.views import BookingDetailView, BookingListView, BookingStartView
 
 urlpatterns = [
-    path("", BookingListCreateView.as_view(), name="booking-list-create"),
-    path("<int:booking_id>/", BookingDetailView.as_view(), name="booking-detail"),
+    path("start/", BookingStartView.as_view(), name="booking-start"),
+    path("", BookingListView.as_view(), name="booking-list"),
+    path("<uuid:booking_id>/", BookingDetailView.as_view(), name="booking-detail"),
 ]
