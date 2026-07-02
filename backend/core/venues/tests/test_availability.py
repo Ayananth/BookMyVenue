@@ -3,9 +3,17 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
-from bookings.models import Booking, BookingStatus
+from bookings.models import (
+    Booking,
+    BookingSession,
+    BookingSessionStatus,
+    BookingStatus,
+    Payment,
+    PaymentStatus,
+)
 from venues.availability import get_available_slots
 from venues.models import (
     BookingType,
@@ -21,6 +29,33 @@ from venues.models import (
 )
 
 User = get_user_model()
+
+
+def _create_confirmed_booking(user, venue_schedule, booking_date, amount):
+    session = BookingSession.objects.create(
+        user=user,
+        venue_schedule=venue_schedule,
+        booking_date=booking_date,
+        locked_price=amount,
+        status=BookingSessionStatus.COMPLETED,
+        expires_at=timezone.now(),
+    )
+    payment = Payment.objects.create(
+        booking_session=session,
+        razorpay_order_id=f"order_{session.id}",
+        amount=amount,
+        status=PaymentStatus.SUCCESS,
+    )
+    return Booking.objects.create(
+        booking_session=session,
+        payment=payment,
+        user=user,
+        venue_schedule=venue_schedule,
+        booking_date=booking_date,
+        booking_amount=amount,
+        status=BookingStatus.CONFIRMED,
+        confirmed_at=timezone.now(),
+    )
 
 
 class AvailabilityTestCase(TestCase):
@@ -126,14 +161,15 @@ class AvailabilityTestCase(TestCase):
         self.assertEqual(result["slots"][0]["name"], "Afternoon")
 
     def test_excludes_slots_blocked_by_booking(self):
-        Booking.objects.create(
-            venue=self.venue,
-            user=None,
-            booking_date=self.target_date,
-            start_time=time(9, 0),
-            end_time=time(12, 0),
-            price=Decimal("1000.00"),
-            status=BookingStatus.CONFIRMED,
+        customer = User.objects.create_user(
+            email="customer@example.com",
+            password="password123",
+        )
+        _create_confirmed_booking(
+            customer,
+            self.morning_slot,
+            self.target_date,
+            Decimal("1000.00"),
         )
 
         result = get_available_slots(self.venue, self.target_date)
@@ -142,14 +178,33 @@ class AvailabilityTestCase(TestCase):
         self.assertEqual(result["slots"][0]["name"], "Afternoon")
 
     def test_ignores_cancelled_bookings(self):
-        Booking.objects.create(
-            venue=self.venue,
-            user=None,
+        customer = User.objects.create_user(
+            email="customer@example.com",
+            password="password123",
+        )
+        session = BookingSession.objects.create(
+            user=customer,
+            venue_schedule=self.morning_slot,
             booking_date=self.target_date,
-            start_time=time(9, 0),
-            end_time=time(12, 0),
-            price=Decimal("1000.00"),
+            locked_price=Decimal("1000.00"),
+            status=BookingSessionStatus.COMPLETED,
+            expires_at=timezone.now(),
+        )
+        payment = Payment.objects.create(
+            booking_session=session,
+            razorpay_order_id=f"order_{session.id}",
+            amount=Decimal("1000.00"),
+            status=PaymentStatus.SUCCESS,
+        )
+        Booking.objects.create(
+            booking_session=session,
+            payment=payment,
+            user=customer,
+            venue_schedule=self.morning_slot,
+            booking_date=self.target_date,
+            booking_amount=Decimal("1000.00"),
             status=BookingStatus.CANCELLED,
+            confirmed_at=timezone.now(),
         )
 
         result = get_available_slots(self.venue, self.target_date)
