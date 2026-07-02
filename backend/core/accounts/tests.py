@@ -1,3 +1,147 @@
-from django.test import TestCase
+from unittest.mock import patch
 
-# Create your tests here.
+from django.test import TestCase, override_settings
+from rest_framework import status
+from rest_framework.test import APIClient
+
+from accounts.google_auth import GoogleUserInfo
+from accounts.models import AuthAccount, AuthProvider, User, UserRole
+
+
+class GoogleLoginViewTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.google_info = GoogleUserInfo(
+            sub="google-sub-123",
+            email="user@example.com",
+            name="Test User",
+            picture="https://example.com/avatar.jpg",
+        )
+
+    @override_settings(GOOGLE_CLIENT_ID="test-client-id")
+    @patch("accounts.serializers.verify_google_id_token")
+    def test_google_login_creates_user_and_auth_account(self, mock_verify):
+        mock_verify.return_value = self.google_info
+
+        response = self.client.post(
+            "/users/google",
+            {"token": "valid-google-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access_token", response.data)
+        self.assertEqual(response.data["user"]["email"], "user@example.com")
+        self.assertEqual(response.data["user"]["role"], UserRole.USER)
+        self.assertTrue(response.data["user"]["is_email_verified"])
+
+        user = User.objects.get(email="user@example.com")
+        auth_account = AuthAccount.objects.get(
+            user=user,
+            provider=AuthProvider.GOOGLE,
+        )
+        self.assertEqual(auth_account.provider_user_id, "google-sub-123")
+
+    @override_settings(GOOGLE_CLIENT_ID="test-client-id")
+    @patch("accounts.serializers.verify_google_id_token")
+    def test_google_login_returns_existing_google_user(self, mock_verify):
+        user = User.objects.create_user(
+            email="user@example.com",
+            role=UserRole.USER,
+            is_email_verified=True,
+        )
+        AuthAccount.objects.create(
+            user=user,
+            provider=AuthProvider.GOOGLE,
+            provider_user_id="google-sub-123",
+        )
+        mock_verify.return_value = self.google_info
+
+        response = self.client.post(
+            "/users/google",
+            {"token": "valid-google-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["id"], user.id)
+        self.assertEqual(User.objects.count(), 1)
+        self.assertEqual(AuthAccount.objects.count(), 1)
+
+    @override_settings(GOOGLE_CLIENT_ID="test-client-id")
+    @patch("accounts.serializers.verify_google_id_token")
+    def test_google_login_links_existing_email_user(self, mock_verify):
+        user = User.objects.create_user(
+            email="user@example.com",
+            password="SecurePass123!",
+            role=UserRole.USER,
+        )
+        mock_verify.return_value = self.google_info
+
+        response = self.client.post(
+            "/users/google",
+            {"token": "valid-google-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["id"], user.id)
+        self.assertTrue(
+            AuthAccount.objects.filter(
+                user=user,
+                provider=AuthProvider.GOOGLE,
+                provider_user_id="google-sub-123",
+            ).exists(),
+        )
+        user.refresh_from_db()
+        self.assertTrue(user.is_email_verified)
+
+    @override_settings(GOOGLE_CLIENT_ID="test-client-id")
+    @patch("accounts.serializers.verify_google_id_token")
+    def test_google_login_rejects_wrong_role(self, mock_verify):
+        User.objects.create_user(
+            email="user@example.com",
+            role=UserRole.VENUE,
+            is_email_verified=True,
+        )
+        mock_verify.return_value = self.google_info
+
+        response = self.client.post(
+            "/users/google",
+            {"token": "valid-google-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        detail = response.data["detail"]
+        if isinstance(detail, list):
+            detail = detail[0]
+        self.assertIn("venue", detail.lower())
+
+    @override_settings(GOOGLE_CLIENT_ID="test-client-id")
+    @patch("accounts.serializers.verify_google_id_token")
+    def test_venue_google_login_creates_venue_user(self, mock_verify):
+        mock_verify.return_value = self.google_info
+
+        response = self.client.post(
+            "/users/venue/google",
+            {"token": "valid-google-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["role"], UserRole.VENUE)
+
+    @override_settings(GOOGLE_CLIENT_ID="")
+    def test_google_login_requires_configuration(self):
+        response = self.client.post(
+            "/users/google",
+            {"token": "valid-google-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        detail = response.data["detail"]
+        if isinstance(detail, list):
+            detail = detail[0]
+        self.assertIn("not configured", detail.lower())

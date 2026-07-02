@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from accounts.google_auth import login_or_register_with_google, verify_google_id_token
 from accounts.models import User, UserRole
 from accounts.security import create_access_token
 
@@ -89,6 +90,16 @@ class LoginSerializer(serializers.Serializer):
             )
 
         attrs["user"] = authenticated_user
+        return attrs
+
+
+class GoogleLoginSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        info = verify_google_id_token(attrs["token"])
+        role = self.context["role"]
+        attrs["user"] = login_or_register_with_google(info, role)
         return attrs
 
 

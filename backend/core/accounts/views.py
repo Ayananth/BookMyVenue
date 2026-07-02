@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from accounts.models import UserRole
 from accounts.serializers import (
+    GoogleLoginSerializer,
     LoginSerializer,
     RegisterSerializer,
     UserSerializer,
@@ -55,6 +56,27 @@ class VenueRegisterView(RegisterView):
 
 
 class VenueLoginView(LoginView):
+    role = UserRole.VENUE
+
+
+class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+    role = UserRole.USER
+
+    def post(self, request):
+        serializer = GoogleLoginSerializer(
+            data=request.data,
+            context={"role": self.role},
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(build_token_response(serializer.validated_data["user"]))
+
+
+class UserGoogleLoginView(GoogleLoginView):
+    role = UserRole.USER
+
+
+class VenueGoogleLoginView(GoogleLoginView):
     role = UserRole.VENUE
 
 
