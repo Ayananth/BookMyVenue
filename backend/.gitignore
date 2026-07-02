@@ -59,6 +59,12 @@ dmypy.json
 *.swo
 *~
 
+# Celery (runtime artifacts — regenerated on beat/worker start)
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat.pid
+celery.pid
+
 # OS
 .DS_Store
 Thumbs.db
