@@ -1,6 +1,11 @@
+import { useState } from "react"
 import { motion } from "framer-motion"
 import { CalendarDays, Clock, DollarSign, Tag } from "lucide-react"
 import { formatVenuePrice } from "../../apis/venues"
+import {
+  getStartBookingErrorMessage,
+  startBooking,
+} from "../../services/bookingService"
 
 function formatBookingDate(dateValue) {
   if (!dateValue) return "—"
@@ -56,11 +61,32 @@ export default function BookingConfirmationContent({
   selectedSchedule,
   bookingDate,
   onCancel,
-  onConfirm,
+  onBookingStarted,
 }) {
+  const [isPreparingPayment, setIsPreparingPayment] = useState(false)
+  const [paymentError, setPaymentError] = useState("")
+
   if (!venue || !selectedSchedule) return null
 
   const formattedPrice = formatVenuePrice(selectedSchedule.price) ?? "—"
+
+  const handleProceedToPayment = async () => {
+    setIsPreparingPayment(true)
+    setPaymentError("")
+
+    try {
+      const bookingStart = await startBooking({
+        venueScheduleId: selectedSchedule.id,
+        bookingDate,
+      })
+      onBookingStarted(bookingStart)
+    } catch (error) {
+      console.error("Failed to start booking:", error)
+      setPaymentError(getStartBookingErrorMessage(error))
+    } finally {
+      setIsPreparingPayment(false)
+    }
+  }
 
   return (
     <div className="flex min-h-[420px] flex-col">
@@ -109,22 +135,30 @@ export default function BookingConfirmationContent({
         </div>
       </div>
 
+      {paymentError && (
+        <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {paymentError}
+        </p>
+      )}
+
       <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
         <button
           type="button"
           onClick={onCancel}
-          className="flex-1 rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted"
+          disabled={isPreparingPayment}
+          className="flex-1 rounded-lg border border-border px-5 py-3 font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           Back
         </button>
         <motion.button
           type="button"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onConfirm}
-          className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90"
+          whileHover={{ scale: isPreparingPayment ? 1 : 1.02 }}
+          whileTap={{ scale: isPreparingPayment ? 1 : 0.98 }}
+          disabled={isPreparingPayment}
+          onClick={handleProceedToPayment}
+          className="flex-1 rounded-lg bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Proceed to Payment
+          {isPreparingPayment ? "Preparing Payment..." : "Proceed to Payment"}
         </motion.button>
       </div>
     </div>

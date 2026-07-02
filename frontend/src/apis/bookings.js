@@ -18,6 +18,24 @@ export function parseBookingError(error) {
   return "Something went wrong. Please try again."
 }
 
+export function getStartBookingErrorMessage(error) {
+  const status = error.response?.status
+
+  if (status === 409) {
+    return parseBookingError(error)
+  }
+
+  if (status === 400) {
+    return parseBookingError(error)
+  }
+
+  if (status >= 500) {
+    return "Something went wrong on our end. Please try again later."
+  }
+
+  return parseBookingError(error)
+}
+
 export function bookingFromApi(entry) {
   const venue = entry.venue ?? {}
   const schedule = entry.schedule ?? {}

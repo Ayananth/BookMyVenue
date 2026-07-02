@@ -22,17 +22,28 @@ export default function VenueDetailsPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [bookingPayment, setBookingPayment] = useState(null)
+
+  const openBookingModal = () => {
+    setBookingPayment(null)
+    setIsBookingOpen(true)
+  }
 
   const handleBookNow = () => {
     if (!isAuthenticated) {
       openAuthModal({
         message: "Sign in to book this venue.",
-        onSuccess: () => setIsBookingOpen(true),
+        onSuccess: openBookingModal,
       })
       return
     }
 
-    setIsBookingOpen(true)
+    openBookingModal()
+  }
+
+  const handleBookingStarted = (bookingStart) => {
+    setBookingPayment(bookingStart)
+    setIsBookingOpen(false)
   }
 
   useEffect(() => {
@@ -549,6 +560,7 @@ export default function VenueDetailsPage() {
         open={isBookingOpen}
         onClose={() => setIsBookingOpen(false)}
         venue={venue}
+        onBookingStarted={handleBookingStarted}
       />
     </MainLayout>
   )
