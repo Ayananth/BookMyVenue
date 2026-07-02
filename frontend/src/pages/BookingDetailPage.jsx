@@ -91,11 +91,11 @@ export default function BookingDetailPage() {
     <MainLayout>
       <main className="mx-auto max-w-4xl px-4 pb-10 pt-32 sm:px-6 sm:pt-36 lg:px-8">
         <Link
-          to="/profile"
+          to="/profile?section=bookings"
           className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-primary"
         >
           <ChevronLeft size={16} />
-          Back to profile
+          Back to my bookings
         </Link>
 
         {loading ? (
@@ -193,7 +193,7 @@ export default function BookingDetailPage() {
                   View venue
                 </Link>
                 <Link
-                  to="/profile"
+                  to="/profile?section=bookings"
                   className="inline-flex flex-1 items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
                 >
                   Go to my bookings

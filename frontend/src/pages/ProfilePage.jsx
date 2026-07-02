@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   CalendarDays,
@@ -27,6 +27,8 @@ const navItems = [
   { id: "bookings", label: "My Bookings", icon: TicketCheck },
   { id: "favourites", label: "Favourites", icon: Heart },
 ]
+
+const validSections = new Set(navItems.map((item) => item.id))
 
 const bookingTabs = [
   { id: "upcoming", label: "Upcoming Bookings" },
@@ -524,14 +526,34 @@ function LogoutModal({ open, onCancel, onLogout }) {
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { logout, isAuthenticated, loading: authLoading } = useAuth()
-  const [activeSection, setActiveSection] = useState("profile")
+  const sectionParam = searchParams.get("section")
+  const [activeSection, setActiveSection] = useState(() =>
+    validSections.has(sectionParam) ? sectionParam : "profile",
+  )
   const [profile, setProfile] = useState(null)
   const [bookings, setBookings] = useState([])
   const [favouriteVenues, setFavouriteVenues] = useState([])
   const [loading, setLoading] = useState(true)
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [cancellingId, setCancellingId] = useState(null)
+
+  useEffect(() => {
+    const nextSection = validSections.has(sectionParam) ? sectionParam : "profile"
+    setActiveSection((current) => (current === nextSection ? current : nextSection))
+  }, [sectionParam])
+
+  const handleSectionChange = (section) => {
+    setActiveSection(section)
+
+    if (section === "profile") {
+      setSearchParams({}, { replace: true })
+      return
+    }
+
+    setSearchParams({ section }, { replace: true })
+  }
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) {
@@ -626,12 +648,12 @@ export default function ProfilePage() {
           <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
             <SidebarNav
               activeSection={activeSection}
-              onSectionChange={setActiveSection}
+              onSectionChange={handleSectionChange}
               onLogout={() => setLogoutOpen(true)}
             />
 
             <div>
-              <MobileNav activeSection={activeSection} onSectionChange={setActiveSection} />
+              <MobileNav activeSection={activeSection} onSectionChange={handleSectionChange} />
               <div className="mt-5 lg:mt-0">{renderContent()}</div>
               <button
                 type="button"
