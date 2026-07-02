@@ -50,3 +50,15 @@ class PaymentNotFoundError(BookingError):
 
 class PaymentNotSuccessfulError(BookingError):
     pass
+
+
+class PaymentAlreadyProcessedError(BookingError):
+    pass
+
+
+class InvalidPaymentStatusError(BookingError):
+    pass
+
+
+class InvalidPaymentSignatureError(BookingError):
+    pass
