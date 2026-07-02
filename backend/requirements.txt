@@ -7,6 +7,7 @@ psycopg2-binary==2.9.10
 redis==5.2.1
 celery==5.4.0
 django-celery-results==2.5.1
+setuptools<82
 dj-database-url==2.3.0
 python-dotenv==1.0.1
 whitenoise==6.8.2
