@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import {
+  AlertTriangle,
   CalendarDays,
   Check,
   Heart,
@@ -288,7 +289,7 @@ function isUpcomingBooking(booking) {
   return new Date(booking.eventDate) >= today
 }
 
-function BookingCard({ booking, onCancel, cancelling }) {
+function BookingCard({ booking, onCancelRequest, cancelling }) {
   const canCancel = booking.status === "pending" || booking.status === "confirmed"
 
   return (
@@ -333,7 +334,7 @@ function BookingCard({ booking, onCancel, cancelling }) {
       {canCancel && (
         <button
           type="button"
-          onClick={() => onCancel(booking.id)}
+          onClick={() => onCancelRequest(booking)}
           disabled={cancelling}
           className="mt-5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-red-300 hover:text-red-700 disabled:opacity-60"
         >
@@ -344,7 +345,7 @@ function BookingCard({ booking, onCancel, cancelling }) {
   )
 }
 
-function BookingsSection({ bookings, onCancelBooking, cancellingId }) {
+function BookingsSection({ bookings, onCancelRequest, cancellingId }) {
   const [activeTab, setActiveTab] = useState("upcoming")
 
   const visibleBookings = useMemo(() => {
@@ -388,7 +389,7 @@ function BookingsSection({ bookings, onCancelBooking, cancellingId }) {
             <BookingCard
               key={booking.id}
               booking={booking}
-              onCancel={onCancelBooking}
+              onCancelRequest={onCancelRequest}
               cancelling={cancellingId === booking.id}
             />
           ))}
@@ -484,6 +485,53 @@ function FavouritesSection({ venues, onRemove }) {
   )
 }
 
+function CancelBookingModal({ booking, open, onClose, onConfirm, confirming }) {
+  if (!open || !booking) {
+    return null
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-foreground/50 p-4 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 18, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+      >
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-700">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <h2 className="mt-4 font-serif text-3xl font-semibold text-foreground">Cancel this booking?</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          You are about to cancel your booking at{" "}
+          <span className="font-semibold text-foreground">{booking.venueName}</span> on{" "}
+          <span className="font-semibold text-foreground">{formatDate(booking.eventDate)}</span>.
+        </p>
+        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+          Please note that cancellations are non-refundable. The amount paid will not be returned.
+        </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={confirming}
+            className="flex-1 rounded-full border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:opacity-60"
+          >
+            Keep booking
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={confirming}
+            className="flex-1 rounded-full bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+          >
+            {confirming ? "Cancelling..." : "Yes, cancel booking"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 function LogoutModal({ open, onCancel, onLogout }) {
   if (!open) {
     return null
@@ -537,6 +585,7 @@ export default function ProfilePage() {
   const [favouriteVenues, setFavouriteVenues] = useState([])
   const [loading, setLoading] = useState(true)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [bookingToCancel, setBookingToCancel] = useState(null)
   const [cancellingId, setCancellingId] = useState(null)
 
   useEffect(() => {
@@ -597,6 +646,7 @@ export default function ProfilePage() {
           booking.id === bookingId ? updatedBooking : booking,
         ),
       )
+      setBookingToCancel(null)
     } catch (error) {
       console.error("Failed to cancel booking:", error)
     } finally {
@@ -623,7 +673,7 @@ export default function ProfilePage() {
       return (
         <BookingsSection
           bookings={bookings}
-          onCancelBooking={handleCancelBooking}
+          onCancelRequest={setBookingToCancel}
           cancellingId={cancellingId}
         />
       )
@@ -667,6 +717,18 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
+
+      <CancelBookingModal
+        booking={bookingToCancel}
+        open={Boolean(bookingToCancel)}
+        onClose={() => {
+          if (!cancellingId) {
+            setBookingToCancel(null)
+          }
+        }}
+        onConfirm={() => handleCancelBooking(bookingToCancel.id)}
+        confirming={Boolean(bookingToCancel && cancellingId === bookingToCancel.id)}
+      />
 
       <LogoutModal
         open={logoutOpen}
