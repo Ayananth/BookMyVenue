@@ -1,7 +1,9 @@
 from datetime import date, time
 from typing import TypedDict
 
-from bookings.models import Booking, BookingStatus
+from django.utils import timezone
+
+from bookings.models import Booking, BookingSession, BookingSessionStatus, BookingStatus
 from venues.models import Venue, VenueSchedule, VenueScheduleGroup, VenueScheduleOverride
 
 
@@ -45,13 +47,27 @@ def _slot_blocked_by_override(
     )
 
 
-def _slot_blocked_by_booking(schedule: VenueSchedule, booking: Booking) -> bool:
-    return _times_overlap(
-        schedule.start_time,
-        schedule.end_time,
-        booking.start_time,
-        booking.end_time,
-    )
+def _slot_blocked_by_confirmed_booking(
+    schedule: VenueSchedule,
+    target_date: date,
+) -> bool:
+    return Booking.objects.filter(
+        venue_schedule=schedule,
+        booking_date=target_date,
+        status=BookingStatus.CONFIRMED,
+    ).exists()
+
+
+def _slot_blocked_by_active_session(
+    schedule: VenueSchedule,
+    target_date: date,
+) -> bool:
+    return BookingSession.objects.filter(
+        venue_schedule=schedule,
+        booking_date=target_date,
+        status=BookingSessionStatus.ACTIVE,
+        expires_at__gt=timezone.now(),
+    ).exists()
 
 
 def _get_matching_schedule_group(
@@ -125,19 +141,13 @@ def get_available_slots(venue: Venue, target_date: date) -> AvailabilityResult:
         ),
     )
 
-    bookings = list(
-        Booking.objects.filter(
-            venue=venue,
-            booking_date=target_date,
-            status__in=[BookingStatus.PENDING, BookingStatus.CONFIRMED],
-        ),
-    )
-
     available_slots = []
     for slot in base_slots:
         if any(_slot_blocked_by_override(slot, override) for override in overrides):
             continue
-        if any(_slot_blocked_by_booking(slot, booking) for booking in bookings):
+        if _slot_blocked_by_confirmed_booking(slot, target_date):
+            continue
+        if _slot_blocked_by_active_session(slot, target_date):
             continue
         available_slots.append(_serialize_slot(slot))
 
