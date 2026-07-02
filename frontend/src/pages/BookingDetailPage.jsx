@@ -89,7 +89,7 @@ export default function BookingDetailPage() {
 
   return (
     <MainLayout>
-      <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-4xl px-4 pb-10 pt-32 sm:px-6 sm:pt-36 lg:px-8">
         <Link
           to="/profile"
           className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-primary"
