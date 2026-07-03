@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
+import { ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
 import LocationPicker from "../components/venues/LocationPicker"
 import MainLayout from "../layouts/MainLayout"
@@ -75,6 +75,47 @@ function FilterSelect({ label, value, options, onChange }) {
         ))}
       </select>
     </label>
+  )
+}
+
+function CategoryCard({ category, active, onClick }) {
+  const hasImage = Boolean(category.icon_url)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative w-full overflow-hidden rounded-2xl border text-left transition-all duration-300 ${
+        active
+          ? "border-primary shadow-[0_16px_34px_rgba(27,36,29,0.12)]"
+          : "border-border hover:-translate-y-0.5 hover:border-primary/40"
+      }`}
+    >
+      <div className="relative h-28 bg-muted sm:h-32">
+        {hasImage ? (
+          <img
+            src={category.icon_url}
+            alt={category.name}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 via-accent/10 to-muted">
+            <span className="font-serif text-3xl font-semibold text-foreground/75">
+              {category.name.charAt(0)}
+            </span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
+        <span className="absolute bottom-3 left-3 right-3 text-sm font-semibold text-white">
+          {category.name}
+        </span>
+        {active && (
+          <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+            <Check className="h-4 w-4" />
+          </span>
+        )}
+      </div>
+    </button>
   )
 }
 
@@ -325,28 +366,42 @@ export default function ExploreVenuesPage() {
     return venues
   }, [filters.sort, venues])
 
+  const categoryOptions = useMemo(
+    () => categories.filter((category) => category.id != null),
+    [categories],
+  )
+
+  const selectedCategory = useMemo(
+    () =>
+      categoryOptions.find((category) => category.id === filters.categoryId) ?? null,
+    [categoryOptions, filters.categoryId],
+  )
+
   const visibleCategories = useMemo(() => {
-    if (showAllCategories || categories.length <= CATEGORY_PREVIEW_LIMIT) {
-      return categories
+    if (
+      showAllCategories ||
+      categoryOptions.length <= CATEGORY_PREVIEW_LIMIT
+    ) {
+      return categoryOptions
     }
 
-    const preview = categories.slice(0, CATEGORY_PREVIEW_LIMIT)
+    const preview = categoryOptions.slice(0, CATEGORY_PREVIEW_LIMIT)
 
     if (
       filters.categoryId != null &&
       !preview.some((category) => category.id === filters.categoryId)
     ) {
-      const selectedCategory = categories.find(
+      const activeCategory = categoryOptions.find(
         (category) => category.id === filters.categoryId,
       )
 
-      if (selectedCategory) {
-        return [...preview.slice(0, CATEGORY_PREVIEW_LIMIT - 1), selectedCategory]
+      if (activeCategory) {
+        return [...preview.slice(0, CATEGORY_PREVIEW_LIMIT - 1), activeCategory]
       }
     }
 
     return preview
-  }, [categories, filters.categoryId, showAllCategories])
+  }, [categoryOptions, filters.categoryId, showAllCategories])
 
   const hasActiveFilters = useMemo(() => {
     return (
@@ -513,42 +568,62 @@ export default function ExploreVenuesPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {visibleCategories.map((category) => {
-                    const isActive = filters.categoryId === category.id
+                <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Choose an event type</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedCategory
+                        ? `Showing venues for ${selectedCategory.name}.`
+                        : "Select a category to narrow the venue list."}
+                    </p>
+                  </div>
+                  {selectedCategory && (
+                    <button
+                      type="button"
+                      onClick={() => updateFilter("categoryId", null)}
+                      className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition hover:border-primary/50 hover:text-primary"
+                    >
+                      <X className="h-4 w-4" />
+                      Remove selection
+                    </button>
+                  )}
+                </div>
 
-                    return (
-                      <button
-                        key={category.id ?? "all"}
-                        type="button"
-                        onClick={() => updateFilter("categoryId", category.id)}
-                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                          isActive
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                        }`}
+                <div className="-mx-4 mt-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 sm:pb-0">
+                  <div className="flex snap-x snap-mandatory gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+                    {visibleCategories.map((category) => (
+                      <div
+                        key={category.id}
+                        className="min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink"
                       >
-                        {category.name}
-                      </button>
-                    )
-                  })}
-                  {categories.length > CATEGORY_PREVIEW_LIMIT && (
+                        <CategoryCard
+                          category={category}
+                          active={filters.categoryId === category.id}
+                          onClick={() => updateFilter("categoryId", category.id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {categoryOptions.length > CATEGORY_PREVIEW_LIMIT && (
+                  <div className="mt-4 flex justify-center sm:justify-start">
                     <button
                       type="button"
                       onClick={() => setShowAllCategories((current) => !current)}
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition hover:border-primary/50 hover:text-primary"
                     >
                       {showAllCategories
-                        ? "Show fewer"
-                        : `+${categories.length - visibleCategories.length} more`}
+                        ? "Show fewer categories"
+                        : `Show ${categoryOptions.length - visibleCategories.length} more`}
                       <ChevronDown
                         className={`h-4 w-4 transition-transform ${
                           showAllCategories ? "rotate-180" : ""
                         }`}
                       />
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-end">
                   <LocationPicker
