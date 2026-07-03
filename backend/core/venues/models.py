@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.gis.db.models import PointField
+from django.contrib.postgres.indexes import GistIndex
 from django.db import models
 from django.db.models import F, Q
 
@@ -35,6 +37,12 @@ class City(models.Model):
         related_name="cities",
     )
     name = models.CharField(max_length=100)
+    location = PointField(
+        srid=4326,
+        blank=True,
+        null=True,
+        help_text="Geographic coordinates (longitude, latitude) in WGS84.",
+    )
 
     class Meta:
         db_table = "cities"
@@ -47,6 +55,7 @@ class City(models.Model):
         ]
         indexes = [
             models.Index(fields=["district"], name="ix_cities_district_id"),
+            GistIndex(fields=["location"], name="ix_cities_location"),
         ]
 
     def __str__(self) -> str:
