@@ -1,12 +1,13 @@
 from django.core.management.base import BaseCommand
 
 from accounts.models import User, UserRole
+from venues.category_seed import seed_venue_categories
 from venues.location_seed import seed_kerala_places
-from venues.models import City, District
+from venues.models import City, District, VenueCategory
 
 
 class Command(BaseCommand):
-    help = "Seed demo users and Kerala location data for local development."
+    help = "Seed demo users, venue categories, and Kerala location data for local development."
 
     def handle(self, *args, **options):
         location_stats = seed_kerala_places(District=District, City=City)
@@ -16,6 +17,13 @@ class Command(BaseCommand):
                 f"{location_stats['created_districts']} district(s), "
                 f"{location_stats['created_cities']} city/cities created, "
                 f"{location_stats['updated_cities']} city/cities updated with coordinates."
+            )
+        )
+
+        category_stats = seed_venue_categories(VenueCategory=VenueCategory)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Category seed complete. {category_stats['created']} category/categories created."
             )
         )
 
