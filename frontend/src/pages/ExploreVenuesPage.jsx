@@ -7,10 +7,16 @@ import LocationPicker from "../components/venues/LocationPicker"
 import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories, fetchVenueLocationGroups } from "../apis/venues"
 import {
+  clearSavedLocationPreference,
+  getSavedLocationPreference,
+  setSavedLocationPreference,
+} from "../services/locationPreference"
+import {
   fetchVenues,
   priceRangeToParams,
   sortToOrdering,
 } from "../services/venueExploreService"
+import { findCityInGroups } from "../utils/groupCitiesByDistrict"
 
 const SEARCH_DEBOUNCE_MS = 400
 
@@ -181,6 +187,7 @@ function VenueCard({ venue, liked, onToggleLike }) {
 export default function ExploreVenuesPage() {
   const resultsRef = useRef(null)
   const isInitialLoad = useRef(true)
+  const hasRestoredLocationRef = useRef(false)
   const debounceTimerRef = useRef(null)
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([{ id: null, name: "All venues" }])
@@ -261,6 +268,34 @@ export default function ExploreVenuesPage() {
   }, [])
 
   useEffect(() => {
+    if (hasRestoredLocationRef.current || loadingLocations || locationGroups.length === 0) {
+      return
+    }
+
+    hasRestoredLocationRef.current = true
+
+    if (filters.cityId != null) {
+      if (!findCityInGroups(locationGroups, filters.cityId)) {
+        clearSavedLocationPreference()
+        setFilters((state) => ({ ...state, cityId: null }))
+      }
+      return
+    }
+
+    const savedLocation = getSavedLocationPreference()
+    const savedCityId = savedLocation?.cityId
+
+    if (savedCityId == null) return
+
+    if (findCityInGroups(locationGroups, savedCityId)) {
+      setFilters((state) => ({ ...state, cityId: savedCityId }))
+      return
+    }
+
+    clearSavedLocationPreference()
+  }, [filters.cityId, loadingLocations, locationGroups])
+
+  useEffect(() => {
     if (!loading) {
       if (isInitialLoad.current) {
         isInitialLoad.current = false
@@ -334,10 +369,18 @@ export default function ExploreVenuesPage() {
   }
 
   const handleLocationSelect = (city) => {
-    updateFilter("cityId", city?.id ?? null)
+    const cityId = city?.id ?? null
+    updateFilter("cityId", cityId)
+
+    if (cityId == null) {
+      clearSavedLocationPreference()
+    } else {
+      setSavedLocationPreference(cityId)
+    }
   }
 
   const handleLocationClear = () => {
+    clearSavedLocationPreference()
     updateFilter("cityId", null)
   }
 
@@ -365,6 +408,7 @@ export default function ExploreVenuesPage() {
     }
     setSearchInput("")
     applySearchQuery("")
+    clearSavedLocationPreference()
     setFilters(initialFilters)
     setPage(1)
   }

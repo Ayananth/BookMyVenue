@@ -5,12 +5,19 @@ import { Star, Users, MapPin, ArrowRight, Heart, Search, X } from "lucide-react"
 import { fetchExploreVenues, fetchVenueCategories, fetchVenueLocationGroups, formatVenuePrice } from "../../apis/venues"
 import LocationPicker from "../venues/LocationPicker"
 import Reveal from "../common/Reveal"
+import {
+  clearSavedLocationPreference,
+  getSavedLocationPreference,
+  setSavedLocationPreference,
+} from "../../services/locationPreference"
+import { findCityInGroups } from "../../utils/groupCitiesByDistrict"
 
 const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
 const SEARCH_DEBOUNCE_MS = 400
 
 export default function ExploreVenues() {
   const navigate = useNavigate()
+  const hasRestoredLocationRef = useRef(false)
   const debounceTimerRef = useRef(null)
   const [activeCategory, setActiveCategory] = useState(ALL_VENUES_CATEGORY)
   const [selectedCityId, setSelectedCityId] = useState(null)
@@ -36,6 +43,34 @@ export default function ExploreVenues() {
       .catch((error) => console.error("Failed to fetch locations:", error))
       .finally(() => setLoadingLocations(false))
   }, [])
+
+  useEffect(() => {
+    if (hasRestoredLocationRef.current || loadingLocations || locationGroups.length === 0) {
+      return
+    }
+
+    hasRestoredLocationRef.current = true
+
+    if (selectedCityId != null) {
+      if (!findCityInGroups(locationGroups, selectedCityId)) {
+        clearSavedLocationPreference()
+        setSelectedCityId(null)
+      }
+      return
+    }
+
+    const savedLocation = getSavedLocationPreference()
+    const savedCityId = savedLocation?.cityId
+
+    if (savedCityId == null) return
+
+    if (findCityInGroups(locationGroups, savedCityId)) {
+      setSelectedCityId(savedCityId)
+      return
+    }
+
+    clearSavedLocationPreference()
+  }, [loadingLocations, locationGroups, selectedCityId])
 
   useEffect(() => {
     return () => {
@@ -108,10 +143,18 @@ export default function ExploreVenues() {
   }
 
   const handleLocationSelect = (city) => {
-    setSelectedCityId(city?.id ?? null)
+    const cityId = city?.id ?? null
+    setSelectedCityId(cityId)
+
+    if (cityId == null) {
+      clearSavedLocationPreference()
+    } else {
+      setSavedLocationPreference(cityId)
+    }
   }
 
   const handleLocationClear = () => {
+    clearSavedLocationPreference()
     setSelectedCityId(null)
   }
 
