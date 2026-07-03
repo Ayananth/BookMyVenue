@@ -2,9 +2,8 @@ import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { Star, Users, MapPin, ArrowRight, Heart, Search, X } from "lucide-react"
-import { fetchExploreVenues, fetchVenueCategories, formatVenuePrice } from "../../apis/venues"
-import LocationSearch from "../venues/LocationSearch"
-import { fetchExploreCities } from "../../services/venueExploreService"
+import { fetchExploreVenues, fetchVenueCategories, fetchVenueLocationGroups, formatVenuePrice } from "../../apis/venues"
+import LocationPicker from "../venues/LocationPicker"
 import Reveal from "../common/Reveal"
 
 const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
@@ -15,10 +14,10 @@ export default function ExploreVenues() {
   const debounceTimerRef = useRef(null)
   const [activeCategory, setActiveCategory] = useState(ALL_VENUES_CATEGORY)
   const [selectedCityId, setSelectedCityId] = useState(null)
-  const [locationQuery, setLocationQuery] = useState("")
   const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
-  const [cities, setCities] = useState([])
+  const [locationGroups, setLocationGroups] = useState([])
+  const [loadingLocations, setLoadingLocations] = useState(true)
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([ALL_VENUES_CATEGORY])
   const [loading, setLoading] = useState(true)
@@ -31,9 +30,11 @@ export default function ExploreVenues() {
   }, [])
 
   useEffect(() => {
-    fetchExploreCities()
-      .then((cityData) => setCities(cityData))
-      .catch((error) => console.error("Failed to fetch cities:", error))
+    setLoadingLocations(true)
+    fetchVenueLocationGroups()
+      .then((groupData) => setLocationGroups(groupData))
+      .catch((error) => console.error("Failed to fetch locations:", error))
+      .finally(() => setLoadingLocations(false))
   }, [])
 
   useEffect(() => {
@@ -106,20 +107,11 @@ export default function ExploreVenues() {
     applySearchQuery("")
   }
 
-  const handleLocationQueryChange = (value) => {
-    setLocationQuery(value)
-    if (selectedCityId != null) {
-      setSelectedCityId(null)
-    }
-  }
-
   const handleLocationSelect = (city) => {
-    setLocationQuery(city.name)
-    setSelectedCityId(city.id)
+    setSelectedCityId(city?.id ?? null)
   }
 
   const handleLocationClear = () => {
-    setLocationQuery("")
     setSelectedCityId(null)
   }
 
@@ -176,13 +168,12 @@ export default function ExploreVenues() {
               )}
             </div>
           </label>
-          <LocationSearch
-            cities={cities}
-            value={locationQuery}
+          <LocationPicker
+            locationGroups={locationGroups}
             selectedCityId={selectedCityId}
-            onChange={handleLocationQueryChange}
             onSelect={handleLocationSelect}
             onClear={handleLocationClear}
+            loading={loadingLocations}
             className="w-full sm:max-w-xs"
           />
         </Reveal>

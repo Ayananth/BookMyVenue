@@ -77,6 +77,11 @@ export async function fetchVenueFormCities(districtId) {
   return data
 }
 
+export async function fetchVenueLocationGroups() {
+  const { data } = await api.get("/venues/location-groups", apiConfig)
+  return data
+}
+
 export async function createVenue(payload) {
   const { data } = await api.post("/venues/add", payload, apiConfig)
   return data

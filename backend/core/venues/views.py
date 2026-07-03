@@ -37,6 +37,7 @@ from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
 from venues.serializers import (
     CityDropdownSerializer,
     DistrictSerializer,
+    DistrictCityGroupSerializer,
     VenueCategorySerializer,
     VenueDetailSerializer,
     VenueListSerializer,
@@ -157,6 +158,21 @@ class VenueCityListView(APIView):
         if district_id:
             queryset = queryset.filter(district_id=district_id)
         serializer = CityDropdownSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class VenueLocationGroupListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        city_queryset = City.objects.order_by("name")
+        districts = (
+            District.objects.filter(cities__isnull=False)
+            .prefetch_related(Prefetch("cities", queryset=city_queryset))
+            .order_by("name")
+            .distinct()
+        )
+        serializer = DistrictCityGroupSerializer(districts, many=True)
         return Response(serializer.data)
 
 

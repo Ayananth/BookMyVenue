@@ -3,11 +3,10 @@ import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
-import LocationSearch from "../components/venues/LocationSearch"
+import LocationPicker from "../components/venues/LocationPicker"
 import MainLayout from "../layouts/MainLayout"
-import { fetchVenueCategories } from "../apis/venues"
+import { fetchVenueCategories, fetchVenueLocationGroups } from "../apis/venues"
 import {
-  fetchExploreCities,
   fetchVenues,
   priceRangeToParams,
   sortToOrdering,
@@ -192,8 +191,8 @@ export default function ExploreVenuesPage() {
   const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [filters, setFilters] = useState(initialFilters)
-  const [locationQuery, setLocationQuery] = useState("")
-  const [cities, setCities] = useState([])
+  const [locationGroups, setLocationGroups] = useState([])
+  const [loadingLocations, setLoadingLocations] = useState(true)
   const [liked, setLiked] = useState({})
 
   useEffect(() => {
@@ -242,11 +241,19 @@ export default function ExploreVenuesPage() {
   useEffect(() => {
     let active = true
 
-    fetchExploreCities()
-      .then((cityData) => {
-        if (active) setCities(cityData)
+    setLoadingLocations(true)
+    fetchVenueLocationGroups()
+      .then((groupData) => {
+        if (active) {
+          setLocationGroups(groupData)
+        }
       })
-      .catch((error) => console.error("Failed to load cities:", error))
+      .catch((error) => console.error("Failed to load locations:", error))
+      .finally(() => {
+        if (active) {
+          setLoadingLocations(false)
+        }
+      })
 
     return () => {
       active = false
@@ -326,21 +333,11 @@ export default function ExploreVenuesPage() {
     }
   }
 
-  const handleLocationQueryChange = (value) => {
-    setLocationQuery(value)
-    if (filters.cityId != null) {
-      setFilters((state) => ({ ...state, cityId: null }))
-      setPage(1)
-    }
-  }
-
   const handleLocationSelect = (city) => {
-    setLocationQuery(city.name)
-    updateFilter("cityId", city.id)
+    updateFilter("cityId", city?.id ?? null)
   }
 
   const handleLocationClear = () => {
-    setLocationQuery("")
     updateFilter("cityId", null)
   }
 
@@ -368,7 +365,6 @@ export default function ExploreVenuesPage() {
     }
     setSearchInput("")
     applySearchQuery("")
-    setLocationQuery("")
     setFilters(initialFilters)
     setPage(1)
   }
@@ -470,13 +466,12 @@ export default function ExploreVenuesPage() {
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-end">
-                  <LocationSearch
-                    cities={cities}
-                    value={locationQuery}
+                  <LocationPicker
+                    locationGroups={locationGroups}
                     selectedCityId={filters.cityId}
-                    onChange={handleLocationQueryChange}
                     onSelect={handleLocationSelect}
                     onClear={handleLocationClear}
+                    loading={loadingLocations}
                   />
                   <FilterSelect
                     label="Price"

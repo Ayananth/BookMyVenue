@@ -54,6 +54,20 @@ class CityDropdownSerializer(serializers.ModelSerializer):
         return f"{obj.name}, {obj.district.name}"
 
 
+class CityOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = City
+        fields = ("id", "name")
+
+
+class DistrictCityGroupSerializer(serializers.ModelSerializer):
+    cities = CityOptionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = District
+        fields = ("id", "name", "cities")
+
+
 class VenueCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = VenueCategory
