@@ -95,6 +95,12 @@ class Venue(models.Model):
     slug = models.SlugField(max_length=220, unique=True)
     description = models.TextField(blank=True, null=True)
     address = models.TextField()
+    google_maps_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="Google Maps URL for venue directions.",
+    )
     capacity = models.PositiveIntegerField()
     contact_name = models.CharField(max_length=100)
     contact_phone = models.CharField(max_length=20)
