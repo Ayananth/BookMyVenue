@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowRight, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
 import LocationPicker from "../components/venues/LocationPicker"
 import MainLayout from "../layouts/MainLayout"
@@ -19,6 +19,7 @@ import {
 import { findCityInGroups } from "../utils/groupCitiesByDistrict"
 
 const SEARCH_DEBOUNCE_MS = 400
+const CATEGORY_PREVIEW_LIMIT = 8
 
 const initialFilters = {
   categoryId: null,
@@ -200,6 +201,7 @@ export default function ExploreVenuesPage() {
   const [filters, setFilters] = useState(initialFilters)
   const [locationGroups, setLocationGroups] = useState([])
   const [loadingLocations, setLoadingLocations] = useState(true)
+  const [showAllCategories, setShowAllCategories] = useState(false)
   const [liked, setLiked] = useState({})
 
   useEffect(() => {
@@ -322,6 +324,29 @@ export default function ExploreVenuesPage() {
 
     return venues
   }, [filters.sort, venues])
+
+  const visibleCategories = useMemo(() => {
+    if (showAllCategories || categories.length <= CATEGORY_PREVIEW_LIMIT) {
+      return categories
+    }
+
+    const preview = categories.slice(0, CATEGORY_PREVIEW_LIMIT)
+
+    if (
+      filters.categoryId != null &&
+      !preview.some((category) => category.id === filters.categoryId)
+    ) {
+      const selectedCategory = categories.find(
+        (category) => category.id === filters.categoryId,
+      )
+
+      if (selectedCategory) {
+        return [...preview.slice(0, CATEGORY_PREVIEW_LIMIT - 1), selectedCategory]
+      }
+    }
+
+    return preview
+  }, [categories, filters.categoryId, showAllCategories])
 
   const hasActiveFilters = useMemo(() => {
     return (
@@ -489,7 +514,7 @@ export default function ExploreVenuesPage() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {categories.map((category) => {
+                  {visibleCategories.map((category) => {
                     const isActive = filters.categoryId === category.id
 
                     return (
@@ -507,6 +532,22 @@ export default function ExploreVenuesPage() {
                       </button>
                     )
                   })}
+                  {categories.length > CATEGORY_PREVIEW_LIMIT && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllCategories((current) => !current)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition hover:border-primary/50 hover:text-primary"
+                    >
+                      {showAllCategories
+                        ? "Show fewer"
+                        : `+${categories.length - visibleCategories.length} more`}
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${
+                          showAllCategories ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_auto] lg:items-end">
