@@ -1,7 +1,14 @@
 FROM python:3.12-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq-dev gcc \
+    && apt-get install -y --no-install-recommends \
+        binutils \
+        gdal-bin \
+        libgdal-dev \
+        libgeos-dev \
+        libpq-dev \
+        libproj-dev \
+        gcc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.gis",
     "django_celery_results",
     "accounts",
     "venues",
@@ -86,6 +87,8 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+if DATABASES["default"].get("ENGINE") == "django.db.backends.postgresql":
+    DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
 
 AUTH_PASSWORD_VALIDATORS = [
     {
