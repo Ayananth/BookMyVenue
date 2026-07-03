@@ -1,12 +1,24 @@
 from django.core.management.base import BaseCommand
 
 from accounts.models import User, UserRole
+from venues.location_seed import seed_kerala_places
+from venues.models import City, District
 
 
 class Command(BaseCommand):
-    help = "Seed demo users for local development."
+    help = "Seed demo users and Kerala location data for local development."
 
     def handle(self, *args, **options):
+        location_stats = seed_kerala_places(District=District, City=City)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Location seed complete. "
+                f"{location_stats['created_districts']} district(s), "
+                f"{location_stats['created_cities']} city/cities created, "
+                f"{location_stats['updated_cities']} city/cities updated with coordinates."
+            )
+        )
+
         demo_users = [
             {
                 "email": "admin@bookmyvenue.local",
@@ -44,8 +56,5 @@ class Command(BaseCommand):
                 self.stdout.write(f"Skipped existing user: {email}")
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Seed complete. {created} user(s) created. "
-                "Location data is seeded via Django migrations."
-            )
+            self.style.SUCCESS(f"Seed complete. {created} user(s) created.")
         )
