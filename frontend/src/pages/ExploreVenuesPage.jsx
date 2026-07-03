@@ -593,15 +593,6 @@ export default function ExploreVenuesPage() {
                 )}{" "}
                 venues
               </p>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="hidden items-center justify-center gap-2 text-sm font-semibold text-primary transition hover:underline sm:inline-flex"
-                >
-                  Reset view
-                </button>
-              )}
             </div>
 
             {loading && (
