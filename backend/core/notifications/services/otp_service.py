@@ -37,8 +37,8 @@ class OtpService:
             ) from exc
 
     @classmethod
-    def _handle_redis_error(cls, exc: redis.RedisError) -> RedisUnavailableError:
-        return RedisUnavailableError(
+    def _handle_redis_error(cls, exc: redis.RedisError) -> None:
+        raise RedisUnavailableError(
             "Verification service temporarily unavailable.",
         ) from exc
 
@@ -70,7 +70,7 @@ class OtpService:
             client.setex(redis_key, ttl_seconds, json.dumps(payload))
             client.setex(cooldown_key, settings.OTP_RESEND_COOLDOWN_SECONDS, "1")
         except redis.RedisError as exc:
-            raise cls._handle_redis_error(exc) from exc
+            cls._handle_redis_error(exc)
 
         return otp
 
@@ -80,7 +80,7 @@ class OtpService:
         try:
             return bool(client.exists(cls._redis_key(purpose, destination)))
         except redis.RedisError as exc:
-            raise cls._handle_redis_error(exc) from exc
+            cls._handle_redis_error(exc)
 
     @classmethod
     def remaining_ttl(
@@ -95,7 +95,7 @@ class OtpService:
         try:
             ttl = client.ttl(redis_key)
         except redis.RedisError as exc:
-            raise cls._handle_redis_error(exc) from exc
+            cls._handle_redis_error(exc)
 
         if ttl < 0:
             return None
@@ -115,7 +115,7 @@ class OtpService:
         try:
             raw_payload = client.get(redis_key)
         except redis.RedisError as exc:
-            raise cls._handle_redis_error(exc) from exc
+            cls._handle_redis_error(exc)
 
         if not raw_payload:
             raise OtpNotFoundError(
@@ -129,7 +129,7 @@ class OtpService:
             try:
                 client.delete(redis_key)
             except redis.RedisError as exc:
-                raise cls._handle_redis_error(exc) from exc
+                cls._handle_redis_error(exc)
             raise OtpMaxAttemptsExceededError(
                 "Too many invalid attempts. Please request a new verification code.",
             )
@@ -141,14 +141,14 @@ class OtpService:
                 if remaining_ttl > 0:
                     client.setex(redis_key, remaining_ttl, json.dumps(payload))
             except redis.RedisError as exc:
-                raise cls._handle_redis_error(exc) from exc
+                cls._handle_redis_error(exc)
             return False
 
         try:
             client.delete(redis_key)
             client.delete(cls._cooldown_key(purpose, destination))
         except redis.RedisError as exc:
-            raise cls._handle_redis_error(exc) from exc
+            cls._handle_redis_error(exc)
         return True
 
     @classmethod
@@ -158,7 +158,7 @@ class OtpService:
             client.delete(cls._redis_key(purpose, destination))
             client.delete(cls._cooldown_key(purpose, destination))
         except redis.RedisError as exc:
-            raise cls._handle_redis_error(exc) from exc
+            cls._handle_redis_error(exc)
 
 
 class OtpError(Exception):
