@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     "django_celery_results",
     "accounts",
+    "notifications",
     "venues",
     "bookings",
     "payments",
@@ -162,6 +163,13 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL",
     "BookMyVenue <noreply@bookmyvenue.local>",
 )
+APP_NAME = os.environ.get("APP_NAME", "BookMyVenue")
+APP_SUPPORT_EMAIL = os.environ.get("APP_SUPPORT_EMAIL", "support@bookmyvenue.local")
+
+OTP_LENGTH = int(os.environ.get("OTP_LENGTH", "6"))
+OTP_EXPIRE_MINUTES = int(os.environ.get("OTP_EXPIRE_MINUTES", "10"))
+OTP_MAX_ATTEMPTS = int(os.environ.get("OTP_MAX_ATTEMPTS", "5"))
+OTP_RESEND_COOLDOWN_SECONDS = int(os.environ.get("OTP_RESEND_COOLDOWN_SECONDS", "60"))
 
 CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")

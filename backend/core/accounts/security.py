@@ -17,6 +17,19 @@ def hash_password(password: str) -> str:
     return f"{salt}${derived_key.hex()}"
 
 
+def generate_otp(length: int = 6) -> str:
+    upper_bound = 10**length
+    return str(secrets.randbelow(upper_bound)).zfill(length)
+
+
+def hash_otp(otp: str) -> str:
+    return hash_password(otp)
+
+
+def verify_otp(otp: str, otp_hash: str) -> bool:
+    return verify_password(otp, otp_hash)
+
+
 def verify_password(password: str, password_hash: str) -> bool:
     try:
         salt, stored_key = password_hash.split("$", 1)
