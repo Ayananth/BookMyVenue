@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
+from django.conf import settings
 from rest_framework import serializers
 
 from accounts.google_auth import login_or_register_with_google, verify_google_id_token
@@ -123,6 +124,31 @@ class GoogleLoginSerializer(serializers.Serializer):
         role = self.context["role"]
         attrs["user"] = login_or_register_with_google(info, role)
         return attrs
+
+
+class SendSignupOtpSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        email = User.objects.normalize_email(value)
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("Email already registered.")
+        return email
+
+
+class VerifySignupOtpSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField()
+
+    def validate_otp(self, value):
+        otp = value.strip()
+        if not otp.isdigit():
+            raise serializers.ValidationError("OTP must contain only digits.")
+        if len(otp) != settings.OTP_LENGTH:
+            raise serializers.ValidationError(
+                f"OTP must be {settings.OTP_LENGTH} digits.",
+            )
+        return otp
 
 
 def build_token_response(user: User) -> dict:

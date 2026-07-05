@@ -1,10 +1,11 @@
 import json
 from enum import Enum
 
+import redis
 from django.conf import settings
 
 from accounts.security import generate_otp, hash_otp, verify_otp
-from notifications.services.redis_client import get_redis_client
+from notifications.services.redis_client import RedisUnavailableError, get_redis_client
 
 
 class OtpPurpose(str, Enum):
@@ -27,6 +28,21 @@ class OtpService:
         return f"{cls._redis_key(purpose, destination)}:cooldown"
 
     @classmethod
+    def _client(cls) -> redis.Redis:
+        try:
+            return get_redis_client()
+        except redis.RedisError as exc:
+            raise RedisUnavailableError(
+                "Verification service temporarily unavailable.",
+            ) from exc
+
+    @classmethod
+    def _handle_redis_error(cls, exc: redis.RedisError) -> RedisUnavailableError:
+        return RedisUnavailableError(
+            "Verification service temporarily unavailable.",
+        ) from exc
+
+    @classmethod
     def create(
         cls,
         *,
@@ -34,25 +50,56 @@ class OtpService:
         destination: str,
         length: int | None = None,
     ) -> str:
-        client = get_redis_client()
+        client = cls._client()
         cooldown_key = cls._cooldown_key(purpose, destination)
 
-        if client.exists(cooldown_key):
-            raise OtpResendCooldownError(
-                "Please wait before requesting another verification code.",
-            )
+        try:
+            if client.exists(cooldown_key):
+                raise OtpResendCooldownError(
+                    "Please wait before requesting another verification code.",
+                )
 
-        otp = generate_otp(length or settings.OTP_LENGTH)
-        payload = {
-            "otp_hash": hash_otp(otp),
-            "attempts": 0,
-        }
+            otp = generate_otp(length or settings.OTP_LENGTH)
+            payload = {
+                "otp_hash": hash_otp(otp),
+                "attempts": 0,
+            }
 
-        ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60
-        redis_key = cls._redis_key(purpose, destination)
-        client.setex(redis_key, ttl_seconds, json.dumps(payload))
-        client.setex(cooldown_key, settings.OTP_RESEND_COOLDOWN_SECONDS, "1")
+            ttl_seconds = settings.OTP_EXPIRE_MINUTES * 60
+            redis_key = cls._redis_key(purpose, destination)
+            client.setex(redis_key, ttl_seconds, json.dumps(payload))
+            client.setex(cooldown_key, settings.OTP_RESEND_COOLDOWN_SECONDS, "1")
+        except redis.RedisError as exc:
+            raise cls._handle_redis_error(exc) from exc
+
         return otp
+
+    @classmethod
+    def exists(cls, *, purpose: OtpPurpose | str, destination: str) -> bool:
+        client = cls._client()
+        try:
+            return bool(client.exists(cls._redis_key(purpose, destination)))
+        except redis.RedisError as exc:
+            raise cls._handle_redis_error(exc) from exc
+
+    @classmethod
+    def remaining_ttl(
+        cls,
+        *,
+        purpose: OtpPurpose | str,
+        destination: str,
+    ) -> int | None:
+        client = cls._client()
+        redis_key = cls._redis_key(purpose, destination)
+
+        try:
+            ttl = client.ttl(redis_key)
+        except redis.RedisError as exc:
+            raise cls._handle_redis_error(exc) from exc
+
+        if ttl < 0:
+            return None
+        return ttl
 
     @classmethod
     def verify(
@@ -62,41 +109,63 @@ class OtpService:
         destination: str,
         otp: str,
     ) -> bool:
-        client = get_redis_client()
+        client = cls._client()
         redis_key = cls._redis_key(purpose, destination)
-        raw_payload = client.get(redis_key)
+
+        try:
+            raw_payload = client.get(redis_key)
+        except redis.RedisError as exc:
+            raise cls._handle_redis_error(exc) from exc
 
         if not raw_payload:
-            return False
+            raise OtpNotFoundError(
+                "Verification code expired or not found. Please request a new one.",
+            )
 
         payload = json.loads(raw_payload)
         attempts = payload.get("attempts", 0)
 
         if attempts >= settings.OTP_MAX_ATTEMPTS:
-            client.delete(redis_key)
+            try:
+                client.delete(redis_key)
+            except redis.RedisError as exc:
+                raise cls._handle_redis_error(exc) from exc
             raise OtpMaxAttemptsExceededError(
                 "Too many invalid attempts. Please request a new verification code.",
             )
 
         if not verify_otp(otp, payload["otp_hash"]):
             payload["attempts"] = attempts + 1
-            remaining_ttl = client.ttl(redis_key)
-            if remaining_ttl > 0:
-                client.setex(redis_key, remaining_ttl, json.dumps(payload))
+            try:
+                remaining_ttl = client.ttl(redis_key)
+                if remaining_ttl > 0:
+                    client.setex(redis_key, remaining_ttl, json.dumps(payload))
+            except redis.RedisError as exc:
+                raise cls._handle_redis_error(exc) from exc
             return False
 
-        client.delete(redis_key)
-        client.delete(cls._cooldown_key(purpose, destination))
+        try:
+            client.delete(redis_key)
+            client.delete(cls._cooldown_key(purpose, destination))
+        except redis.RedisError as exc:
+            raise cls._handle_redis_error(exc) from exc
         return True
 
     @classmethod
     def delete(cls, *, purpose: OtpPurpose | str, destination: str) -> None:
-        client = get_redis_client()
-        client.delete(cls._redis_key(purpose, destination))
-        client.delete(cls._cooldown_key(purpose, destination))
+        client = cls._client()
+        try:
+            client.delete(cls._redis_key(purpose, destination))
+            client.delete(cls._cooldown_key(purpose, destination))
+        except redis.RedisError as exc:
+            raise cls._handle_redis_error(exc) from exc
 
 
 class OtpError(Exception):
+    pass
+
+
+class OtpNotFoundError(OtpError):
     pass
 
 

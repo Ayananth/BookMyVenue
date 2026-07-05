@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from notifications.services.email_service import EmailService
 from notifications.services.otp_service import (
     OtpMaxAttemptsExceededError,
+    OtpNotFoundError,
     OtpPurpose,
     OtpResendCooldownError,
     OtpService,
@@ -119,6 +120,34 @@ class OtpServiceTests(TestCase):
                 destination="user@example.com",
                 otp="000000" if otp != "000000" else "111111",
             ),
+        )
+
+    def test_verify_raises_when_otp_missing_or_expired(self):
+        with self.assertRaises(OtpNotFoundError):
+            OtpService.verify(
+                purpose=OtpPurpose.EMAIL_SIGNUP,
+                destination="user@example.com",
+                otp="123456",
+            )
+
+    def test_exists_and_remaining_ttl(self):
+        OtpService.create(
+            purpose=OtpPurpose.EMAIL_SIGNUP,
+            destination="user@example.com",
+        )
+
+        self.assertTrue(
+            OtpService.exists(
+                purpose=OtpPurpose.EMAIL_SIGNUP,
+                destination="user@example.com",
+            ),
+        )
+        self.assertEqual(
+            OtpService.remaining_ttl(
+                purpose=OtpPurpose.EMAIL_SIGNUP,
+                destination="user@example.com",
+            ),
+            600,
         )
 
     def test_resend_cooldown_blocks_new_otp(self):

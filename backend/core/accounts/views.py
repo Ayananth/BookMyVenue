@@ -8,10 +8,19 @@ from accounts.serializers import (
     GoogleLoginSerializer,
     LoginSerializer,
     RegisterSerializer,
+    SendSignupOtpSerializer,
     UserSerializer,
     UserUpdateSerializer,
+    VerifySignupOtpSerializer,
     build_token_response,
 )
+from notifications.services.otp_service import (
+    OtpMaxAttemptsExceededError,
+    OtpNotFoundError,
+    OtpResendCooldownError,
+)
+from notifications.services.redis_client import RedisUnavailableError
+from notifications.services.signup_otp_service import SignupOtpService
 
 
 class RegisterView(APIView):
@@ -79,6 +88,63 @@ class UserGoogleLoginView(GoogleLoginView):
 
 class VenueGoogleLoginView(GoogleLoginView):
     role = UserRole.VENUE
+
+
+class SendSignupOtpView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = SendSignupOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            result = SignupOtpService.send_email_otp(serializer.validated_data["email"])
+        except OtpResendCooldownError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except RedisUnavailableError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return Response(
+            {
+                "detail": "Verification code sent.",
+                **result,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class VerifySignupOtpView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = VerifySignupOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
+
+        try:
+            verified = SignupOtpService.verify_email_otp(email, otp)
+        except OtpNotFoundError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except OtpMaxAttemptsExceededError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except RedisUnavailableError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        if not verified:
+            return Response(
+                {"detail": "Invalid verification code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "verified": True,
+                "email": email.strip().lower(),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class MeView(APIView):
