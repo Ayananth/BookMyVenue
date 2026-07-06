@@ -1,9 +1,5 @@
-import os
-import uuid
 from datetime import datetime
 
-from django.conf import settings
-from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -34,6 +30,7 @@ from venues.models import (
     VenueStatus,
 )
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
+from venues.services.image_upload_service import ImageUploadError, ImageUploadService
 from venues.serializers import (
     CityDropdownSerializer,
     DistrictSerializer,
@@ -195,21 +192,15 @@ class ImageUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        extension = os.path.splitext(file.name)[1] or ".jpg"
-        filename = f"venue_images/{uuid.uuid4().hex}{extension}"
-        saved_path = default_storage.save(filename, file)
-        image_url = request.build_absolute_uri(
-            settings.MEDIA_URL + saved_path.replace("\\", "/"),
-        )
+        try:
+            result = ImageUploadService.upload_venue_image(file, request=request)
+        except ImageUploadError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
-        return Response(
-            {
-                "public_id": saved_path,
-                "url": image_url,
-                "secure_url": image_url,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(result, status=status.HTTP_201_CREATED)
 
 
 class VenueListCreateView(APIView):
