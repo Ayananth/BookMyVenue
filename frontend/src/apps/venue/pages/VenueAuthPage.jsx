@@ -9,7 +9,10 @@ import {
   loginWithGoogleVenue,
   parseAuthError,
   registerVenue,
+  resendSignupOtpVenue,
+  verifySignupOtpVenue,
 } from "../../../apis/auth"
+import SignupOtpVerification from "../../../components/common/SignupOtpVerification"
 import { useAuth } from "../../../contexts/AuthContext"
 
 const methods = [
@@ -31,6 +34,9 @@ export default function VenueAuthPage() {
   const [googleError, setGoogleError] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [registerStep, setRegisterStep] = useState("details")
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0)
+  const [resendingOtp, setResendingOtp] = useState(false)
 
   useEffect(() => {
     if (location.state?.wrongRole) {
@@ -45,28 +51,64 @@ export default function VenueAuthPage() {
     })
   }
 
+  const completeAuth = (data) => {
+    login(data.access_token, data.user)
+    redirectAfterAuth()
+  }
+
   const handleEmailSubmit = async (event) => {
     event.preventDefault()
     setError("")
     setSubmitting(true)
 
     try {
-      const payload =
-        mode === "register"
-          ? { email, password, full_name: fullName || undefined }
-          : { email, password }
+      if (mode === "login") {
+        const data = await loginVenue({ email, password })
+        completeAuth(data)
+        return
+      }
 
-      const data =
-        mode === "register"
-          ? await registerVenue(payload)
-          : await loginVenue(payload)
-
-      login(data.access_token, data.user)
-      redirectAfterAuth()
+      const data = await registerVenue({
+        email,
+        password,
+        full_name: fullName || undefined,
+      })
+      setResendCooldownSeconds(data.resend_cooldown_seconds ?? 0)
+      setRegisterStep("verify")
     } catch (err) {
       setError(parseAuthError(err))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleVerifyOtp = async (otp) => {
+    setError("")
+    setSubmitting(true)
+
+    try {
+      const data = await verifySignupOtpVenue({ email, otp })
+      completeAuth(data)
+    } catch (err) {
+      setError(parseAuthError(err))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setError("")
+    setResendingOtp(true)
+
+    try {
+      const data = await resendSignupOtpVenue({ email })
+      setResendCooldownSeconds(data.resend_cooldown_seconds ?? 0)
+      return data.resend_cooldown_seconds ?? 0
+    } catch (err) {
+      setError(parseAuthError(err))
+      return 0
+    } finally {
+      setResendingOtp(false)
     }
   }
 
@@ -83,8 +125,7 @@ export default function VenueAuthPage() {
 
     try {
       const data = await loginWithGoogleVenue(idToken)
-      login(data.access_token, data.user)
-      redirectAfterAuth()
+      completeAuth(data)
     } catch {
       setGoogleError("Google sign-in failed. Please try again.")
     } finally {
@@ -94,9 +135,12 @@ export default function VenueAuthPage() {
 
   const toggleMode = () => {
     setMode((current) => (current === "login" ? "register" : "login"))
+    setRegisterStep("details")
     setError("")
     setPassword("")
   }
+
+  const showingOtpStep = mode === "register" && registerStep === "verify"
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,67 +157,91 @@ export default function VenueAuthPage() {
             </span>
 
             <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-foreground">
-              {mode === "login" ? "Sign in to BookMyVenue" : "Create your account"}
+              {showingOtpStep
+                ? "Verify your email"
+                : mode === "login"
+                  ? "Sign in to BookMyVenue"
+                  : "Create your account"}
             </h1>
 
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Manage venues, bookings and customers from one place.
+              {showingOtpStep
+                ? "Enter the verification code we sent to your email to finish creating your venue partner account."
+                : "Manage venues, bookings and customers from one place."}
             </p>
 
-            <div className="mt-6 flex justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() =>
-                  setGoogleError("Google sign-in was cancelled or failed.")
-                }
-                theme="outline"
-                size="large"
-                text="continue_with"
-                shape="rectangular"
-                width="360"
-                useOneTap={false}
+            {!showingOtpStep && (
+              <>
+                <div className="mt-6 flex justify-center">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() =>
+                      setGoogleError("Google sign-in was cancelled or failed.")
+                    }
+                    theme="outline"
+                    size="large"
+                    text="continue_with"
+                    shape="rectangular"
+                    width="360"
+                    useOneTap={false}
+                  />
+                </div>
+
+                {googleLoading && (
+                  <p className="mt-2 text-center text-sm text-muted-foreground">
+                    Signing you in...
+                  </p>
+                )}
+
+                {googleError && (
+                  <p className="mt-2 text-center text-sm text-red-600">
+                    {googleError}
+                  </p>
+                )}
+
+                <div className="my-6 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    or
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {methods.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setMethod(item.id)}
+                      className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                        method === item.id
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {showingOtpStep ? (
+              <SignupOtpVerification
+                email={email}
+                initialCooldownSeconds={resendCooldownSeconds}
+                onVerify={handleVerifyOtp}
+                onResend={handleResendOtp}
+                onBack={() => {
+                  setRegisterStep("details")
+                  setError("")
+                }}
+                verifying={submitting}
+                resending={resendingOtp}
+                error={error}
               />
-            </div>
-
-            {googleLoading && (
-              <p className="mt-2 text-center text-sm text-muted-foreground">
-                Signing you in...
-              </p>
-            )}
-
-            {googleError && (
-              <p className="mt-2 text-center text-sm text-red-600">
-                {googleError}
-              </p>
-            )}
-
-            <div className="my-6 flex items-center gap-3">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                or
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {methods.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setMethod(item.id)}
-                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                    method === item.id
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/40"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
-            {method === "phone" ? (
+            ) : method === "phone" ? (
               <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
                 Phone sign-in is coming soon. Please use email for now.
               </div>
@@ -253,22 +321,30 @@ export default function VenueAuthPage() {
                   {submitting
                     ? mode === "login"
                       ? "Signing in..."
-                      : "Creating account..."
+                      : "Sending verification code..."
                     : mode === "login"
                       ? "Sign in"
-                      : "Create account"}
+                      : "Continue"}
                 </button>
               </form>
             )}
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              {mode === "login" ? "New venue partner?" : "Already have an account?"}
+              {showingOtpStep
+                ? "Wrong email?"
+                : mode === "login"
+                  ? "New venue partner?"
+                  : "Already have an account?"}
               <button
                 type="button"
-                onClick={toggleMode}
+                onClick={showingOtpStep ? () => setRegisterStep("details") : toggleMode}
                 className="ml-1 font-semibold text-primary hover:underline"
               >
-                {mode === "login" ? "Create account" : "Sign in"}
+                {showingOtpStep
+                  ? "Edit signup details"
+                  : mode === "login"
+                    ? "Create account"
+                    : "Sign in"}
               </button>
             </p>
 

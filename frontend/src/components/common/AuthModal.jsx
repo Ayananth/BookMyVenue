@@ -7,8 +7,11 @@ import {
   loginWithGoogle,
   parseAuthError,
   registerUser,
+  resendSignupOtpUser,
+  verifySignupOtpUser,
 } from "../../apis/auth"
 import { useAuth } from "../../contexts/AuthContext"
+import SignupOtpVerification from "./SignupOtpVerification"
 
 const methods = [
   { id: "email", label: "Email", icon: Mail },
@@ -26,6 +29,9 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
   const [googleError, setGoogleError] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [registerStep, setRegisterStep] = useState("details")
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0)
+  const [resendingOtp, setResendingOtp] = useState(false)
 
   useEffect(() => {
     if (!open) return undefined
@@ -54,6 +60,9 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
       setGoogleError("")
       setSubmitting(false)
       setGoogleLoading(false)
+      setRegisterStep("details")
+      setResendCooldownSeconds(0)
+      setResendingOtp(false)
     }
   }, [open])
 
@@ -68,21 +77,53 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
     setSubmitting(true)
 
     try {
-      const payload =
-        mode === "register"
-          ? { email, password, full_name: fullName || undefined }
-          : { email, password }
+      if (mode === "login") {
+        const data = await loginUser({ email, password })
+        completeAuth(data)
+        return
+      }
 
-      const data =
-        mode === "register"
-          ? await registerUser(payload)
-          : await loginUser(payload)
+      const data = await registerUser({
+        email,
+        password,
+        full_name: fullName || undefined,
+      })
+      setResendCooldownSeconds(data.resend_cooldown_seconds ?? 0)
+      setRegisterStep("verify")
+    } catch (err) {
+      setError(parseAuthError(err))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
+  const handleVerifyOtp = async (otp) => {
+    setError("")
+    setSubmitting(true)
+
+    try {
+      const data = await verifySignupOtpUser({ email, otp })
       completeAuth(data)
     } catch (err) {
       setError(parseAuthError(err))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setError("")
+    setResendingOtp(true)
+
+    try {
+      const data = await resendSignupOtpUser({ email })
+      setResendCooldownSeconds(data.resend_cooldown_seconds ?? 0)
+      return data.resend_cooldown_seconds ?? 0
+    } catch (err) {
+      setError(parseAuthError(err))
+      return 0
+    } finally {
+      setResendingOtp(false)
     }
   }
 
@@ -108,9 +149,12 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
 
   const toggleMode = () => {
     setMode((current) => (current === "login" ? "register" : "login"))
+    setRegisterStep("details")
     setError("")
     setPassword("")
   }
+
+  const showingOtpStep = mode === "register" && registerStep === "verify"
 
   return (
     <AnimatePresence>
@@ -154,15 +198,23 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
                 id="auth-modal-title"
                 className="mt-2 font-serif text-3xl font-semibold tracking-tight text-foreground"
               >
-                {mode === "login" ? "Sign in to BookMyVenue" : "Create your account"}
+                {showingOtpStep
+                  ? "Verify your email"
+                  : mode === "login"
+                    ? "Sign in to BookMyVenue"
+                    : "Create your account"}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {message ||
-                  (mode === "login"
-                    ? "Sign in to book venues and manage your reservations."
-                    : "Create an account to book venues and track your bookings.")}
+                {showingOtpStep
+                  ? "Enter the verification code we sent to your email to finish creating your account."
+                  : message ||
+                    (mode === "login"
+                      ? "Sign in to book venues and manage your reservations."
+                      : "Create an account to book venues and track your bookings.")}
               </p>
 
+              {!showingOtpStep && (
+                <>
               <div className="mt-6 flex w-full justify-center">
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
@@ -215,8 +267,24 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
                   </button>
                 ))}
               </div>
+                </>
+              )}
 
-              {method === "phone" ? (
+              {showingOtpStep ? (
+                <SignupOtpVerification
+                  email={email}
+                  initialCooldownSeconds={resendCooldownSeconds}
+                  onVerify={handleVerifyOtp}
+                  onResend={handleResendOtp}
+                  onBack={() => {
+                    setRegisterStep("details")
+                    setError("")
+                  }}
+                  verifying={submitting}
+                  resending={resendingOtp}
+                  error={error}
+                />
+              ) : method === "phone" ? (
                 <div className="mt-5 rounded-xl border border-border bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
                   Phone sign-in is coming soon. Please use email for now.
                 </div>
@@ -295,22 +363,30 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
                     {submitting
                       ? mode === "login"
                         ? "Signing in..."
-                        : "Creating account..."
+                        : "Sending verification code..."
                       : mode === "login"
                         ? "Sign in with email"
-                        : "Create account"}
+                        : "Continue"}
                   </button>
                 </form>
               )}
 
               <p className="mt-5 text-center text-sm text-muted-foreground">
-                {mode === "login" ? "New to BookMyVenue?" : "Already have an account?"}
+                {showingOtpStep
+                  ? "Wrong email?"
+                  : mode === "login"
+                    ? "New to BookMyVenue?"
+                    : "Already have an account?"}
                 <button
                   type="button"
-                  onClick={toggleMode}
+                  onClick={showingOtpStep ? () => setRegisterStep("details") : toggleMode}
                   className="ml-2 font-semibold text-primary hover:underline"
                 >
-                  {mode === "login" ? "Create account" : "Sign in"}
+                  {showingOtpStep
+                    ? "Edit signup details"
+                    : mode === "login"
+                      ? "Create account"
+                      : "Sign in"}
                 </button>
               </p>
 

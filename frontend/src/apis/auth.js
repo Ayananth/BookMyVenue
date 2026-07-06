@@ -15,7 +15,49 @@ export function parseAuthError(error) {
   if (data.password) {
     return Array.isArray(data.password) ? data.password[0] : data.password
   }
+  if (data.otp) {
+    return Array.isArray(data.otp) ? data.otp[0] : data.otp
+  }
+  if (data.full_name) {
+    return Array.isArray(data.full_name) ? data.full_name[0] : data.full_name
+  }
   return "Something went wrong. Please try again."
+}
+
+export async function verifySignupOtpUser(payload) {
+  const { data } = await api.post(
+    "/users/register/verify-otp",
+    payload,
+    authConfig,
+  )
+  return data
+}
+
+export async function resendSignupOtpUser(payload) {
+  const { data } = await api.post(
+    "/users/register/resend-otp",
+    payload,
+    authConfig,
+  )
+  return data
+}
+
+export async function verifySignupOtpVenue(payload) {
+  const { data } = await api.post(
+    "/users/venue/register/verify-otp",
+    payload,
+    authConfig,
+  )
+  return data
+}
+
+export async function resendSignupOtpVenue(payload) {
+  const { data } = await api.post(
+    "/users/venue/register/resend-otp",
+    payload,
+    authConfig,
+  )
+  return data
 }
 
 export async function loginWithGoogle(idToken) {
