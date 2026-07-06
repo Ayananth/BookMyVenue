@@ -69,14 +69,13 @@ class RegisterSerializer(serializers.Serializer):
         validate_password(value)
         return value
 
-    def create(self, validated_data):
-        role = self.context["role"]
-        return User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            full_name=validated_data.get("full_name") or None,
-            role=role,
-        )
+    def validate_full_name(self, value):
+        if value in (None, ""):
+            return None
+        try:
+            return validate_full_name(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class LoginSerializer(serializers.Serializer):
@@ -126,14 +125,11 @@ class GoogleLoginSerializer(serializers.Serializer):
         return attrs
 
 
-class SendSignupOtpSerializer(serializers.Serializer):
+class ResendSignupOtpSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
     def validate_email(self, value):
-        email = User.objects.normalize_email(value)
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("Email already registered.")
-        return email
+        return User.objects.normalize_email(value)
 
 
 class VerifySignupOtpSerializer(serializers.Serializer):

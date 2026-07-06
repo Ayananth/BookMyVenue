@@ -8,19 +8,21 @@ from accounts.serializers import (
     GoogleLoginSerializer,
     LoginSerializer,
     RegisterSerializer,
-    SendSignupOtpSerializer,
+    ResendSignupOtpSerializer,
     UserSerializer,
     UserUpdateSerializer,
     VerifySignupOtpSerializer,
     build_token_response,
 )
-from notifications.services.otp_service import (
-    OtpMaxAttemptsExceededError,
-    OtpNotFoundError,
-    OtpResendCooldownError,
+from accounts.services.signup_session_service import (
+    SignupMaxAttemptsExceededError,
+    SignupResendCooldownError,
+    SignupRoleMismatchError,
+    SignupSessionError,
+    SignupSessionNotFoundError,
+    SignupSessionService,
 )
 from notifications.services.redis_client import RedisUnavailableError
-from notifications.services.signup_otp_service import SignupOtpService
 
 
 class RegisterView(APIView):
@@ -28,15 +30,27 @@ class RegisterView(APIView):
     role = UserRole.USER
 
     def post(self, request):
-        serializer = RegisterSerializer(
-            data=request.data,
-            context={"role": self.role},
-        )
+        serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+
+        try:
+            result = SignupSessionService.start_signup(
+                email=serializer.validated_data["email"],
+                password=serializer.validated_data["password"],
+                full_name=serializer.validated_data.get("full_name"),
+                role=self.role,
+            )
+        except SignupResendCooldownError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except RedisUnavailableError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
         return Response(
-            build_token_response(user),
-            status=status.HTTP_201_CREATED,
+            {
+                "detail": "Verification code sent. Complete signup with the OTP.",
+                **result,
+            },
+            status=status.HTTP_200_OK,
         )
 
 
@@ -90,23 +104,31 @@ class VenueGoogleLoginView(GoogleLoginView):
     role = UserRole.VENUE
 
 
-class SendSignupOtpView(APIView):
+class ResendSignupOtpView(APIView):
     permission_classes = [AllowAny]
+    role = UserRole.USER
 
     def post(self, request):
-        serializer = SendSignupOtpSerializer(data=request.data)
+        serializer = ResendSignupOtpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            result = SignupOtpService.send_email_otp(serializer.validated_data["email"])
-        except OtpResendCooldownError as exc:
+            result = SignupSessionService.resend_otp(
+                email=serializer.validated_data["email"],
+                role=self.role,
+            )
+        except SignupSessionNotFoundError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except SignupRoleMismatchError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except SignupResendCooldownError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
         except RedisUnavailableError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         return Response(
             {
-                "detail": "Verification code sent.",
+                "detail": "Verification code resent.",
                 **result,
             },
             status=status.HTTP_200_OK,
@@ -115,6 +137,7 @@ class SendSignupOtpView(APIView):
 
 class VerifySignupOtpView(APIView):
     permission_classes = [AllowAny]
+    role = UserRole.USER
 
     def post(self, request):
         serializer = VerifySignupOtpSerializer(data=request.data)
@@ -124,27 +147,42 @@ class VerifySignupOtpView(APIView):
         otp = serializer.validated_data["otp"]
 
         try:
-            verified = SignupOtpService.verify_email_otp(email, otp)
-        except OtpNotFoundError as exc:
+            user = SignupSessionService.verify_and_create_user(
+                email=email,
+                otp=otp,
+                role=self.role,
+            )
+        except SignupSessionNotFoundError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        except OtpMaxAttemptsExceededError as exc:
+        except SignupRoleMismatchError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except SignupMaxAttemptsExceededError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except SignupSessionError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except RedisUnavailableError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        if not verified:
-            return Response(
-                {"detail": "Invalid verification code."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         return Response(
-            {
-                "verified": True,
-                "email": email.strip().lower(),
-            },
-            status=status.HTTP_200_OK,
+            build_token_response(user),
+            status=status.HTTP_201_CREATED,
         )
+
+
+class UserResendSignupOtpView(ResendSignupOtpView):
+    role = UserRole.USER
+
+
+class VenueResendSignupOtpView(ResendSignupOtpView):
+    role = UserRole.VENUE
+
+
+class UserVerifySignupOtpView(VerifySignupOtpView):
+    role = UserRole.USER
+
+
+class VenueVerifySignupOtpView(VerifySignupOtpView):
+    role = UserRole.VENUE
 
 
 class MeView(APIView):
