@@ -146,6 +146,7 @@ class VenueDetailSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "address",
+            "google_maps_url",
             "capacity",
             "contact_name",
             "contact_phone",
@@ -199,6 +200,7 @@ class VenueWriteSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "address",
+            "google_maps_url",
             "capacity",
             "booking_type",
             "contact_name",
@@ -207,6 +209,9 @@ class VenueWriteSerializer(serializers.ModelSerializer):
             "amenities",
             "images",
         )
+        extra_kwargs = {
+            "google_maps_url": {"required": False, "allow_blank": True, "allow_null": True},
+        }
 
     def validate_capacity(self, value):
         if value <= 0:
@@ -216,6 +221,11 @@ class VenueWriteSerializer(serializers.ModelSerializer):
     def validate_booking_type(self, value):
         if value not in BookingType.values:
             raise serializers.ValidationError("Invalid booking type.")
+        return value
+
+    def validate_google_maps_url(self, value):
+        if value == "":
+            return None
         return value
 
     def validate_images(self, value):
@@ -274,6 +284,7 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "address",
+            "google_maps_url",
             "capacity",
             "booking_type",
             "contact_name",
@@ -287,12 +298,18 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "name": {"required": False},
             "address": {"required": False},
+            "google_maps_url": {"required": False, "allow_blank": True, "allow_null": True},
             "capacity": {"required": False},
             "booking_type": {"required": False},
             "contact_name": {"required": False},
             "contact_phone": {"required": False},
             "contact_email": {"required": False},
         }
+
+    def validate_google_maps_url(self, value):
+        if value == "":
+            return None
+        return value
 
     def validate_slug(self, value):
         queryset = Venue.objects.filter(slug=value)

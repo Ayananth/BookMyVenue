@@ -44,6 +44,7 @@ const EMPTY_FORM = {
   district: "",
   city: "",
   address: "",
+  googleMapsUrl: "",
   description: "",
   capacity: "",
   bookingType: "",
@@ -800,6 +801,29 @@ const uploadFiles = async (files) => {
                     })
                   }
                 />
+              </div>
+
+              {/* Google Maps URL */}
+              <div className="md:col-span-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90 mb-2 block">
+                  Google Maps URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://maps.google.com/..."
+                  className={fieldClass(fieldsDisabled)}
+                  value={formData.googleMapsUrl}
+                  disabled={fieldsDisabled}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      googleMapsUrl: e.target.value,
+                    })
+                  }
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Paste the Google Maps link so guests can get directions to your venue.
+                </p>
               </div>
             </div>
           </motion.section>
