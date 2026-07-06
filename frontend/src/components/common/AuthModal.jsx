@@ -67,7 +67,7 @@ export default function AuthModal({ open, onClose, onSuccess, message }) {
   }, [open])
 
   const completeAuth = (data) => {
-    login(data.access_token, data.user)
+    login(data)
     onSuccess?.()
   }
 

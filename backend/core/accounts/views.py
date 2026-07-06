@@ -3,10 +3,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import UserRole
+from accounts.models import User, UserRole
 from accounts.serializers import (
     GoogleLoginSerializer,
     LoginSerializer,
+    RefreshSerializer,
     RegisterSerializer,
     ResendSignupOtpSerializer,
     UserSerializer,
@@ -14,6 +15,7 @@ from accounts.serializers import (
     VerifySignupOtpSerializer,
     build_token_response,
 )
+from accounts.security import create_access_token, decode_refresh_token
 from accounts.services.signup_session_service import (
     SignupMaxAttemptsExceededError,
     SignupResendCooldownError,
@@ -183,6 +185,42 @@ class UserVerifySignupOtpView(VerifySignupOtpView):
 
 class VenueVerifySignupOtpView(VerifySignupOtpView):
     role = UserRole.VENUE
+
+
+class RefreshView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RefreshSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_id = decode_refresh_token(serializer.validated_data["refresh_token"])
+        if user_id is None:
+            return Response(
+                {"detail": "Invalid or expired refresh token."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not user.is_active or user.is_blocked:
+            return Response(
+                {"detail": "Account is disabled."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        return Response(
+            {
+                "access_token": create_access_token(user.id),
+                "token_type": "bearer",
+            },
+        )
 
 
 class MeView(APIView):

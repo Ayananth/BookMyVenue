@@ -1,21 +1,68 @@
 import axios from "axios";
+import {
+  TOKEN_KEY,
+  clearAuthStorage,
+  getRefreshToken,
+  setAccessToken,
+} from "./authStorage";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  "http://127.0.0.1:8000";
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VITE_API_URL ||
-    "http://127.0.0.1:8000",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
   withCredentials: true,
 });
 
+const refreshClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+let isRefreshing = false;
+let failedQueue = [];
+
+function processQueue(error, token = null) {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+    resolve(token);
+  });
+  failedQueue = [];
+}
+
+function logoutOnUnauthorized() {
+  clearAuthStorage();
+  window.dispatchEvent(new Event("auth:unauthorized"));
+}
+
+function shouldSkipTokenRefresh(config) {
+  const url = config?.url ?? "";
+  return (
+    url.includes("/users/refresh") ||
+    url.includes("/users/login") ||
+    url.includes("/users/venue/login") ||
+    url.includes("/users/register") ||
+    url.includes("/users/venue/register") ||
+    url.includes("/users/google") ||
+    url.includes("/users/venue/google")
+  );
+}
+
 export default api;
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem(TOKEN_KEY);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -29,12 +76,50 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("user");
-      window.dispatchEvent(new Event("auth:unauthorized"));
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest._retry ||
+      shouldSkipTokenRefresh(originalRequest)
+    ) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      logoutOnUnauthorized();
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api(originalRequest);
+      });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const { data } = await refreshClient.post("/users/refresh", {
+        refresh_token: refreshToken,
+      });
+
+      setAccessToken(data.access_token);
+      processQueue(null, data.access_token);
+      originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      logoutOnUnauthorized();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );

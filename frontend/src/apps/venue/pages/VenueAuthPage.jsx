@@ -52,7 +52,7 @@ export default function VenueAuthPage() {
   }
 
   const completeAuth = (data) => {
-    login(data.access_token, data.user)
+    login(data)
     redirectAfterAuth()
   }
 

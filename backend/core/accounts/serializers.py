@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from accounts.google_auth import login_or_register_with_google, verify_google_id_token
 from accounts.models import User, UserRole
-from accounts.security import create_access_token
+from accounts.security import create_access_token, create_refresh_token
 from accounts.validators import validate_full_name, validate_phone
 
 
@@ -147,9 +147,14 @@ class VerifySignupOtpSerializer(serializers.Serializer):
         return otp
 
 
+class RefreshSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField()
+
+
 def build_token_response(user: User) -> dict:
     return {
         "access_token": create_access_token(user.id),
+        "refresh_token": create_refresh_token(user.id),
         "token_type": "bearer",
         "user": UserSerializer(user).data,
     }

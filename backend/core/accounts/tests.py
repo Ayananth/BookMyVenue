@@ -264,3 +264,73 @@ class GoogleLoginViewTests(TestCase):
         if isinstance(detail, list):
             detail = detail[0]
         self.assertIn("not configured", detail.lower())
+
+
+class RefreshTokenTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email="refresh@example.com",
+            password="SecurePass123!",
+            role=UserRole.USER,
+        )
+
+    def test_login_returns_refresh_token(self):
+        response = self.client.post(
+            "/users/login",
+            {"email": self.user.email, "password": "SecurePass123!"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("refresh_token", response.data)
+        self.assertIn("access_token", response.data)
+
+    def test_refresh_returns_new_access_token(self):
+        login_response = self.client.post(
+            "/users/login",
+            {"email": self.user.email, "password": "SecurePass123!"},
+            format="json",
+        )
+        refresh_token = login_response.data["refresh_token"]
+
+        response = self.client.post(
+            "/users/refresh",
+            {"refresh_token": refresh_token},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access_token", response.data)
+        self.assertNotIn("refresh_token", response.data)
+
+        me_response = self.client.get(
+            "/users/me",
+            HTTP_AUTHORIZATION=f"Bearer {response.data['access_token']}",
+        )
+        self.assertEqual(me_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(me_response.data["email"], self.user.email)
+
+    def test_refresh_rejects_invalid_token(self):
+        response = self.client.post(
+            "/users/refresh",
+            {"refresh_token": "invalid-token"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_refresh_rejects_access_token(self):
+        login_response = self.client.post(
+            "/users/login",
+            {"email": self.user.email, "password": "SecurePass123!"},
+            format="json",
+        )
+
+        response = self.client.post(
+            "/users/refresh",
+            {"refresh_token": login_response.data["access_token"]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

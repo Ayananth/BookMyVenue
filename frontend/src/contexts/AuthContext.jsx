@@ -7,11 +7,14 @@ import {
   useState,
 } from "react"
 import { fetchCurrentUser } from "../apis/auth"
+import {
+  REFRESH_TOKEN_KEY,
+  TOKEN_KEY,
+  USER_KEY,
+  clearAuthStorage,
+} from "../lib/authStorage"
 
 const AuthContext = createContext(null)
-
-const TOKEN_KEY = "access_token"
-const USER_KEY = "user"
 
 function readStoredUser() {
   const raw = localStorage.getItem(USER_KEY)
@@ -29,15 +32,17 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    clearAuthStorage()
     setUser(null)
   }, [])
 
-  const login = useCallback((accessToken, nextUser) => {
-    localStorage.setItem(TOKEN_KEY, accessToken)
-    localStorage.setItem(USER_KEY, JSON.stringify(nextUser))
-    setUser(nextUser)
+  const login = useCallback((authData) => {
+    localStorage.setItem(TOKEN_KEY, authData.access_token)
+    if (authData.refresh_token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token)
+    }
+    localStorage.setItem(USER_KEY, JSON.stringify(authData.user))
+    setUser(authData.user)
   }, [])
 
   const updateUser = useCallback((nextUser) => {

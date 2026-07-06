@@ -2,6 +2,7 @@ from django.urls import path
 
 from accounts.views import (
     MeView,
+    RefreshView,
     UserGoogleLoginView,
     UserLoginView,
     UserRegisterView,
@@ -27,6 +28,7 @@ urlpatterns = [
         name="user-verify-signup-otp",
     ),
     path("login", UserLoginView.as_view(), name="user-login"),
+    path("refresh", RefreshView.as_view(), name="user-refresh"),
     path("google", UserGoogleLoginView.as_view(), name="user-google-login"),
     path("me", MeView.as_view(), name="user-me"),
     path("venue/register", VenueRegisterView.as_view(), name="venue-register"),
