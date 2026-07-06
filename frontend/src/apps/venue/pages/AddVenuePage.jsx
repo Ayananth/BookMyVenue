@@ -15,6 +15,7 @@ import {
   Phone,
   Pencil,
   CalendarClock,
+  Settings,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -37,6 +38,7 @@ import HourlySlotsTab from "@/apps/venue/components/HourlySlotsTab"
 import SessionSlotsTab from "@/apps/venue/components/SessionSlotsTab"
 import FullDaySlotsTab from "@/apps/venue/components/FullDaySlotsTab"
 import ScheduleOverridesPanel from "@/apps/venue/components/ScheduleOverridesPanel"
+import VenueSettingsTab from "@/apps/venue/components/VenueSettingsTab"
 
 const EMPTY_FORM = {
   name: "",
@@ -238,7 +240,7 @@ const handleDrop = async (e) => {
 }
 
   const handleTabChange = (tab) => {
-    if (tab === "slots" && isEditing && venue) {
+    if ((tab === "slots" || tab === "settings") && isEditing && venue) {
       applyVenueToForm(venue)
       setAmenityInput("")
       setSubmitError("")
@@ -464,12 +466,19 @@ const uploadFiles = async (files) => {
                 {statusLabel}
               </span>
             )}
+            {isEditMode && venue && venue.is_active === false && (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                Not accepting bookings
+              </span>
+            )}
           </div>
 
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
             {isEditMode
               ? activeTab === "slots"
                 ? "Configure opening hours and booking slots for this venue."
+                : activeTab === "settings"
+                  ? "Control whether your venue is accepting new bookings."
                 : fieldsDisabled
                   ? "View your venue details. Click Edit to make changes."
                   : "Edit your venue details and save changes instantly."
@@ -555,10 +564,27 @@ const uploadFiles = async (files) => {
             <CalendarClock size={16} />
             Slots
           </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("settings")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              activeTab === "settings"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Settings size={16} />
+            Settings
+          </button>
         </div>
       )}
 
-      {isEditMode && activeTab === "slots" ? (
+      {isEditMode && activeTab === "settings" ? (
+        <VenueSettingsTab
+          venue={venue}
+          onVenueUpdate={applyVenueToForm}
+        />
+      ) : isEditMode && activeTab === "slots" ? (
         (() => {
           const bookingType = venue?.booking_type ?? formData.bookingType
           if (!bookingType) {

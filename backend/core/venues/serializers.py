@@ -334,6 +334,14 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid status.")
         return value
 
+    def validate_is_active(self, value):
+        user = self.context["request"].user
+        if user.role != UserRole.ADMIN and value != self.instance.is_active:
+            raise serializers.ValidationError(
+                "Use the active status endpoint to change venue availability.",
+            )
+        return value
+
     def validate_images(self, value):
         if value is None:
             return value
@@ -355,6 +363,10 @@ class VenueUpdateSerializer(serializers.ModelSerializer):
             save_venue_images(instance, images_data)
 
         return instance
+
+
+class VenueActiveStatusSerializer(serializers.Serializer):
+    is_active = serializers.BooleanField()
 
 
 class VenueScheduleSerializer(serializers.ModelSerializer):

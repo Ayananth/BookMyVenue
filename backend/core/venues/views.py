@@ -38,6 +38,7 @@ from venues.serializers import (
     CityDropdownSerializer,
     DistrictSerializer,
     DistrictCityGroupSerializer,
+    VenueActiveStatusSerializer,
     VenueCategorySerializer,
     VenueDetailSerializer,
     VenueListSerializer,
@@ -380,6 +381,22 @@ class VenueDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         venue = serializer.save()
+        venue = _get_venue_detail(request, venue.slug)
+        return Response(_detail_response(venue))
+
+
+class VenueActiveStatusView(APIView):
+    permission_classes = [CanManageVenues, IsVenueOwnerOrAdmin]
+
+    def patch(self, request, slug):
+        venue = get_object_or_404(Venue.objects.select_related("owner"), slug=slug)
+        self.check_object_permissions(request, venue)
+
+        serializer = VenueActiveStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        venue.is_active = serializer.validated_data["is_active"]
+        venue.save(update_fields=["is_active", "updated_at"])
         venue = _get_venue_detail(request, venue.slug)
         return Response(_detail_response(venue))
 

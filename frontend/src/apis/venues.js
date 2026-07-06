@@ -28,6 +28,15 @@ export async function updateVenue(slug, payload) {
   return data
 }
 
+export async function updateVenueActiveStatus(slug, isActive) {
+  const { data } = await api.patch(
+    `/venues/${slug}/active/`,
+    { is_active: isActive },
+    apiConfig,
+  )
+  return data
+}
+
 export function venueToFormState(venue) {
   return {
     name: venue.name ?? "",
