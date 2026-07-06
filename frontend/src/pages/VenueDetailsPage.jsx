@@ -360,9 +360,23 @@ export default function VenueDetailsPage() {
                         <MapPin size={18} className="text-primary" />
                         {venue.address}
                       </p>
-                      <div className="bg-muted rounded-lg h-64 mt-4 flex items-center justify-center text-muted-foreground">
-                        Map view coming soon
-                      </div>
+                      {venue.googleMapsUrl ? (
+                        <a
+                          href={venue.googleMapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-muted rounded-lg h-64 mt-4 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/80 hover:text-primary transition cursor-pointer group"
+                          aria-label="Open location in Google Maps"
+                        >
+                          <MapPin size={32} className="text-primary group-hover:scale-110 transition" />
+                          <span className="font-medium">Open in Google Maps</span>
+                          <span className="text-sm">Click to view directions</span>
+                        </a>
+                      ) : (
+                        <div className="bg-muted rounded-lg h-64 mt-4 flex items-center justify-center text-muted-foreground">
+                          Map view coming soon
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Reveal>

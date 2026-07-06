@@ -215,6 +215,7 @@ export function toVenueDetailPage(venue) {
     name: venue.name,
     location,
     address: venue.address ?? "",
+    googleMapsUrl: venue.google_maps_url ?? "",
     type,
     capacity: venue.capacity,
     price: formattedPrice,
