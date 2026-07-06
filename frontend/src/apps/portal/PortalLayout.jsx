@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Building2,
   CalendarDays,
+  IndianRupee,
   Users,
   Settings,
   LogOut,
@@ -42,6 +43,11 @@ export default function PortalLayout({
       label: "Bookings",
       icon: CalendarDays,
       path: "/venue/bookings",
+    },
+    {
+      label: "Transactions",
+      icon: IndianRupee,
+      path: "/venue/transactions",
     },
     {
       label: "Customers",

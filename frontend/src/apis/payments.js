@@ -36,3 +36,56 @@ export async function verifyPayment({
   )
   return data
 }
+
+export function transactionFromApi(entry) {
+  const venue = entry.venue ?? {}
+  const customer = entry.customer ?? {}
+
+  return {
+    id: entry.id,
+    provider: entry.provider ?? "",
+    status: entry.status ?? "",
+    amount: Number(entry.amount ?? 0),
+    currency: entry.currency ?? "INR",
+    verifiedAt: entry.verified_at ?? null,
+    createdAt: entry.created_at ?? null,
+    razorpayOrderId: entry.razorpay_order_id ?? "",
+    razorpayPaymentId: entry.razorpay_payment_id ?? null,
+    bookingId: entry.booking_id ?? null,
+    bookingStatus: entry.booking_status ?? null,
+    eventDate: entry.event_date ?? null,
+    venueName: venue.name ?? "",
+    venueSlug: venue.slug ?? "",
+    customerName: customer.full_name ?? "",
+    customerEmail: customer.email ?? "",
+    customerPhone: customer.phone ?? "",
+  }
+}
+
+export function transactionSummaryFromApi(entry) {
+  return {
+    totalCollected: Number(entry.total_collected ?? 0),
+    collectedThisMonth: Number(entry.collected_this_month ?? 0),
+    successfulCount: entry.successful_count ?? 0,
+    pendingCount: entry.pending_count ?? 0,
+    failedCount: entry.failed_count ?? 0,
+    refundedTotal: Number(entry.refunded_total ?? 0),
+    transactionCount: entry.transaction_count ?? 0,
+  }
+}
+
+export async function fetchOwnerTransactions(params = {}) {
+  const { data } = await api.get("/payments/transactions/", {
+    ...apiConfig,
+    params: { mine: true, limit: 100, ...params },
+  })
+
+  const results = data.results ?? data
+  return {
+    transactions: (Array.isArray(results) ? results : []).map(transactionFromApi),
+    summary: transactionSummaryFromApi(data.summary ?? {}),
+    count: data.count ?? 0,
+    next: data.next ?? null,
+    previous: data.previous ?? null,
+  }
+}

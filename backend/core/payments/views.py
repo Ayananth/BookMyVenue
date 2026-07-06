@@ -1,8 +1,12 @@
+from datetime import datetime
+
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.models import UserRole
 from bookings.exceptions import (
     BookingError,
     BookingSessionExpiredError,
@@ -19,6 +23,8 @@ from bookings.models import BookingSession
 from bookings.services.payment_service import PaymentService
 
 from payments.serializers import (
+    OwnerTransactionSerializer,
+    OwnerTransactionSummarySerializer,
     PaymentVerificationResponseSerializer,
     PaymentVerificationSerializer,
 )
@@ -34,6 +40,77 @@ PAYMENT_ERROR_STATUS = {
     PaymentAlreadyProcessedError: status.HTTP_409_CONFLICT,
     SlotAlreadyBookedError: status.HTTP_409_CONFLICT,
 }
+
+
+class TransactionPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "limit"
+    max_page_size = 100
+
+
+class OwnerTransactionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        mine = request.query_params.get("mine") == "true"
+
+        if not mine:
+            return Response(
+                {"message": "Use ?mine=true to list your transactions."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.role not in (UserRole.VENUE, UserRole.ADMIN):
+            return Response(
+                {"message": "Only venue owners can list their transactions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        venue_slug = request.query_params.get("venue") or None
+        payment_status = request.query_params.get("status") or None
+        date_from = self._parse_date(request.query_params.get("date_from"))
+        date_to = self._parse_date(request.query_params.get("date_to"))
+
+        if request.query_params.get("date_from") and date_from is None:
+            return Response(
+                {"message": "Invalid date_from. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if request.query_params.get("date_to") and date_to is None:
+            return Response(
+                {"message": "Invalid date_to. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        queryset = PaymentService.get_owner_payments(
+            user,
+            venue_slug=venue_slug,
+            status=payment_status,
+            date_from=date_from,
+            date_to=date_to,
+        )
+
+        summary = PaymentService.get_owner_payment_summary(
+            user,
+            venue_slug=venue_slug,
+        )
+
+        paginator = TransactionPagination()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = OwnerTransactionSerializer(page, many=True)
+        response = paginator.get_paginated_response(serializer.data)
+        response.data["summary"] = OwnerTransactionSummarySerializer(summary).data
+        return response
+
+    @staticmethod
+    def _parse_date(value: str | None):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            return None
 
 
 class PaymentVerifyView(APIView):
