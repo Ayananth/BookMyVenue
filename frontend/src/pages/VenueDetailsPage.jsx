@@ -5,6 +5,7 @@ import { Star, MapPin, Users, IndianRupee, Clock, Phone, Mail, ChevronLeft, Hear
 import { fetchRelatedVenues, fetchVenueDetail, formatVenuePrice } from "../apis/venues"
 import Reveal from "../components/common/Reveal"
 import VenueBookingModal from "../components/venues/VenueBookingModal"
+import VenueMapPreview from "../components/venues/VenueMapPreview"
 import { useAuth } from "../contexts/AuthContext"
 import { useAuthModal } from "../contexts/AuthModalContext"
 import MainLayout from "../layouts/MainLayout"
@@ -360,18 +361,11 @@ export default function VenueDetailsPage() {
                         <MapPin size={18} className="text-primary" />
                         {venue.address}
                       </p>
-                      {venue.googleMapsUrl ? (
-                        <a
-                          href={venue.googleMapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-muted rounded-lg h-64 mt-4 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:bg-muted/80 hover:text-primary transition cursor-pointer group"
-                          aria-label="Open location in Google Maps"
-                        >
-                          <MapPin size={32} className="text-primary group-hover:scale-110 transition" />
-                          <span className="font-medium">Open in Google Maps</span>
-                          <span className="text-sm">Click to view directions</span>
-                        </a>
+                      {venue.address ? (
+                        <VenueMapPreview
+                          address={venue.address}
+                          mapsUrl={venue.googleMapsUrl || null}
+                        />
                       ) : (
                         <div className="bg-muted rounded-lg h-64 mt-4 flex items-center justify-center text-muted-foreground">
                           Map view coming soon
