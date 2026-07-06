@@ -58,16 +58,30 @@ function shouldSkipTokenRefresh(config) {
   );
 }
 
+function setAuthorizationHeader(config, token) {
+  if (!token) return;
+
+  if (config.headers?.set) {
+    config.headers.set("Authorization", `Bearer ${token}`);
+    return;
+  }
+
+  config.headers = config.headers ?? {};
+  config.headers.Authorization = `Bearer ${token}`;
+}
+
+function shouldAttemptTokenRefresh(status) {
+  // DRF returns 401 when a bearer token is invalid/expired, but 403 when no
+  // credentials were provided. Both should trigger refresh when possible.
+  return status === 401 || status === 403;
+}
+
 export default api;
 
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(TOKEN_KEY);
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
+    setAuthorizationHeader(config, token);
     return config;
   },
   (error) => Promise.reject(error),
@@ -78,18 +92,22 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    const status = error.response?.status;
+
     if (
-      error.response?.status !== 401 ||
       !originalRequest ||
       originalRequest._retry ||
-      shouldSkipTokenRefresh(originalRequest)
+      shouldSkipTokenRefresh(originalRequest) ||
+      !shouldAttemptTokenRefresh(status)
     ) {
       return Promise.reject(error);
     }
 
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
-      logoutOnUnauthorized();
+      if (status === 401) {
+        logoutOnUnauthorized();
+      }
       return Promise.reject(error);
     }
 
@@ -97,7 +115,7 @@ api.interceptors.response.use(
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        setAuthorizationHeader(originalRequest, token);
         return api(originalRequest);
       });
     }
@@ -112,7 +130,7 @@ api.interceptors.response.use(
 
       setAccessToken(data.access_token);
       processQueue(null, data.access_token);
-      originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+      setAuthorizationHeader(originalRequest, data.access_token);
       return api(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
