@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Star, MapPin, Users, DollarSign, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check } from "lucide-react"
+import { Star, MapPin, Users, IndianRupee, Clock, Phone, Mail, ChevronLeft, Heart, Share2, Check } from "lucide-react"
 import { fetchRelatedVenues, fetchVenueDetail, formatVenuePrice } from "../apis/venues"
 import Reveal from "../components/common/Reveal"
 import VenueBookingModal from "../components/venues/VenueBookingModal"
@@ -248,7 +248,7 @@ export default function VenueDetailsPage() {
                     whileHover={{ translateY: -4 }}
                     className="bg-card border border-border rounded-xl p-4 text-center"
                   >
-                    <DollarSign size={24} className="mx-auto mb-2 text-primary" />
+                    <IndianRupee size={24} className="mx-auto mb-2 text-primary" />
                     <p className="text-sm text-muted-foreground">Price</p>
                     <p className="font-bold text-lg">{venue.price ?? "On request"}</p>
                   </motion.div>

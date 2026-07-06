@@ -12,7 +12,7 @@ const benefits = [
 const ownerStats = [
   { icon: TrendingUp, value: "+38%", label: "Avg. booking growth" },
   { icon: CalendarRange, value: "12 min", label: "To publish a listing" },
-  { icon: Wallet, value: "$0", label: "To get started" },
+  { icon: Wallet, value: "₹0", label: "To get started" },
 ]
 
 export default function ForOwners() {

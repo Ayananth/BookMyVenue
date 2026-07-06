@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
-import { CalendarDays, Clock, DollarSign, Tag } from "lucide-react"
+import { CalendarDays, Clock, IndianRupee, Tag } from "lucide-react"
 import { formatVenuePrice } from "../../apis/venues"
 import { useAuth } from "../../contexts/AuthContext"
 import {
@@ -211,7 +211,7 @@ export default function BookingConfirmationContent({
       <div className="mt-4 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <DollarSign size={18} />
+            <IndianRupee size={18} />
           </div>
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
