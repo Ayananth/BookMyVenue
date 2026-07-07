@@ -17,23 +17,26 @@
 {% block content %}
     {% if bmv_dashboard_stats %}
         <div class="col-12">
-            <div class="row bmv-dashboard-stats">
-                {% for stat in bmv_dashboard_stats %}
-                    <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6 mb-3">
-                        <a href="{{ stat.url }}" class="bmv-stat-card bmv-stat-card-{{ stat.color }}">
-                            <div class="bmv-stat-card-body">
-                                <div class="bmv-stat-card-icon">
-                                    <i class="{{ stat.icon }}"></i>
+            {% for section in bmv_dashboard_stats %}
+                <h2 class="bmv-dashboard-section-title">{{ section.title }}</h2>
+                <div class="row bmv-dashboard-stats">
+                    {% for stat in section.cards %}
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6 mb-3">
+                            <a href="{{ stat.url }}" class="bmv-stat-card bmv-stat-card-{{ stat.color }}">
+                                <div class="bmv-stat-card-body">
+                                    <div class="bmv-stat-card-icon">
+                                        <i class="{{ stat.icon }}"></i>
+                                    </div>
+                                    <div class="bmv-stat-card-content">
+                                        <p class="bmv-stat-card-label">{{ stat.label }}</p>
+                                        <h3 class="bmv-stat-card-value">{{ stat.value }}</h3>
+                                    </div>
                                 </div>
-                                <div class="bmv-stat-card-content">
-                                    <p class="bmv-stat-card-label">{{ stat.label }}</p>
-                                    <h3 class="bmv-stat-card-value">{{ stat.value }}</h3>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                {% endfor %}
-            </div>
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
         </div>
     {% endif %}
 
