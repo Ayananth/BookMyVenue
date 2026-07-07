@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
-import { ArrowRight, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
-import LocationPicker from "../components/venues/LocationPicker"
+import LocationPickerModal from "../components/venues/LocationPickerModal"
 import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories, fetchVenueLocationGroups } from "../apis/venues"
 import {
@@ -207,6 +207,7 @@ export default function ExploreVenuesPage() {
   })
   const [locationGroups, setLocationGroups] = useState([])
   const [loadingLocations, setLoadingLocations] = useState(true)
+  const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [liked, setLiked] = useState({})
 
   useEffect(() => {
@@ -346,6 +347,17 @@ export default function ExploreVenuesPage() {
     [categories],
   )
 
+  const selectedCity = useMemo(
+    () => findCityInGroups(locationGroups, filters.cityId),
+    [locationGroups, filters.cityId],
+  )
+
+  const locationLabel = selectedCity
+    ? `${selectedCity.name}, ${selectedCity.districtName}`
+    : loadingLocations
+      ? "Loading..."
+      : "All locations"
+
   const hasActiveFilters = useMemo(() => {
     return (
       searchQuery !== "" ||
@@ -402,11 +414,6 @@ export default function ExploreVenuesPage() {
     }
   }
 
-  const handleLocationClear = () => {
-    clearSavedLocationPreference()
-    updateFilter("cityId", null)
-  }
-
   const handleSearch = (event) => {
     event.preventDefault()
     if (debounceTimerRef.current) {
@@ -457,8 +464,19 @@ export default function ExploreVenuesPage() {
           <Reveal delay={0.08}>
             <form
               onSubmit={handleSearch}
-              className="mt-10 flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-[0_12px_40px_rgba(27,36,29,0.07)] sm:flex-row sm:items-center"
+              className="mt-10 flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 shadow-[0_12px_40px_rgba(27,36,29,0.07)] sm:flex-row sm:items-center sm:gap-1"
             >
+              <button
+                type="button"
+                onClick={() => setLocationModalOpen(true)}
+                disabled={loadingLocations}
+                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 sm:w-[220px] sm:shrink-0"
+              >
+                <MapPin className="h-5 w-5 shrink-0 text-primary" />
+                <span className="min-w-0 flex-1 truncate text-left">{locationLabel}</span>
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+              <span className="hidden h-7 w-px shrink-0 bg-border sm:block" />
               <div className="flex flex-1 items-center gap-3 px-3 py-2">
                 <Search className="h-5 w-5 shrink-0 text-primary" />
                 <input
@@ -496,6 +514,15 @@ export default function ExploreVenuesPage() {
             </form>
           </Reveal>
 
+          <LocationPickerModal
+            open={locationModalOpen}
+            onClose={() => setLocationModalOpen(false)}
+            locationGroups={locationGroups}
+            loading={loadingLocations}
+            selectedCityId={filters.cityId}
+            onSelect={handleLocationSelect}
+          />
+
           <Reveal delay={0.12}>
             <section className="mt-6">
               <div className="border-y border-border py-5">
@@ -511,14 +538,7 @@ export default function ExploreVenuesPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.25fr_1fr_1fr_1fr_auto] lg:items-end">
-                  <LocationPicker
-                    locationGroups={locationGroups}
-                    selectedCityId={filters.cityId}
-                    onSelect={handleLocationSelect}
-                    onClear={handleLocationClear}
-                    loading={loadingLocations}
-                  />
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
                   <FilterSelect
                     label="Category"
                     value={filters.categoryId == null ? "" : String(filters.categoryId)}
