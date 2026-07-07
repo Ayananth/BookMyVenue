@@ -1,3 +1,5 @@
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { Search, Star, Calendar, ArrowRight, ShieldCheck } from "lucide-react"
 
@@ -8,6 +10,15 @@ const stats = [
 ]
 
 export default function Hero() {
+  const navigate = useNavigate()
+  const [searchInput, setSearchInput] = useState("")
+
+  const handleSearch = (event) => {
+    event.preventDefault()
+    const query = searchInput.trim()
+    navigate("/venues", query ? { state: { search: query } } : undefined)
+  }
+
   return (
     <section id="top" className="relative overflow-hidden px-4 pt-32 pb-16 sm:pt-36">
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
@@ -43,7 +54,8 @@ export default function Hero() {
           </motion.p>
 
           {/* Search bar */}
-          <motion.div
+          <motion.form
+            onSubmit={handleSearch}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.18 }}
@@ -53,18 +65,20 @@ export default function Hero() {
               <Search className="h-5 w-5 shrink-0 text-primary" />
               <input
                 type="text"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search by city, venue, or event type"
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </div>
-            <a
-              href="/venues"
+            <button
+              type="submit"
               className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               Explore venues
               <ArrowRight className="h-4 w-4" />
-            </a>
-          </motion.div>
+            </button>
+          </motion.form>
 
           <motion.div
             initial={{ opacity: 0 }}

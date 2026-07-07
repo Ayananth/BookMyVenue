@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
@@ -227,6 +227,9 @@ function VenueCard({ venue, liked, onToggleLike }) {
 }
 
 export default function ExploreVenuesPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const initialSearch = (location.state?.search ?? "").trim()
   const resultsRef = useRef(null)
   const isInitialLoad = useRef(true)
   const hasRestoredLocationRef = useRef(false)
@@ -237,8 +240,8 @@ export default function ExploreVenuesPage() {
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
-  const [searchInput, setSearchInput] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchInput, setSearchInput] = useState(initialSearch)
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [filters, setFilters] = useState(initialFilters)
   const [locationGroups, setLocationGroups] = useState([])
   const [loadingLocations, setLoadingLocations] = useState(true)
@@ -252,6 +255,12 @@ export default function ExploreVenuesPage() {
       }
     }
   }, [])
+
+  useEffect(() => {
+    if (location.state?.search != null) {
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.pathname, location.state, navigate])
 
   useEffect(() => {
     let active = true
