@@ -18,8 +18,6 @@ import {
 } from "../services/venueExploreService"
 import { findCityInGroups } from "../utils/groupCitiesByDistrict"
 
-const SEARCH_DEBOUNCE_MS = 400
-
 const initialFilters = {
   categoryId: null,
   cityId: null,
@@ -192,7 +190,6 @@ export default function ExploreVenuesPage() {
   const resultsRef = useRef(null)
   const isInitialLoad = useRef(true)
   const hasRestoredLocationRef = useRef(false)
-  const debounceTimerRef = useRef(null)
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([{ id: null, name: "All venues" }])
   const [loading, setLoading] = useState(true)
@@ -209,14 +206,6 @@ export default function ExploreVenuesPage() {
   const [loadingLocations, setLoadingLocations] = useState(true)
   const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [liked, setLiked] = useState({})
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
-  }, [])
 
   useEffect(() => {
     if (location.state?.search != null || location.state?.categoryId != null) {
@@ -379,23 +368,6 @@ export default function ExploreVenuesPage() {
     })
   }
 
-  const handleSearchInputChange = (value) => {
-    setSearchInput(value)
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
-    if (value.trim() === "") {
-      applySearchQuery("")
-      return
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      applySearchQuery(value)
-    }, SEARCH_DEBOUNCE_MS)
-  }
-
   const updateFilter = (key, value) => {
     setFilters((state) => ({ ...state, [key]: value }))
     if (key === "categoryId" || key === "cityId" || key === "price" || key === "sort") {
@@ -416,26 +388,10 @@ export default function ExploreVenuesPage() {
 
   const handleSearch = (event) => {
     event.preventDefault()
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    applySearchQuery(searchInput)
-  }
-
-  const handleSearchKeyDown = (event) => {
-    if (event.key !== "Enter") return
-
-    event.preventDefault()
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
     applySearchQuery(searchInput)
   }
 
   const clearFilters = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
     setSearchInput("")
     applySearchQuery("")
     clearSavedLocationPreference()
@@ -482,8 +438,7 @@ export default function ExploreVenuesPage() {
                 <input
                   type="text"
                   value={searchInput}
-                  onChange={(event) => handleSearchInputChange(event.target.value)}
-                  onKeyDown={handleSearchKeyDown}
+                  onChange={(event) => setSearchInput(event.target.value)}
                   placeholder="Search by venue name..."
                   className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 />
@@ -492,9 +447,6 @@ export default function ExploreVenuesPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (debounceTimerRef.current) {
-                      clearTimeout(debounceTimerRef.current)
-                    }
                     setSearchInput("")
                     applySearchQuery("")
                   }}
