@@ -1,4 +1,5 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { useEffect } from "react"
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom"
 import ExploreVenuesPage from "../pages/ExploreVenuesPage"
 import HomePage from "../pages/HomePage"
 import ProfilePage from "../pages/ProfilePage"
@@ -17,9 +18,21 @@ import UserLayout from "../layouts/UserLayout"
 import VenueLayout from "../layouts/VenueLayout"
 import { GuestRoute, ProtectedRoute, UserProtectedRoute } from "./ProtectedRoute"
 
+function ScrollToTop() {
+  const { pathname, hash } = useLocation()
+
+  useEffect(() => {
+    if (hash) return
+    window.scrollTo(0, 0)
+  }, [pathname, hash])
+
+  return null
+}
+
 export default function AppRoutes() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<UserLayout />}>
           <Route index element={<HomePage />} />

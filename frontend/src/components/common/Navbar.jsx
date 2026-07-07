@@ -35,24 +35,24 @@ export default function Navbar() {
             : "border-transparent bg-transparent"
         }`}
       >
-        <a href="/#top" className="flex items-center gap-2">
+        <Link to="/#top" className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <MapPin className="h-5 w-5" />
           </span>
           <span className="font-serif text-xl font-semibold tracking-tight text-foreground">
             BookMyVenue
           </span>
-        </a>
+        </Link>
 
         <ul className="hidden items-center gap-8 md:flex">
           {links.map((l) => (
             <li key={l.href}>
-              <a
-                href={l.href}
+              <Link
+                to={l.href}
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 {l.label}
-              </a>
+              </Link>
             </li>
           ))}
         </ul>
@@ -75,12 +75,12 @@ export default function Navbar() {
               Sign in
             </button>
           )}
-          <a
-            href="/#owners"
+          <Link
+            to="/#owners"
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             Get started
-          </a>
+          </Link>
         </div>
 
         <button
@@ -103,13 +103,13 @@ export default function Navbar() {
             <ul className="flex flex-col gap-1">
               {links.map((l) => (
                 <li key={l.href}>
-                  <a
-                    href={l.href}
+                  <Link
+                    to={l.href}
                     onClick={() => setOpen(false)}
                     className="block rounded-xl px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
                   >
                     {l.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -134,13 +134,13 @@ export default function Navbar() {
                 Sign in
               </button>
             )}
-            <a
-              href="/#owners"
+            <Link
+              to="/#owners"
               onClick={() => setOpen(false)}
               className="mt-3 block rounded-full bg-primary px-5 py-3 text-center text-sm font-semibold text-primary-foreground"
             >
               Get started
-            </a>
+            </Link>
           </motion.div>
         )}
       </AnimatePresence>
