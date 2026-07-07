@@ -483,7 +483,7 @@ def _sync_schedule_group_children(group: VenueScheduleGroup, days, schedules) ->
 
         if schedule_id and schedule_id in existing_by_id:
             schedule = existing_by_id[schedule_id]
-            for field, value in .items():
+            for field, value in payload.items():
                 setattr(schedule, field, value)
             schedule.save(update_fields=[*payload.keys(), "updated_at"])
             kept_ids.add(schedule_id)
