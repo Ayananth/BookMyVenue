@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from rest_framework import serializers
 
 from accounts.models import UserRole
@@ -384,6 +385,7 @@ class VenueScheduleSerializer(serializers.ModelSerializer):
 
 
 class VenueScheduleWriteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False, min_value=1)
     name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     start_time = serializers.TimeField()
     end_time = serializers.TimeField()
@@ -457,29 +459,53 @@ def _validate_days_available(
     )
 
 
-def _replace_schedule_group_children(group: VenueScheduleGroup, days, schedules) -> None:
+def _sync_schedule_group_children(group: VenueScheduleGroup, days, schedules) -> None:
     group.days.all().delete()
-    group.schedules.all().delete()
-
     VenueScheduleGroupDay.objects.bulk_create(
         [
             VenueScheduleGroupDay(group=group, day_of_week=day)
             for day in sorted(set(days))
         ],
     )
-    VenueSchedule.objects.bulk_create(
-        [
-            VenueSchedule(
-                group=group,
-                name=schedule.get("name") or "",
-                start_time=schedule["start_time"],
-                end_time=schedule["end_time"],
-                price=schedule["price"],
-                is_available=schedule.get("is_available", True),
-            )
-            for schedule in schedules
-        ],
-    )
+
+    existing_by_id = {schedule.id: schedule for schedule in group.schedules.all()}
+    kept_ids: set[int] = set()
+
+    for schedule_data in schedules:
+        schedule_id = schedule_data.get("id")
+        payload = {
+            "name": schedule_data.get("name") or "",
+            "start_time": schedule_data["start_time"],
+            "end_time": schedule_data["end_time"],
+            "price": schedule_data["price"],
+            "is_available": schedule_data.get("is_available", True),
+        }
+
+        if schedule_id and schedule_id in existing_by_id:
+            schedule = existing_by_id[schedule_id]
+            for field, value in .items():
+                setattr(schedule, field, value)
+            schedule.save(update_fields=[*payload.keys(), "updated_at"])
+            kept_ids.add(schedule_id)
+            continue
+
+        created = VenueSchedule.objects.create(group=group, **payload)
+        kept_ids.add(created.id)
+
+    for schedule_id, schedule in existing_by_id.items():
+        if schedule_id in kept_ids:
+            continue
+        try:
+            schedule.delete()
+        except ProtectedError:
+            label = schedule.name or "Schedule"
+            raise serializers.ValidationError(
+                {
+                    "schedules": (
+                        f'Cannot remove "{label}" because it has existing bookings.'
+                    ),
+                },
+            ) from None
 
 
 class VenueScheduleGroupWriteSerializer(serializers.Serializer):
@@ -503,6 +529,35 @@ class VenueScheduleGroupWriteSerializer(serializers.Serializer):
         venue = self.context["venue"]
         exclude_group_id = self.context.get("group_id")
         _validate_days_available(venue, attrs["days"], exclude_group_id)
+
+        if exclude_group_id is not None:
+            schedule_ids = [
+                schedule["id"]
+                for schedule in schedules
+                if schedule.get("id") is not None
+            ]
+            if len(schedule_ids) != len(set(schedule_ids)):
+                raise serializers.ValidationError(
+                    {"schedules": "Duplicate schedule ids are not allowed."},
+                )
+            if schedule_ids:
+                valid_ids = set(
+                    VenueSchedule.objects.filter(
+                        group_id=exclude_group_id,
+                        pk__in=schedule_ids,
+                    ).values_list("pk", flat=True),
+                )
+                invalid_ids = sorted(set(schedule_ids) - valid_ids)
+                if invalid_ids:
+                    raise serializers.ValidationError(
+                        {
+                            "schedules": (
+                                "Invalid schedule id(s): "
+                                f"{', '.join(str(pk) for pk in invalid_ids)}."
+                            ),
+                        },
+                    )
+
         return attrs
 
     @transaction.atomic
@@ -512,7 +567,7 @@ class VenueScheduleGroupWriteSerializer(serializers.Serializer):
         schedules = validated_data.pop("schedules")
 
         group = VenueScheduleGroup.objects.create(venue=venue, **validated_data)
-        _replace_schedule_group_children(group, days, schedules)
+        _sync_schedule_group_children(group, days, schedules)
         return group
 
     @transaction.atomic
@@ -524,7 +579,7 @@ class VenueScheduleGroupWriteSerializer(serializers.Serializer):
             setattr(instance, attr, value)
         instance.save()
 
-        _replace_schedule_group_children(instance, days, schedules)
+        _sync_schedule_group_children(instance, days, schedules)
         return instance
 
 

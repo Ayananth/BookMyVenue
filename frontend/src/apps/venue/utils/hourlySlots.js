@@ -238,11 +238,17 @@ export function validateScheduleAgainstExisting(
   }
 }
 
+function isPersistedScheduleId(id) {
+  if (id == null || id === "") return false
+  return /^\d+$/.test(String(id))
+}
+
 function buildScheduleEntriesPayload(name, days, schedules) {
   return {
     name: name.trim(),
     days: [...days].sort((a, b) => a - b),
     schedules: schedules.map((schedule) => ({
+      ...(isPersistedScheduleId(schedule.id) ? { id: Number(schedule.id) } : {}),
       name: schedule.name,
       start_time: `${schedule.start_time}:00`,
       end_time: `${schedule.end_time}:00`,
