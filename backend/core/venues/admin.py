@@ -1,5 +1,7 @@
 from django.contrib import admin
+from django.utils.html import format_html
 
+from .forms import VenueCategoryAdminForm, VenueImageAdminForm
 from .models import (
     City,
     District,
@@ -11,6 +13,16 @@ from .models import (
     VenueScheduleGroupDay,
     VenueScheduleOverride,
 )
+
+
+def _image_thumbnail(url):
+    if not url:
+        return format_html('<span style="color:#999;">No image</span>')
+    return format_html(
+        '<img src="{}" style="height:60px;width:auto;border-radius:6px;'
+        'object-fit:cover;border:1px solid #ddd5c4;" />',
+        url,
+    )
 
 
 @admin.register(District)
@@ -30,17 +42,37 @@ class CityAdmin(admin.ModelAdmin):
 
 @admin.register(VenueCategory)
 class VenueCategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "is_active")
+    form = VenueCategoryAdminForm
+    list_display = ("icon_preview", "name", "is_active")
+    list_display_links = ("name",)
     list_filter = ("is_active",)
     search_fields = ("name",)
     ordering = ("name",)
+    readonly_fields = ("icon_preview",)
+    fields = ("name", "is_active", "upload_icon", "icon_url", "icon_preview")
+
+    @admin.display(description="Icon")
+    def icon_preview(self, obj):
+        return _image_thumbnail(obj.icon_url)
 
 
 class VenueImageInline(admin.TabularInline):
     model = VenueImage
-    extra = 0
-    fields = ("image_url", "is_cover", "sort_order", "uploaded_at")
-    readonly_fields = ("uploaded_at",)
+    form = VenueImageAdminForm
+    extra = 1
+    fields = (
+        "image_preview",
+        "upload_image",
+        "image_url",
+        "is_cover",
+        "sort_order",
+        "uploaded_at",
+    )
+    readonly_fields = ("image_preview", "uploaded_at")
+
+    @admin.display(description="Preview")
+    def image_preview(self, obj):
+        return _image_thumbnail(obj.image_url if obj else None)
 
 
 @admin.register(Venue)
@@ -65,12 +97,27 @@ class VenueAdmin(admin.ModelAdmin):
 
 @admin.register(VenueImage)
 class VenueImageAdmin(admin.ModelAdmin):
-    list_display = ("venue", "is_cover", "sort_order", "uploaded_at")
+    form = VenueImageAdminForm
+    list_display = ("image_preview", "venue", "is_cover", "sort_order", "uploaded_at")
+    list_display_links = ("venue",)
     list_filter = ("is_cover",)
     search_fields = ("venue__name",)
-    readonly_fields = ("uploaded_at",)
+    readonly_fields = ("image_preview", "uploaded_at")
     ordering = ("venue__name", "sort_order")
     autocomplete_fields = ("venue",)
+    fields = (
+        "venue",
+        "upload_image",
+        "image_url",
+        "image_preview",
+        "is_cover",
+        "sort_order",
+        "uploaded_at",
+    )
+
+    @admin.display(description="Preview")
+    def image_preview(self, obj):
+        return _image_thumbnail(obj.image_url if obj else None)
 
 
 class VenueScheduleGroupDayInline(admin.TabularInline):
