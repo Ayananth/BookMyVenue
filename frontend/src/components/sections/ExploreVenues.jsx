@@ -1,94 +1,21 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
-import { Star, Users, MapPin, ArrowRight, Heart, Search, X } from "lucide-react"
-import { fetchExploreVenues, fetchVenueCategories, fetchVenueLocationGroups, formatVenuePrice } from "../../apis/venues"
-import LocationPicker from "../venues/LocationPicker"
+import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
+import { fetchExploreVenues, formatVenuePrice } from "../../apis/venues"
 import Reveal from "../common/Reveal"
-import {
-  clearSavedLocationPreference,
-  getSavedLocationPreference,
-  setSavedLocationPreference,
-} from "../../services/locationPreference"
-import { findCityInGroups } from "../../utils/groupCitiesByDistrict"
-
-const ALL_VENUES_CATEGORY = { id: null, name: "All venues" }
-const SEARCH_DEBOUNCE_MS = 400
 
 export default function ExploreVenues() {
   const navigate = useNavigate()
-  const hasRestoredLocationRef = useRef(false)
-  const debounceTimerRef = useRef(null)
-  const [activeCategory, setActiveCategory] = useState(ALL_VENUES_CATEGORY)
-  const [selectedCityId, setSelectedCityId] = useState(null)
-  const [searchInput, setSearchInput] = useState("")
-  const [searchQuery, setSearchQuery] = useState("")
-  const [locationGroups, setLocationGroups] = useState([])
-  const [loadingLocations, setLoadingLocations] = useState(true)
   const [venues, setVenues] = useState([])
-  const [categories, setCategories] = useState([ALL_VENUES_CATEGORY])
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState({})
-
-  useEffect(() => {
-    fetchVenueCategories()
-      .then((categoryData) => setCategories(categoryData))
-      .catch((error) => console.error("Failed to fetch categories:", error))
-  }, [])
-
-  useEffect(() => {
-    setLoadingLocations(true)
-    fetchVenueLocationGroups()
-      .then((groupData) => setLocationGroups(groupData))
-      .catch((error) => console.error("Failed to fetch locations:", error))
-      .finally(() => setLoadingLocations(false))
-  }, [])
-
-  useEffect(() => {
-    if (hasRestoredLocationRef.current || loadingLocations || locationGroups.length === 0) {
-      return
-    }
-
-    hasRestoredLocationRef.current = true
-
-    if (selectedCityId != null) {
-      if (!findCityInGroups(locationGroups, selectedCityId)) {
-        clearSavedLocationPreference()
-        setSelectedCityId(null)
-      }
-      return
-    }
-
-    const savedLocation = getSavedLocationPreference()
-    const savedCityId = savedLocation?.cityId
-
-    if (savedCityId == null) return
-
-    if (findCityInGroups(locationGroups, savedCityId)) {
-      setSelectedCityId(savedCityId)
-      return
-    }
-
-    clearSavedLocationPreference()
-  }, [loadingLocations, locationGroups, selectedCityId])
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
-  }, [])
 
   useEffect(() => {
     let active = true
     setLoading(true)
 
-    fetchExploreVenues({
-      categoryId: activeCategory.id,
-      cityId: selectedCityId,
-      search: searchQuery || undefined,
-    })
+    fetchExploreVenues()
       .then((venueData) => {
         if (active) setVenues(venueData)
       })
@@ -100,63 +27,7 @@ export default function ExploreVenues() {
     return () => {
       active = false
     }
-  }, [activeCategory, selectedCityId, searchQuery])
-
-  const applySearchQuery = (value) => {
-    const trimmed = value.trim()
-    setSearchQuery((current) => (current === trimmed ? current : trimmed))
-  }
-
-  const handleSearchInputChange = (value) => {
-    setSearchInput(value)
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
-    if (value.trim() === "") {
-      applySearchQuery("")
-      return
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      applySearchQuery(value)
-    }, SEARCH_DEBOUNCE_MS)
-  }
-
-  const handleSearchKeyDown = (event) => {
-    if (event.key !== "Enter") return
-
-    event.preventDefault()
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    applySearchQuery(searchInput)
-  }
-
-  const handleSearchClear = () => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    setSearchInput("")
-    applySearchQuery("")
-  }
-
-  const handleLocationSelect = (city) => {
-    const cityId = city?.id ?? null
-    setSelectedCityId(cityId)
-
-    if (cityId == null) {
-      clearSavedLocationPreference()
-    } else {
-      setSavedLocationPreference(cityId)
-    }
-  }
-
-  const handleLocationClear = () => {
-    clearSavedLocationPreference()
-    setSelectedCityId(null)
-  }
+  }, [])
 
   return (
     <section id="explore" className="px-4 py-24">
@@ -183,60 +54,6 @@ export default function ExploreVenues() {
           </a>
         </Reveal>
 
-        <Reveal delay={0.1} className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-end">
-          <label className="relative min-w-0 w-full sm:max-w-xs">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Search
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchInput}
-                placeholder="Search by venue name..."
-                autoComplete="off"
-                onChange={(event) => handleSearchInputChange(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                className="h-11 w-full rounded-full border border-border bg-card py-2 pl-10 pr-10 text-sm font-semibold text-foreground outline-none transition hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={handleSearchClear}
-                  aria-label="Clear search"
-                  className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          </label>
-          <LocationPicker
-            locationGroups={locationGroups}
-            selectedCityId={selectedCityId}
-            onSelect={handleLocationSelect}
-            onClear={handleLocationClear}
-            loading={loadingLocations}
-            className="w-full sm:max-w-xs"
-          />
-        </Reveal>
-
-        <Reveal delay={0.12} className="mt-4 flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <button
-              key={category.id ?? "all"}
-              onClick={() => setActiveCategory(category)}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-all ${
-                activeCategory.id === category.id
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
-              }`}
-            >
-              {category.name}
-            </button>
-          ))}
-        </Reveal>
-
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {loading && (
             <p className="col-span-full text-center text-muted-foreground">
@@ -246,10 +63,7 @@ export default function ExploreVenues() {
 
           {!loading && venues.length === 0 && (
             <p className="col-span-full text-center text-muted-foreground">
-              No venues found
-              {searchQuery ? ` matching "${searchQuery}"` : ""}
-              {activeCategory.id ? " in this category" : ""}
-              {selectedCityId ? " for this location" : ""}.
+              No venues found.
             </p>
           )}
 
