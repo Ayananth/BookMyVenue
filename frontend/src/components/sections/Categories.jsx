@@ -6,6 +6,14 @@ import Reveal from "../common/Reveal"
 
 const CATEGORY_PREVIEW_LIMIT = 6
 
+function CategoryCardSkeleton() {
+  return (
+    <div className="w-full overflow-hidden rounded-2xl border border-border">
+      <div className="h-32 animate-pulse bg-muted sm:h-36" />
+    </div>
+  )
+}
+
 function CategoryCard({ category, onClick }) {
   const hasImage = Boolean(category.icon_url)
 
@@ -42,13 +50,26 @@ export default function Categories() {
   const navigate = useNavigate()
   const [categories, setCategories] = useState([])
   const [showAll, setShowAll] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let active = true
+    setLoading(true)
+
     fetchVenueCategories()
-      .then((categoryData) =>
-        setCategories(categoryData.filter((category) => category.id != null)),
-      )
+      .then((categoryData) => {
+        if (active) {
+          setCategories(categoryData.filter((category) => category.id != null))
+        }
+      })
       .catch((error) => console.error("Failed to fetch categories:", error))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
 
   const visibleCategories = useMemo(
@@ -60,7 +81,9 @@ export default function Categories() {
     navigate("/venues", categoryId != null ? { state: { categoryId } } : undefined)
   }
 
-  if (categories.length === 0) {
+  // Hide the section gracefully when there is genuinely nothing to show
+  // (no data or a backend error), so the page layout stays intact.
+  if (!loading && categories.length === 0) {
     return null
   }
 
@@ -92,17 +115,26 @@ export default function Categories() {
         <Reveal delay={0.1} className="mt-10">
           <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 sm:pb-0">
             <div className="flex snap-x snap-mandatory gap-4 sm:grid sm:grid-cols-3 lg:grid-cols-3">
-              {visibleCategories.map((category) => (
-                <div
-                  key={category.id}
-                  className="min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink"
-                >
-                  <CategoryCard
-                    category={category}
-                    onClick={() => goToCategory(category.id)}
-                  />
-                </div>
-              ))}
+              {loading
+                ? Array.from({ length: CATEGORY_PREVIEW_LIMIT }).map((_, index) => (
+                    <div
+                      key={`category-skeleton-${index}`}
+                      className="min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink"
+                    >
+                      <CategoryCardSkeleton />
+                    </div>
+                  ))
+                : visibleCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className="min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink"
+                    >
+                      <CategoryCard
+                        category={category}
+                        onClick={() => goToCategory(category.id)}
+                      />
+                    </div>
+                  ))}
             </div>
           </div>
 

@@ -5,21 +5,47 @@ import { Star, Users, MapPin, ArrowRight, Heart } from "lucide-react"
 import { fetchExploreVenues, formatVenuePrice } from "../../apis/venues"
 import Reveal from "../common/Reveal"
 
+const VENUE_SKELETON_COUNT = 6
+
+function VenueCardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="h-52 w-full animate-pulse bg-muted" />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+          <div className="h-5 w-10 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="mt-3 h-4 w-1/2 animate-pulse rounded bg-muted" />
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+          <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ExploreVenues() {
   const navigate = useNavigate()
   const [venues, setVenues] = useState([])
   const [loading, setLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const [liked, setLiked] = useState({})
 
   useEffect(() => {
     let active = true
     setLoading(true)
+    setHasError(false)
 
     fetchExploreVenues()
       .then((venueData) => {
         if (active) setVenues(venueData)
       })
-      .catch((error) => console.error("Failed to fetch venues:", error))
+      .catch((error) => {
+        console.error("Failed to fetch venues:", error)
+        if (active) setHasError(true)
+      })
       .finally(() => {
         if (active) setLoading(false)
       })
@@ -55,16 +81,24 @@ export default function ExploreVenues() {
         </Reveal>
 
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {loading && (
-            <p className="col-span-full text-center text-muted-foreground">
-              Loading venues...
-            </p>
-          )}
+          {loading &&
+            Array.from({ length: VENUE_SKELETON_COUNT }).map((_, index) => (
+              <VenueCardSkeleton key={`venue-skeleton-${index}`} />
+            ))}
 
           {!loading && venues.length === 0 && (
-            <p className="col-span-full text-center text-muted-foreground">
-              No venues found.
-            </p>
+            <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/50 px-6 py-16 text-center">
+              <p className="text-base font-semibold text-foreground">
+                {hasError
+                  ? "We couldn't load venues right now"
+                  : "No venues to show just yet"}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {hasError
+                  ? "Please check back in a moment — new spaces are added often."
+                  : "Check back soon — we're adding new spaces all the time."}
+              </p>
+            </div>
           )}
 
           <AnimatePresence>
