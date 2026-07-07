@@ -2,6 +2,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.measure import D
+from django.contrib.postgres.search import TrigramWordSimilarity
+from django.db import connection
 from django.db.models import Case, Exists, IntegerField, Min, OuterRef, Q, Value, When
 from rest_framework.filters import OrderingFilter
 
@@ -9,15 +11,41 @@ from venues.models import City, VenueSchedule
 
 DEFAULT_NEARBY_RADIUS_KM = 75
 
+# Minimum pg_trgm word-similarity for a venue to be considered a match.
+# 0.3 is PostgreSQL's default similarity threshold and tolerates minor typos.
+VENUE_SEARCH_SIMILARITY_THRESHOLD = 0.3
+
+
+def apply_venue_search(queryset, search):
+    """Filter venues by name.
+
+    On PostgreSQL this uses pg_trgm word similarity for typo-tolerant fuzzy
+    matching (backed by the ``ix_venues_name_trgm`` GIN index) combined with a
+    plain substring match so exact matches are never missed. On other backends
+    (e.g. SQLite in local dev) it falls back to a case-insensitive substring
+    match.
+
+    Returns a tuple of ``(queryset, ordered_by_relevance)`` where the second
+    value indicates whether the queryset carries a ``name_similarity``
+    annotation that can be used to rank results by relevance.
+    """
+    if not search:
+        return queryset, False
+
+    if connection.vendor == "postgresql":
+        queryset = queryset.annotate(
+            name_similarity=TrigramWordSimilarity(search, "name"),
+        ).filter(
+            Q(name__icontains=search)
+            | Q(name_similarity__gte=VENUE_SEARCH_SIMILARITY_THRESHOLD),
+        )
+        return queryset, True
+
+    return queryset.filter(name__icontains=search), False
+
 
 class VenueFilterBackend:
     def filter_queryset(self, request, queryset):
-        search = request.query_params.get("search")
-        if search is not None:
-            search = search.strip()
-            if search:
-                queryset = queryset.filter(name__icontains=search)
-
         category_id = request.query_params.get("category_id")
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -114,6 +142,11 @@ def apply_city_location_filter(queryset, city_id, radius_km=None):
 
 
 def filter_venue_list(queryset, request):
+    search = request.query_params.get("search")
+    if search is not None:
+        search = search.strip()
+    queryset, relevance_ordering = apply_venue_search(queryset, search)
+
     queryset = VenueFilterBackend().filter_queryset(request, queryset)
 
     city_id = request.query_params.get("city_id")
@@ -126,6 +159,9 @@ def filter_venue_list(queryset, request):
         )
 
     ordering_filter = VenueOrderingFilter()
+    has_explicit_ordering = bool(
+        (request.query_params.get(ordering_filter.ordering_param) or "").strip(),
+    )
     secondary_ordering = ordering_filter.get_ordering(
         request,
         queryset,
@@ -142,6 +178,11 @@ def filter_venue_list(queryset, request):
         )
     if location_order_mode == "exact_only":
         return queryset.order_by("location_priority", *secondary_ordering)
+
+    # When a search term drives the results and the caller has not asked for a
+    # specific ordering, surface the closest name matches first.
+    if relevance_ordering and not has_explicit_ordering:
+        return queryset.order_by("-name_similarity", *secondary_ordering)
 
     return ordering_filter.filter_queryset(
         request,

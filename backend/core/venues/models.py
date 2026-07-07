@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.gis.db.models import PointField
-from django.contrib.postgres.indexes import GistIndex
+from django.contrib.postgres.indexes import GinIndex, GistIndex
 from django.db import models
 from django.db.models import F, Q
 
@@ -137,6 +137,11 @@ class Venue(models.Model):
             models.Index(
                 fields=["city", "status"],
                 name="ix_venues_city_status",
+            ),
+            GinIndex(
+                fields=["name"],
+                name="ix_venues_name_trgm",
+                opclasses=["gin_trgm_ops"],
             ),
         ]
 
