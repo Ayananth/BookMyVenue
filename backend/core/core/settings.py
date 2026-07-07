@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "django_celery_results",
     "accounts",
     "notifications",
+    "contact",
     "venues",
     "bookings",
     "payments",
@@ -168,6 +169,10 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 )
 APP_NAME = os.environ.get("APP_NAME", "BookMyVenue")
 APP_SUPPORT_EMAIL = os.environ.get("APP_SUPPORT_EMAIL", "support@bookmyvenue.local")
+CONTACT_NOTIFICATION_EMAIL = os.environ.get(
+    "CONTACT_NOTIFICATION_EMAIL",
+    APP_SUPPORT_EMAIL,
+)
 
 OTP_LENGTH = int(os.environ.get("OTP_LENGTH", "6"))
 OTP_EXPIRE_MINUTES = int(os.environ.get("OTP_EXPIRE_MINUTES", "10"))

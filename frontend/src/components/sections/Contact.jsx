@@ -2,6 +2,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { Mail, Phone, MapPin, Send, CheckCircle2 } from "lucide-react"
 import Reveal from "../common/Reveal"
+import { parseContactError, submitContact } from "../../apis/contact"
 
 const info = [
   { icon: Mail, label: "Email us", value: "hello@bookmyvenue.com" },
@@ -9,14 +10,50 @@ const info = [
   { icon: MapPin, label: "Visit us", value: "500 Market St, San Francisco, CA" },
 ]
 
+const initialForm = {
+  full_name: "",
+  email: "",
+  phone: "",
+  city: "",
+  venue_name: "",
+  message: "",
+}
+
 export default function Contact() {
   const [role, setRole] = useState("guest")
+  const [form, setForm] = useState(initialForm)
   const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSubmit = (e) => {
+  const handleChange = (field) => (e) => {
+    setForm((prev) => ({ ...prev, [field]: e.target.value }))
+    if (error) setError("")
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    setSent(true)
-    setTimeout(() => setSent(false), 4000)
+    setLoading(true)
+    setError("")
+
+    try {
+      await submitContact({
+        role,
+        full_name: form.full_name,
+        email: form.email,
+        phone: form.phone,
+        city: role === "guest" ? form.city : "",
+        venue_name: role === "owner" ? form.venue_name : "",
+        message: form.message,
+      })
+      setSent(true)
+      setForm(initialForm)
+      setTimeout(() => setSent(false), 4000)
+    } catch (err) {
+      setError(parseContactError(err))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -79,15 +116,38 @@ export default function Contact() {
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Field label="Full name" placeholder="Jordan Rivera" />
-              <Field label="Email" type="email" placeholder="you@email.com" />
+              <Field
+                label="Full name"
+                placeholder="Jordan Rivera"
+                value={form.full_name}
+                onChange={handleChange("full_name")}
+                required
+              />
+              <Field
+                label="Email"
+                type="email"
+                placeholder="you@email.com"
+                value={form.email}
+                onChange={handleChange("email")}
+                required
+              />
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label="Phone" placeholder="+1 (___) ___-____" />
+              <Field
+                label="Phone"
+                placeholder="+1 (___) ___-____"
+                value={form.phone}
+                onChange={handleChange("phone")}
+              />
               <Field
                 label={role === "owner" ? "Venue name" : "City"}
-                placeholder={role === "owner" ? "Aurora Banquet Hall" : "San Francisco"}
+                placeholder={
+                  role === "owner" ? "Aurora Banquet Hall" : "San Francisco"
+                }
+                value={role === "owner" ? form.venue_name : form.city}
+                onChange={handleChange(role === "owner" ? "venue_name" : "city")}
+                required
               />
             </div>
 
@@ -102,19 +162,31 @@ export default function Contact() {
                     ? "Tell us about your space, capacity, and location…"
                     : "Tell us about your event, date, and guest count…"
                 }
+                value={form.message}
+                onChange={handleChange("message")}
+                required
                 className="mt-1.5 w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
               />
             </div>
 
+            {error && (
+              <p className="mt-4 text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+
             <motion.button
               type="submit"
-              whileTap={{ scale: 0.98 }}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              disabled={loading || sent}
+              whileTap={{ scale: loading || sent ? 1 : 0.98 }}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {sent ? (
                 <>
                   <CheckCircle2 className="h-4 w-4" /> Message sent!
                 </>
+              ) : loading ? (
+                "Sending…"
               ) : (
                 <>
                   {role === "owner" ? "Register my venue" : "Send message"}
@@ -129,13 +201,23 @@ export default function Contact() {
   )
 }
 
-function Field({ label, type = "text", placeholder }) {
+function Field({
+  label,
+  type = "text",
+  placeholder,
+  value,
+  onChange,
+  required = false,
+}) {
   return (
     <div>
       <label className="text-sm font-medium text-foreground">{label}</label>
       <input
         type={type}
         placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required={required}
         className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
       />
     </div>

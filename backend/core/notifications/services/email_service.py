@@ -36,6 +36,7 @@ class EmailService:
         to: str | list[str],
         context: dict[str, Any] | None = None,
         subject: str | None = None,
+        reply_to: str | list[str] | None = None,
     ) -> int:
         template = cls.get_template(template_key)
         merged_context = cls.build_context(context)
@@ -50,6 +51,9 @@ class EmailService:
             body=text_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=recipients,
+            reply_to=([reply_to] if isinstance(reply_to, str) else reply_to)
+            if reply_to
+            else None,
         )
         message.attach_alternative(html_body, "text/html")
 

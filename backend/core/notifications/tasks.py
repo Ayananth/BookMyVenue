@@ -26,3 +26,37 @@ def send_otp_verification_email(
     )
     logger.info("Queued OTP verification email delivered to %s.", to)
     return sent_count
+
+
+@shared_task(name="send_contact_admin_email")
+def send_contact_admin_email(
+    *,
+    role: str,
+    full_name: str,
+    email: str,
+    phone: str = "",
+    city: str = "",
+    venue_name: str = "",
+    message: str,
+) -> int:
+    role_label = "Venue owner" if role == "owner" else "Guest"
+    location_label = "Venue name" if role == "owner" else "City"
+    location_value = venue_name if role == "owner" else city
+
+    sent_count = EmailService.send(
+        template_key="contact_admin",
+        to=settings.CONTACT_NOTIFICATION_EMAIL,
+        reply_to=email,
+        context={
+            "role": role,
+            "role_label": role_label,
+            "full_name": full_name,
+            "email": email,
+            "phone": phone or "Not provided",
+            "location_label": location_label,
+            "location_value": location_value,
+            "message": message,
+        },
+    )
+    logger.info("Contact form email delivered for submission from %s.", email)
+    return sent_count
