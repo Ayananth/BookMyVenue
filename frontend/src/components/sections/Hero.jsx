@@ -67,7 +67,7 @@ export default function Hero() {
                 type="text"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search by city, venue, or event type"
+                placeholder="Search venue"
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </div>
