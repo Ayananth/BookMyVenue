@@ -115,6 +115,13 @@
   line-height: 1.1;
 }
 
+.bmv-stat-card-subtext {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
 .bmv-stat-card-warning .bmv-stat-card-icon {
   background-color: rgba(217, 138, 78, 0.18);
   color: #b86d2f;
