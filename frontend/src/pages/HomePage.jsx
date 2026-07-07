@@ -1,3 +1,4 @@
+import Categories from "../components/sections/Categories"
 import Contact from "../components/sections/Contact"
 import ExploreVenues from "../components/sections/ExploreVenues"
 import Features from "../components/sections/Features"
@@ -11,8 +12,9 @@ export default function HomePage() {
     <MainLayout>
       <main>
         <Hero />
-        <Features />
+        <Categories />
         <ExploreVenues />
+        <Features />
         <ForOwners />
         <HowItWorks />
         <Contact />

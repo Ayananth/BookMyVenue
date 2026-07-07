@@ -188,6 +188,7 @@ export default function ExploreVenuesPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const initialSearch = (location.state?.search ?? "").trim()
+  const initialCategoryId = location.state?.categoryId ?? null
   const resultsRef = useRef(null)
   const isInitialLoad = useRef(true)
   const hasRestoredLocationRef = useRef(false)
@@ -200,7 +201,10 @@ export default function ExploreVenuesPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [searchInput, setSearchInput] = useState(initialSearch)
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [filters, setFilters] = useState(initialFilters)
+  const [filters, setFilters] = useState({
+    ...initialFilters,
+    categoryId: initialCategoryId,
+  })
   const [locationGroups, setLocationGroups] = useState([])
   const [loadingLocations, setLoadingLocations] = useState(true)
   const [liked, setLiked] = useState({})
@@ -214,7 +218,7 @@ export default function ExploreVenuesPage() {
   }, [])
 
   useEffect(() => {
-    if (location.state?.search != null) {
+    if (location.state?.search != null || location.state?.categoryId != null) {
       navigate(location.pathname, { replace: true, state: null })
     }
   }, [location.pathname, location.state, navigate])
