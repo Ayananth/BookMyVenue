@@ -1,5 +1,6 @@
 import { motion } from "framer-motion"
 import { Check, TrendingUp, CalendarRange, Wallet, ArrowRight } from "lucide-react"
+import { Link } from "react-router-dom"
 import Reveal from "../common/Reveal"
 
 const benefits = [
@@ -47,13 +48,13 @@ export default function ForOwners() {
             </ul>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="#contact"
+              <Link
+                to="/venue/auth"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
               >
                 Register your venue
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
               <a
                 href="#how"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-primary-foreground/25 px-7 py-3.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/10"
