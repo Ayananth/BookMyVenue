@@ -18,10 +18,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY core/ ./core/
 COPY gunicorn.conf.py ./
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 ENV PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=core.settings \
     PYTHONPATH=/app/core
 
 WORKDIR /app/core
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "core.wsgi:application", "-c", "/app/gunicorn.conf.py"]
