@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.http import HttpResponse
 
 ALLOWED_ORIGIN_REGEX = re.compile(
@@ -14,6 +15,14 @@ ALLOWED_ORIGIN_REGEX = re.compile(
 )
 
 
+def is_allowed_origin(origin: str) -> bool:
+    if not origin:
+        return False
+    if origin in settings.CORS_ALLOWED_ORIGINS:
+        return True
+    return bool(ALLOWED_ORIGIN_REGEX.match(origin))
+
+
 class CorsMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -21,7 +30,7 @@ class CorsMiddleware:
     def __call__(self, request):
         origin = request.headers.get("Origin", "")
 
-        if request.method == "OPTIONS" and origin and ALLOWED_ORIGIN_REGEX.match(origin):
+        if request.method == "OPTIONS" and is_allowed_origin(origin):
             response = HttpResponse(status=200)
             response["Access-Control-Allow-Origin"] = origin
             response["Access-Control-Allow-Credentials"] = "true"
@@ -34,7 +43,7 @@ class CorsMiddleware:
 
         response = self.get_response(request)
 
-        if origin and ALLOWED_ORIGIN_REGEX.match(origin):
+        if is_allowed_origin(origin):
             response["Access-Control-Allow-Origin"] = origin
             response["Access-Control-Allow-Credentials"] = "true"
             response["Vary"] = "Origin"
