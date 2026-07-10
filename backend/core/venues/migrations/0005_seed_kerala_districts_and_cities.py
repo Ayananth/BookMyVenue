@@ -1,20 +1,23 @@
 from django.db import migrations
 
-from venues.data.kerala_locations import (
-    KERALA_DISTRICT_CITIES,
-    LEGACY_CITY_MAP,
-    LEGACY_DISTRICT_MAP,
-)
+from venues.data.kerala_places import KERALA_PLACES
+
+LEGACY_DISTRICT_MAP = {
+    "Trivandrum": "Thiruvananthapuram",
+}
+
+LEGACY_CITY_MAP = {
+    "Trivandrum": "Thiruvananthapuram",
+}
 
 
 def seed_kerala_districts_and_cities(apps, schema_editor):
     District = apps.get_model("venues", "District")
     City = apps.get_model("venues", "City")
 
-    for district_name, city_names in KERALA_DISTRICT_CITIES.items():
-        district, _ = District.objects.get_or_create(name=district_name)
-        for city_name in city_names:
-            City.objects.get_or_create(district=district, name=city_name)
+    for entry in KERALA_PLACES:
+        district, _ = District.objects.get_or_create(name=entry["district"])
+        City.objects.get_or_create(district=district, name=entry["name"])
 
 
 def merge_legacy_districts(apps, schema_editor):

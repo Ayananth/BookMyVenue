@@ -24,7 +24,7 @@ def seed_kerala_places(*, District, City):
         )
         if city_created:
             created_cities += 1
-        elif city.location is None:
+        else:
             city.location = location
             city.save(update_fields=["location"])
             updated_cities += 1
