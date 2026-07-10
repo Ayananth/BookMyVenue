@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from accounts.models import AuthAccount, OtpRequest, SignupRequest, User
+from accounts.models import AuthAccount, User
 
 
 class AuthAccountInline(admin.TabularInline):
@@ -73,19 +73,3 @@ class UserAdmin(BaseUserAdmin):
 #     readonly_fields = ("created_at",)
 #     ordering = ("-created_at",)
 #     autocomplete_fields = ("user",)
-
-
-# @admin.register(SignupRequest)
-# class SignupRequestAdmin(admin.ModelAdmin):
-#     list_display = ("email", "phone", "method", "expires_at", "created_at")
-#     list_filter = ("method",)
-#     search_fields = ("email", "phone")
-#     readonly_fields = ("created_at",)
-
-
-# @admin.register(OtpRequest)
-# class OtpRequestAdmin(admin.ModelAdmin):
-#     list_display = ("destination", "purpose", "user", "expires_at", "created_at")
-#     list_filter = ("purpose",)
-#     search_fields = ("destination",)
-#     readonly_fields = ("created_at",)
