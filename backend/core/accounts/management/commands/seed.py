@@ -23,7 +23,9 @@ class Command(BaseCommand):
         category_stats = seed_venue_categories(VenueCategory=VenueCategory)
         self.stdout.write(
             self.style.SUCCESS(
-                f"Category seed complete. {category_stats['created']} category/categories created."
+                f"Category seed complete. "
+                f"{category_stats['created']} created, "
+                f"{category_stats['updated']} updated."
             )
         )
 
