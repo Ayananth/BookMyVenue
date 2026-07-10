@@ -44,15 +44,11 @@ class CitySerializer(serializers.ModelSerializer):
 
 
 class CityDropdownSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
     district_id = serializers.IntegerField(source="district.id", read_only=True)
 
     class Meta:
         model = City
         fields = ("id", "name", "district_id")
-
-    def get_name(self, obj) -> str:
-        return f"{obj.name}, {obj.district.name}"
 
 
 class CityOptionSerializer(serializers.ModelSerializer):
