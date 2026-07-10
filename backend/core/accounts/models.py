@@ -17,18 +17,6 @@ class AuthProvider(models.TextChoices):
     GOOGLE = "GOOGLE", "Google"
 
 
-class SignupMethod(models.TextChoices):
-    EMAIL = "EMAIL", "Email"
-    PHONE = "PHONE", "Phone"
-
-
-class OtpPurpose(models.TextChoices):
-    LOGIN = "LOGIN", "Login"
-    PASSWORD_RESET = "PASSWORD_RESET", "Password Reset"
-    EMAIL_CHANGE = "EMAIL_CHANGE", "Email Change"
-    PHONE_CHANGE = "PHONE_CHANGE", "Phone Change"
-
-
 class UserManager(BaseUserManager):
     def get_by_natural_key(self, username):
         try:
@@ -215,43 +203,3 @@ class AuthAccount(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider}:{self.provider_user_id or self.pk}"
-
-
-class SignupRequest(models.Model):
-    email = models.CharField(max_length=255, blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
-    password_hash = models.TextField(blank=True, null=True)
-    otp_hash = models.TextField()
-    method = models.CharField(max_length=20, choices=SignupMethod.choices)
-    expires_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "signup_requests"
-
-    def __str__(self) -> str:
-        return self.email or self.phone or str(self.pk)
-
-
-class OtpRequest(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="otp_requests",
-        blank=True,
-        null=True,
-    )
-    destination = models.CharField(max_length=255)
-    otp_hash = models.TextField()
-    purpose = models.CharField(max_length=20, choices=OtpPurpose.choices)
-    expires_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "otp_requests"
-        indexes = [
-            models.Index(fields=["destination"], name="idx_otp_requests_destination"),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.purpose} -> {self.destination}"
