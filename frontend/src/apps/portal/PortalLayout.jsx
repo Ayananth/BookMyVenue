@@ -4,8 +4,6 @@ import {
   Building2,
   CalendarDays,
   IndianRupee,
-  Users,
-  Settings,
   LogOut,
 } from "lucide-react"
 import { useAuth } from "../../contexts/AuthContext"
@@ -48,16 +46,6 @@ export default function PortalLayout({
       label: "Transactions",
       icon: IndianRupee,
       path: "/venue/transactions",
-    },
-    {
-      label: "Customers",
-      icon: Users,
-      path: "/venue/customers",
-    },
-    {
-      label: "Settings",
-      icon: Settings,
-      path: "/venue/settings",
     },
   ]
 
