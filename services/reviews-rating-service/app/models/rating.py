@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     DateTime,
@@ -7,9 +10,12 @@ from sqlalchemy import (
     Uuid,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.review import Review
 
 
 class Rating(Base):
@@ -38,6 +44,12 @@ class Rating(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    review: Mapped[Review | None] = relationship(
+        "Review",
+        back_populates="rating",
+        uselist=False,
     )
 
     __table_args__ = (

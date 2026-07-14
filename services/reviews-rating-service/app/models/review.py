@@ -59,4 +59,7 @@ class Review(Base):
         nullable=False,
     )
 
-    rating = relationship("Rating", backref="review", uselist=False)
+    rating: Mapped["Rating"] = relationship(
+        "Rating",
+        back_populates="review",
+    )
