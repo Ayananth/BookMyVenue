@@ -25,9 +25,9 @@ class Rating(Base):
 
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 
-    booking_id: Mapped[uuid.UUID] = mapped_column(
+    booking_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True),
-        nullable=False,
+        nullable=True,
         unique=True,
     )
 
