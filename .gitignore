@@ -13,6 +13,7 @@ Thumbs.db
 .env.local
 !.env.example
 .fastapiEnv
+env
 
 # Docker local overrides
 compose.override.yml

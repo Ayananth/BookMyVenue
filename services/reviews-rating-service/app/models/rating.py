@@ -1,10 +1,10 @@
+import uuid
+
 from sqlalchemy import (
-    UUID,
-    Column,
     DateTime,
-    ForeignKey,
     Integer,
     UniqueConstraint,
+    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -15,14 +15,18 @@ from app.core.database import Base
 class Rating(Base):
     __tablename__ = "ratings"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
 
-    venue_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    venue_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 
-    user_id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
 
-    booking_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    booking_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         nullable=False,
         unique=True,
     )

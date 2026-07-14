@@ -1,10 +1,12 @@
+import uuid
+
 from sqlalchemy import (
-    UUID,
     Boolean,
     DateTime,
     ForeignKey,
     String,
     Text,
+    Uuid,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,14 +14,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 
-
 class Review(Base):
     __tablename__ = "reviews"
 
-    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
 
-    rating_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True),
+    rating_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(as_uuid=True),
         ForeignKey("ratings.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
