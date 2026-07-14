@@ -69,13 +69,11 @@ class ReviewRepository:
         venue_id: int,
         user_id: int,
         rating_value: int,
-        booking_id: uuid.UUID | None = None,
     ) -> Rating:
         rating = Rating(
             id=uuid.uuid4(),
             venue_id=venue_id,
             user_id=user_id,
-            booking_id=booking_id,
             rating=rating_value,
         )
         self.db.add(rating)

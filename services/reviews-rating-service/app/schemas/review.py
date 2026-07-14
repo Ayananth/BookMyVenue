@@ -8,7 +8,6 @@ class VenueReviewCreate(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     title: str | None = Field(None, max_length=150)
     review: str | None = Field(None, min_length=1)
-    booking_id: UUID | None = None
 
 
 class VenueReviewItem(BaseModel):
@@ -16,7 +15,6 @@ class VenueReviewItem(BaseModel):
 
     rating_id: UUID
     user_id: int
-    booking_id: UUID | None = None
     rating: int
     review_id: UUID | None = None
     title: str | None = None

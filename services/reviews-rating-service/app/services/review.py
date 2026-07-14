@@ -25,7 +25,6 @@ class ReviewService:
         return VenueReviewItem(
             rating_id=rating.id,
             user_id=rating.user_id,
-            booking_id=rating.booking_id,
             rating=rating.rating,
             review_id=review.id if review else None,
             title=review.title if review else None,
@@ -82,7 +81,6 @@ class ReviewService:
                 venue_id=venue_id,
                 user_id=user_id,
                 rating_value=payload.rating,
-                booking_id=payload.booking_id,
             )
 
             if payload.review:
@@ -97,7 +95,7 @@ class ReviewService:
             await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="You have already rated this venue, or this booking already has a rating.",
+                detail="You have already rated this venue.",
             ) from exc
 
         return self._to_item(rating)
