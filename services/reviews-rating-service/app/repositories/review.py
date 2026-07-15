@@ -63,6 +63,22 @@ class ReviewRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id_and_venue(
+        self,
+        *,
+        rating_id: uuid.UUID,
+        venue_id: int,
+    ) -> Rating | None:
+        result = await self.db.execute(
+            select(Rating)
+            .options(selectinload(Rating.review))
+            .where(
+                Rating.id == rating_id,
+                Rating.venue_id == venue_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def create_rating(
         self,
         *,
@@ -96,3 +112,25 @@ class ReviewRepository:
         self.db.add(review)
         await self.db.flush()
         return review
+
+    async def update_rating_value(self, rating: Rating, rating_value: int) -> Rating:
+        rating.rating = rating_value
+        await self.db.flush()
+        return rating
+
+    async def update_review(
+        self,
+        review: Review,
+        *,
+        title: str | None,
+        review_text: str,
+    ) -> Review:
+        review.title = title
+        review.review = review_text
+        review.is_edited = True
+        await self.db.flush()
+        return review
+
+    async def delete_rating(self, rating: Rating) -> None:
+        await self.db.delete(rating)
+        await self.db.flush()

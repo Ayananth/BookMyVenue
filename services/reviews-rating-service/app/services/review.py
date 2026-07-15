@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,7 @@ from app.repositories.review import ReviewRepository
 from app.schemas.review import (
     VenueReviewCreate,
     VenueReviewItem,
+    VenueReviewUpdate,
     VenueReviewsResponse,
 )
 
@@ -32,6 +35,41 @@ class ReviewService:
             is_edited=review.is_edited if review else None,
             created_at=rating.created_at,
         )
+
+    def _validate_review_fields(
+        self,
+        *,
+        title: str | None,
+        review: str | None,
+    ) -> None:
+        if title and not review:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Review text is required when a title is provided.",
+            )
+
+    async def _get_owned_rating(
+        self,
+        *,
+        venue_id: int,
+        rating_id: UUID,
+        user_id: int,
+    ) -> Rating:
+        rating = await self.repo.get_by_id_and_venue(
+            rating_id=rating_id,
+            venue_id=venue_id,
+        )
+        if rating is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Rating not found for this venue.",
+            )
+        if rating.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only modify your own rating.",
+            )
+        return rating
 
     async def list_venue_reviews(
         self,
@@ -60,11 +98,7 @@ class ReviewService:
         user_id: int,
         payload: VenueReviewCreate,
     ) -> VenueReviewItem:
-        if payload.title and not payload.review:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Review text is required when a title is provided.",
-            )
+        self._validate_review_fields(title=payload.title, review=payload.review)
 
         existing = await self.repo.get_by_user_and_venue(
             user_id=user_id,
@@ -99,3 +133,81 @@ class ReviewService:
             ) from exc
 
         return self._to_item(rating)
+
+    async def update_venue_review(
+        self,
+        *,
+        venue_id: int,
+        rating_id: UUID,
+        user_id: int,
+        payload: VenueReviewUpdate,
+    ) -> VenueReviewItem:
+        if (
+            payload.rating is None
+            and payload.title is None
+            and payload.review is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Provide at least one field to update.",
+            )
+
+        rating = await self._get_owned_rating(
+            venue_id=venue_id,
+            rating_id=rating_id,
+            user_id=user_id,
+        )
+
+        if payload.rating is not None:
+            await self.repo.update_rating_value(rating, payload.rating)
+
+        # Review fields: only touch review row when title/review is sent.
+        if payload.title is not None or payload.review is not None:
+            new_title = (
+                payload.title if payload.title is not None else (
+                    rating.review.title if rating.review else None
+                )
+            )
+            new_review_text = (
+                payload.review
+                if payload.review is not None
+                else (rating.review.review if rating.review else None)
+            )
+            self._validate_review_fields(title=new_title, review=new_review_text)
+
+            if new_review_text is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Review text is required to create or update a review.",
+                )
+
+            if rating.review is None:
+                await self.repo.create_review(
+                    rating_id=rating.id,
+                    title=new_title,
+                    review_text=new_review_text,
+                )
+            else:
+                await self.repo.update_review(
+                    rating.review,
+                    title=new_title,
+                    review_text=new_review_text,
+                )
+
+            await self.db.refresh(rating, attribute_names=["review"])
+
+        return self._to_item(rating)
+
+    async def delete_venue_review(
+        self,
+        *,
+        venue_id: int,
+        rating_id: UUID,
+        user_id: int,
+    ) -> None:
+        rating = await self._get_owned_rating(
+            venue_id=venue_id,
+            rating_id=rating_id,
+            user_id=user_id,
+        )
+        await self.repo.delete_rating(rating)

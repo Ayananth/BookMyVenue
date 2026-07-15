@@ -10,6 +10,12 @@ class VenueReviewCreate(BaseModel):
     review: str | None = Field(None, min_length=1)
 
 
+class VenueReviewUpdate(BaseModel):
+    rating: int | None = Field(None, ge=1, le=5)
+    title: str | None = Field(None, max_length=150)
+    review: str | None = Field(None, min_length=1)
+
+
 class VenueReviewItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
