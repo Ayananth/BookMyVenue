@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { Star } from "lucide-react"
+import { Pencil, Star, Trash2 } from "lucide-react"
 import {
   createVenueReview,
+  deleteVenueReview,
   fetchVenueReviews,
   parseReviewError,
   reviewItemFromApi,
+  updateVenueReview,
 } from "../../apis/reviews"
 import { useAuth } from "../../contexts/AuthContext"
 import { useAuthModal } from "../../contexts/AuthModalContext"
@@ -76,7 +78,7 @@ function RatingSummary({ averageRating, totalCount, items }) {
 
   return (
     <div className="mb-8 grid gap-6 rounded-xl border border-border bg-card p-6 sm:grid-cols-[auto_1fr] sm:items-center">
-      <div className="text-center sm:pr-6 sm:border-r sm:border-border">
+      <div className="text-center sm:border-r sm:border-border sm:pr-6">
         <p className="font-serif text-4xl font-bold">
           {averageRating != null ? averageRating.toFixed(1) : "—"}
         </p>
@@ -106,7 +108,7 @@ function RatingSummary({ averageRating, totalCount, items }) {
   )
 }
 
-function ReviewCard({ review, index }) {
+function ReviewCard({ review, index, onEdit, onDelete, busy }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -137,6 +139,29 @@ function ReviewCard({ review, index }) {
       ) : (
         <p className="text-sm italic text-muted-foreground">Rated without a written review.</p>
       )}
+
+      {review.isOwn ? (
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={onEdit}
+            disabled={busy}
+            className="btn btn-outline inline-flex items-center gap-1.5 text-sm"
+          >
+            <Pencil size={14} />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            className="btn btn-outline inline-flex items-center gap-1.5 text-sm text-red-700 hover:border-red-300 hover:bg-red-50"
+          >
+            <Trash2 size={14} />
+            Delete
+          </button>
+        </div>
+      ) : null}
     </motion.div>
   )
 }
@@ -157,10 +182,12 @@ export default function VenueReviewsSection({
   const [totalCount, setTotalCount] = useState(fallbackReviewCount)
   const [reviews, setReviews] = useState([])
 
+  const [isEditing, setIsEditing] = useState(false)
   const [rating, setRating] = useState(0)
   const [title, setTitle] = useState("")
   const [reviewText, setReviewText] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const [submitSuccess, setSubmitSuccess] = useState("")
 
@@ -168,6 +195,8 @@ export default function VenueReviewsSection({
   const currentUserName = user?.full_name || user?.name || "You"
 
   const ownReview = reviews.find((item) => item.isOwn) ?? null
+  const showForm = !ownReview || isEditing
+  const formBusy = submitting || deleting
 
   const loadReviews = async () => {
     if (!venueId) {
@@ -244,6 +273,23 @@ export default function VenueReviewsSection({
     setRating(0)
     setTitle("")
     setReviewText("")
+    setIsEditing(false)
+  }
+
+  const startEdit = () => {
+    if (!ownReview) return
+    setSubmitError("")
+    setSubmitSuccess("")
+    setRating(ownReview.rating)
+    setTitle(ownReview.title ?? "")
+    setReviewText(ownReview.text ?? "")
+    setIsEditing(true)
+  }
+
+  const cancelEdit = () => {
+    setSubmitError("")
+    setSubmitSuccess("")
+    resetForm()
   }
 
   const handleSubmit = async (event) => {
@@ -276,18 +322,55 @@ export default function VenueReviewsSection({
 
     setSubmitting(true)
     try {
-      await createVenueReview(venueId, {
-        rating,
-        title,
-        review: reviewText,
-      })
-      setSubmitSuccess("Thanks! Your rating has been submitted.")
+      if (isEditing && ownReview) {
+        if (reviewText.trim()) {
+          await updateVenueReview(venueId, ownReview.ratingId, {
+            rating,
+            title: title.trim() || null,
+            review: reviewText.trim(),
+          })
+        } else {
+          // Rating-only update; leave any existing written review unchanged
+          await updateVenueReview(venueId, ownReview.ratingId, { rating })
+        }
+        setSubmitSuccess("Your rating has been updated.")
+      } else {
+        await createVenueReview(venueId, {
+          rating,
+          title,
+          review: reviewText,
+        })
+        setSubmitSuccess("Thanks! Your rating has been submitted.")
+      }
       resetForm()
       await loadReviews()
     } catch (err) {
       setSubmitError(parseReviewError(err))
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!ownReview || !venueId) return
+
+    const confirmed = window.confirm(
+      "Delete your rating for this venue? This cannot be undone.",
+    )
+    if (!confirmed) return
+
+    setSubmitError("")
+    setSubmitSuccess("")
+    setDeleting(true)
+    try {
+      await deleteVenueReview(venueId, ownReview.ratingId)
+      setSubmitSuccess("Your rating has been deleted.")
+      resetForm()
+      await loadReviews()
+    } catch (err) {
+      setSubmitError(parseReviewError(err))
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -309,21 +392,25 @@ export default function VenueReviewsSection({
         <p className="mb-6 text-sm text-red-700">{error}</p>
       ) : null}
 
-      {!ownReview ? (
+      {showForm ? (
         <form
           onSubmit={handleSubmit}
           className="mb-8 rounded-xl border border-border bg-card p-5 sm:p-6"
         >
-          <h3 className="mb-1 font-serif text-lg font-bold">Rate this venue</h3>
+          <h3 className="mb-1 font-serif text-lg font-bold">
+            {isEditing ? "Edit your rating" : "Rate this venue"}
+          </h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            Share a 1–5 star rating. A written review is optional.
+            {isEditing
+              ? "Update your stars and optional written review."
+              : "Share a 1–5 star rating. A written review is optional."}
           </p>
 
           <div className="mb-4">
             <StarRatingInput
               value={rating}
               onChange={setRating}
-              disabled={submitting}
+              disabled={formBusy}
             />
             {rating > 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">
@@ -342,7 +429,7 @@ export default function VenueReviewsSection({
               maxLength={150}
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              disabled={submitting}
+              disabled={formBusy}
               placeholder="Sum up your experience"
               className="input"
             />
@@ -357,7 +444,7 @@ export default function VenueReviewsSection({
               rows={4}
               value={reviewText}
               onChange={(event) => setReviewText(event.target.value)}
-              disabled={submitting}
+              disabled={formBusy}
               placeholder="What stood out about this venue?"
               className="input min-h-[110px] resize-y"
             />
@@ -370,13 +457,33 @@ export default function VenueReviewsSection({
             <p className="mb-3 text-sm text-primary">{submitSuccess}</p>
           ) : null}
 
-          <button
-            type="submit"
-            disabled={submitting || rating < 1}
-            className="btn btn-primary"
-          >
-            {submitting ? "Submitting..." : isAuthenticated ? "Submit rating" : "Sign in to rate"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={formBusy || rating < 1}
+              className="btn btn-primary"
+            >
+              {submitting
+                ? isEditing
+                  ? "Saving..."
+                  : "Submitting..."
+                : isAuthenticated
+                  ? isEditing
+                    ? "Save changes"
+                    : "Submit rating"
+                  : "Sign in to rate"}
+            </button>
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={formBusy}
+                className="btn btn-outline"
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
         </form>
       ) : (
         <div className="mb-8 rounded-xl border border-primary/30 bg-primary/5 p-5 sm:p-6">
@@ -385,15 +492,48 @@ export default function VenueReviewsSection({
             {ownReview.date ? ` on ${ownReview.date}` : ""}.
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your rating appears in the list below.
+            Your rating appears in the list below. You can edit or delete it anytime.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={startEdit}
+              disabled={formBusy}
+              className="btn btn-outline inline-flex items-center gap-1.5 text-sm"
+            >
+              <Pencil size={14} />
+              Edit rating
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={formBusy}
+              className="btn btn-outline inline-flex items-center gap-1.5 text-sm text-red-700 hover:border-red-300 hover:bg-red-50"
+            >
+              <Trash2 size={14} />
+              {deleting ? "Deleting..." : "Delete rating"}
+            </button>
+          </div>
+          {submitError ? (
+            <p className="mt-3 text-sm text-red-700">{submitError}</p>
+          ) : null}
+          {submitSuccess ? (
+            <p className="mt-3 text-sm text-primary">{submitSuccess}</p>
+          ) : null}
         </div>
       )}
 
       {loading ? null : reviews.length > 0 ? (
         <div className="space-y-4">
           {reviews.map((review, index) => (
-            <ReviewCard key={review.ratingId} review={review} index={index} />
+            <ReviewCard
+              key={review.ratingId}
+              review={review}
+              index={index}
+              busy={formBusy}
+              onEdit={startEdit}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       ) : (

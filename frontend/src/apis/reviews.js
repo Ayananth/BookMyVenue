@@ -73,3 +73,25 @@ export async function createVenueReview(venueId, payload) {
   )
   return data
 }
+
+export async function updateVenueReview(venueId, ratingId, payload) {
+  const body = {}
+  if (payload.rating != null) body.rating = payload.rating
+  if (payload.title !== undefined) {
+    body.title = payload.title?.trim() ? payload.title.trim() : null
+  }
+  if (payload.review !== undefined) {
+    body.review = payload.review?.trim() ? payload.review.trim() : null
+  }
+
+  const { data } = await api.patch(
+    `/api/venues/${venueId}/reviews/${ratingId}`,
+    body,
+    reviewsConfig,
+  )
+  return data
+}
+
+export async function deleteVenueReview(venueId, ratingId) {
+  await api.delete(`/api/venues/${venueId}/reviews/${ratingId}`, reviewsConfig)
+}
