@@ -6,6 +6,7 @@ import { fetchRelatedVenues, fetchVenueDetail, formatVenuePrice } from "../apis/
 import Reveal from "../components/common/Reveal"
 import VenueBookingModal from "../components/venues/VenueBookingModal"
 import VenueMapPreview from "../components/venues/VenueMapPreview"
+import VenueReviewsSection from "../components/venues/VenueReviewsSection"
 import { useAuth } from "../contexts/AuthContext"
 import { useAuthModal } from "../contexts/AuthModalContext"
 import MainLayout from "../layouts/MainLayout"
@@ -23,6 +24,7 @@ export default function VenueDetailsPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [reviewStats, setReviewStats] = useState({ rating: null, reviews: 0 })
 
   const openBookingModal = () => {
     setIsBookingOpen(true)
@@ -56,11 +58,16 @@ export default function VenueDetailsPage() {
     setLoading(true)
     setNotFound(false)
     setCurrentImageIndex(0)
+    setReviewStats({ rating: null, reviews: 0 })
 
     fetchVenueDetail(slug)
       .then((detail) => {
         if (cancelled) return null
         setVenue(detail)
+        setReviewStats({
+          rating: detail.rating ?? null,
+          reviews: detail.reviews ?? 0,
+        })
         return fetchRelatedVenues({
           categoryId: detail.categoryId,
           slug: detail.slug,
@@ -125,6 +132,9 @@ export default function VenueDetailsPage() {
     venue.parking ||
     venue.eventTypes.length > 0
 
+  const displayRating = reviewStats.rating ?? venue.rating
+  const displayReviewCount = reviewStats.reviews ?? venue.reviews ?? 0
+
   return (
     <MainLayout>
       <main className="pt-28 sm:pt-32">
@@ -141,12 +151,14 @@ export default function VenueDetailsPage() {
             <div>
               <h1 className="text-4xl font-serif font-bold mb-2">{venue.name}</h1>
               <div className="flex items-center gap-4 flex-wrap">
-                {venue.rating != null && (
+                {displayRating != null && (
                   <div className="flex items-center gap-1">
                     <Star size={18} fill="currentColor" className="text-accent" />
-                    <span className="font-semibold">{venue.rating}</span>
-                    {venue.reviews > 0 && (
-                      <span className="text-muted-foreground">({venue.reviews} reviews)</span>
+                    <span className="font-semibold">{displayRating}</span>
+                    {displayReviewCount > 0 && (
+                      <span className="text-muted-foreground">
+                        ({displayReviewCount} reviews)
+                      </span>
                     )}
                   </div>
                 )}
@@ -404,37 +416,13 @@ export default function VenueDetailsPage() {
 
               {activeTab === "reviews" && (
                 <Reveal>
-                  <div>
-                    <h2 className="text-2xl font-serif font-bold mb-6">Guest Reviews</h2>
-                    {venue.reviews_list.length > 0 ? (
-                      <div className="space-y-4">
-                        {venue.reviews_list.map((review, idx) => (
-                          <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className="bg-card border border-border rounded-lg p-6"
-                          >
-                            <div className="flex justify-between items-start mb-3">
-                              <div>
-                                <h4 className="font-semibold">{review.name}</h4>
-                                <p className="text-sm text-muted-foreground">{review.date}</p>
-                              </div>
-                              <div className="flex gap-1">
-                                {[...Array(review.rating)].map((_, i) => (
-                                  <Star key={i} size={16} fill="currentColor" className="text-accent" />
-                                ))}
-                              </div>
-                            </div>
-                            <p className="text-foreground/90">{review.text}</p>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground">No reviews yet. Be the first to book this venue.</p>
-                    )}
-                  </div>
+                  <VenueReviewsSection
+                    venueId={venue.id}
+                    fallbackRating={venue.rating}
+                    fallbackReviewCount={venue.reviews}
+                    fallbackReviews={venue.reviews_list}
+                    onStatsChange={setReviewStats}
+                  />
                 </Reveal>
               )}
             </div>

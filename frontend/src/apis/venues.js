@@ -220,6 +220,7 @@ export function toVenueDetailPage(venue) {
       : null
 
   return {
+    id: venue.id ?? null,
     slug: venue.slug,
     name: venue.name,
     location,
