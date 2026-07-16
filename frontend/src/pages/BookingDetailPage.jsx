@@ -136,6 +136,8 @@ export default function BookingDetailPage() {
               <img
                 src={booking.venueCoverImage}
                 alt={booking.venueName}
+                loading="lazy"
+                decoding="async"
                 className="h-56 w-full object-cover sm:h-72"
               />
             )}

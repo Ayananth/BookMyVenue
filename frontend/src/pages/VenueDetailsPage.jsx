@@ -185,6 +185,8 @@ export default function VenueDetailsPage() {
                 key={currentImageIndex}
                 src={venue.gallery[currentImageIndex]}
                 alt={`${venue.name} view ${currentImageIndex + 1}`}
+                loading="eager"
+                decoding="async"
                 className="w-full h-full object-cover"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -224,7 +226,13 @@ export default function VenueDetailsPage() {
                       idx === currentImageIndex ? "border-primary" : "border-muted"
                     }`}
                   >
-                    <img src={img} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${idx + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover"
+                    />
                   </motion.button>
                 ))}
               </div>
@@ -500,6 +508,8 @@ export default function VenueDetailsPage() {
                       <img
                         src={venue.ownerImage}
                         alt={venue.owner}
+                        loading="lazy"
+                        decoding="async"
                         className="w-12 h-12 rounded-full object-cover"
                       />
                       <div>
@@ -530,6 +540,8 @@ export default function VenueDetailsPage() {
                       <img
                         src={relatedVenue.image}
                         alt={relatedVenue.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
                       />
                       {relatedVenue.rating != null && (

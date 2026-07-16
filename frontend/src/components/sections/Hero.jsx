@@ -108,6 +108,9 @@ export default function Hero() {
             <img
               src="/venues/hero-banquet.png"
               alt="Elegant banquet hall set up for an event"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               className="h-[480px] w-full object-cover"
             />
           </div>

@@ -190,6 +190,8 @@ export default function VenueBookingModal({ open, onClose, venue }) {
             <img
               src={venue.image}
               alt={venue.name}
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-foreground/75 via-foreground/20 to-transparent" />

@@ -482,6 +482,8 @@ function FavouriteVenueCard({ venue, onRemove }) {
         <img
           src={venue.image || "/placeholder.svg"}
           alt={venue.name}
+          loading="lazy"
+          decoding="async"
           className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-card/90 px-3 py-1 text-sm font-semibold text-foreground backdrop-blur-sm">
