@@ -58,10 +58,13 @@ export default function Features() {
           </p>
         </Reveal>
 
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((f, i) => (
-            <Reveal key={f.title} delay={i * 0.06}>
-              <div className="group h-full rounded-2xl border border-border bg-card p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(27,36,29,0.08)]">
+        <Reveal className="mt-14">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((f) => (
+              <div
+                key={f.title}
+                className="group h-full rounded-2xl border border-border bg-card p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(27,36,29,0.08)]"
+              >
                 <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <f.icon className="h-6 w-6" />
                 </span>
@@ -72,9 +75,9 @@ export default function Features() {
                   {f.desc}
                 </p>
               </div>
-            </Reveal>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   )

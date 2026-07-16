@@ -8,8 +8,6 @@ import VenueBookingModal from "../components/venues/VenueBookingModal"
 import VenueMapPreview from "../components/venues/VenueMapPreview"
 import { useAuth } from "../contexts/AuthContext"
 import { useAuthModal } from "../contexts/AuthModalContext"
-import MainLayout from "../layouts/MainLayout"
-
 export default function VenueDetailsPage() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -86,27 +84,23 @@ export default function VenueDetailsPage() {
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="container mx-auto px-4 py-32 text-center text-muted-foreground">
-          Loading venue details...
-        </div>
-      </MainLayout>
+      <div className="container mx-auto px-4 py-32 text-center text-muted-foreground">
+        Loading venue details...
+      </div>
     )
   }
 
   if (notFound || !venue) {
     return (
-      <MainLayout>
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-3xl font-serif font-bold mb-4">Venue not found</h1>
-          <button
-            onClick={() => navigate("/venues")}
-            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
-          >
-            Browse venues
-          </button>
-        </div>
-      </MainLayout>
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h1 className="text-3xl font-serif font-bold mb-4">Venue not found</h1>
+        <button
+          onClick={() => navigate("/venues")}
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
+        >
+          Browse venues
+        </button>
+      </div>
     )
   }
 
@@ -126,7 +120,7 @@ export default function VenueDetailsPage() {
     venue.eventTypes.length > 0
 
   return (
-    <MainLayout>
+    <>
       <main className="pt-28 sm:pt-32">
         <div className="container mx-auto px-4 mb-8">
           <button
@@ -574,6 +568,6 @@ export default function VenueDetailsPage() {
         onClose={() => setIsBookingOpen(false)}
         venue={venue}
       />
-    </MainLayout>
+    </>
   )
 }

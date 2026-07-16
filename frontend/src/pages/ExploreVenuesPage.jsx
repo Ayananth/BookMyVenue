@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
 import LocationPickerModal from "../components/venues/LocationPickerModal"
-import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories, fetchVenueLocationGroups } from "../apis/venues"
 import {
   clearSavedLocationPreference,
@@ -402,9 +401,8 @@ export default function ExploreVenuesPage() {
   }
 
   return (
-    <MainLayout>
-      <main className="px-4 pt-32 pb-20 sm:pt-36">
-        <div className="mx-auto max-w-6xl">
+    <main className="px-4 pt-32 pb-20 sm:pt-36">
+      <div className="mx-auto max-w-6xl">
           <Reveal>
             <div className="max-w-3xl">
               <span className="text-sm font-semibold uppercase tracking-wider text-accent">
@@ -572,6 +570,5 @@ export default function ExploreVenuesPage() {
           </section>
         </div>
       </main>
-    </MainLayout>
   )
 }

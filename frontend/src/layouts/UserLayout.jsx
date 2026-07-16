@@ -9,9 +9,8 @@ export default function UserLayout() {
       <div className="app-user min-h-screen bg-background text-foreground">
         <Navbar />
         <Outlet />
-        {/* <Footer /> */}
+        <Footer />
       </div>
     </AuthModalProvider>
   )
 }
-

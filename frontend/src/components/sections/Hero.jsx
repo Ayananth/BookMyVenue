@@ -106,7 +106,7 @@ export default function Hero() {
         >
           <div className="overflow-hidden rounded-[2rem] border border-border shadow-[0_24px_60px_rgba(27,36,29,0.14)]">
             <img
-              src="/venues/hero-banquet.png"
+              src="/venues/hero-banquet.webp"
               alt="Elegant banquet hall set up for an event"
               loading="eager"
               fetchPriority="high"

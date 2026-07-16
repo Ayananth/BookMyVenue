@@ -10,7 +10,6 @@ import {
   Phone,
   TicketCheck,
 } from "lucide-react"
-import MainLayout from "../layouts/MainLayout"
 import { fetchBookingDetail } from "../services/bookingService"
 
 function formatCurrency(value) {
@@ -88,30 +87,29 @@ export default function BookingDetailPage() {
   }, [bookingId])
 
   return (
-    <MainLayout>
-      <main className="mx-auto max-w-4xl px-4 pb-10 pt-32 sm:px-6 sm:pt-36 lg:px-8">
-        <Link
-          to="/profile?section=bookings"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-primary"
-        >
-          <ChevronLeft size={16} />
-          Back to my bookings
-        </Link>
+    <main className="mx-auto max-w-4xl px-4 pb-10 pt-32 sm:px-6 sm:pt-36 lg:px-8">
+      <Link
+        to="/profile?section=bookings"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition hover:text-primary"
+      >
+        <ChevronLeft size={16} />
+        Back to my bookings
+      </Link>
 
-        {loading ? (
-          <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
-            <p className="text-sm text-muted-foreground">Loading booking details...</p>
-          </div>
-        ) : error ? (
-          <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-6 py-16 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        ) : booking ? (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
-          >
+      {loading ? (
+        <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
+          <p className="text-sm text-muted-foreground">Loading booking details...</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-6 py-16 text-center">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      ) : booking ? (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+        >
             <div className="border-b border-border bg-primary/5 px-6 py-8 sm:px-8">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -204,7 +202,6 @@ export default function BookingDetailPage() {
             </div>
           </motion.div>
         ) : null}
-      </main>
-    </MainLayout>
+    </main>
   )
 }

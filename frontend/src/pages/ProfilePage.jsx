@@ -14,7 +14,6 @@ import {
   User,
   X,
 } from "lucide-react"
-import MainLayout from "../layouts/MainLayout"
 import { useAuth } from "../contexts/AuthContext"
 import { parseAuthError } from "../apis/auth"
 import {
@@ -764,7 +763,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <MainLayout>
+    <>
       <main className="px-4 pt-32 pb-20 sm:pt-36">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 lg:hidden">
@@ -812,6 +811,6 @@ export default function ProfilePage() {
         onCancel={() => setLogoutOpen(false)}
         onLogout={handleLogout}
       />
-    </MainLayout>
+    </>
   )
 }
