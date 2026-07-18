@@ -148,10 +148,13 @@ export default function VenueDetailsPage() {
                 {displayRating != null && (
                   <div className="flex items-center gap-1">
                     <Star size={18} fill="currentColor" className="text-accent" />
-                    <span className="font-semibold">{displayRating}</span>
+                    <span className="font-semibold">
+                      {Number(displayRating).toFixed(1)}
+                    </span>
                     {displayReviewCount > 0 && (
                       <span className="text-muted-foreground">
-                        ({displayReviewCount} reviews)
+                        ({displayReviewCount}{" "}
+                        {displayReviewCount === 1 ? "review" : "reviews"})
                       </span>
                     )}
                   </div>

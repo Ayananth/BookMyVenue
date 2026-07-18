@@ -155,10 +155,12 @@ function VenueCard({ venue, liked, onToggleLike }) {
             <h3 className="text-lg font-semibold text-foreground">{venue.name}</h3>
             <p className="mt-1 text-sm font-medium text-primary">{venue.category.name}</p>
           </div>
-          <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
-            <Star className="h-4 w-4 fill-accent text-accent" />
-            {venue.rating}
-          </span>
+          {venue.reviewCount > 0 && (
+            <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-foreground">
+              <Star className="h-4 w-4 fill-accent text-accent" />
+              {venue.rating.toFixed(1)}
+            </span>
+          )}
         </div>
 
         <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">

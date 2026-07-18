@@ -218,6 +218,10 @@ export function toVenueDetailPage(venue) {
     priceValue != null && venue.capacity
       ? Math.max(1, Math.round(priceValue / venue.capacity))
       : null
+  const reviewCount = Number(venue.review_count ?? venue.reviews ?? 0)
+  const rawRating = venue.average_rating ?? venue.rating
+  const rating =
+    reviewCount > 0 && rawRating != null ? Number(rawRating) : null
 
   return {
     id: venue.id ?? null,
@@ -231,8 +235,8 @@ export function toVenueDetailPage(venue) {
     price: formattedPrice,
     priceValue,
     pricePerPerson,
-    rating: venue.rating ?? null,
-    reviews: venue.reviews ?? 0,
+    rating,
+    reviews: reviewCount,
     image,
     gallery,
     description: venue.description ?? "",
@@ -294,7 +298,13 @@ function toExploreVenue(venue) {
     capacity: venue.capacity,
     price: venue.min_price ?? venue.price,
     image: venue.cover_image ?? venue.image ?? "/placeholder.svg",
-    rating: venue.rating ?? null,
+    rating:
+      venue.average_rating != null
+        ? Number(venue.average_rating)
+        : venue.rating != null
+          ? Number(venue.rating)
+          : null,
+    reviewCount: venue.review_count ?? 0,
   }
 }
 

@@ -111,6 +111,8 @@ class VenueListSerializer(serializers.ModelSerializer):
             "min_price",
             "has_slots",
             "cover_image",
+            "average_rating",
+            "review_count",
             "created_at",
         )
 
@@ -157,6 +159,8 @@ class VenueDetailSerializer(serializers.ModelSerializer):
             "city",
             "images",
             "min_price",
+            "average_rating",
+            "review_count",
             "created_at",
             "updated_at",
         )
