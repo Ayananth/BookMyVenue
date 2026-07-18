@@ -53,6 +53,19 @@ services:
     depends_on:
       - backend
 
+  reviews-rating-service:
+    build:
+      context: ./services/reviews-rating-service
+      dockerfile: Dockerfile
+    env_file: ./services/reviews-rating-service/.env
+    volumes:
+      - ./services/reviews-rating-service:/app
+    ports:
+      - "8006:8006"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   celery_worker:
     build:
       context: ./backend
