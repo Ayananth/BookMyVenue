@@ -10,7 +10,6 @@ from app.models.venue import Venue
 
 
 def slugify(value: str) -> str:
-    """Django-compatible slugify for venue names."""
     value = (
         unicodedata.normalize("NFKD", value)
         .encode("ascii", "ignore")
