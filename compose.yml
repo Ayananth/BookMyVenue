@@ -66,6 +66,19 @@ services:
       postgres:
         condition: service_healthy
 
+  venue-service:
+    build:
+      context: ./services/venue-service
+      dockerfile: Dockerfile
+    env_file: ./services/venue-service/.env
+    volumes:
+      - ./services/venue-service:/app
+    ports:
+      - "8007:8007"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   celery_worker:
     build:
       context: ./backend
