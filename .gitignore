@@ -13,6 +13,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
+.venv/
+venv/
 # Environment (keep examples tracked)
 .env
 .env.local
