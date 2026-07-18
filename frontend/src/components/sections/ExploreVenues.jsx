@@ -109,7 +109,6 @@ export default function ExploreVenues() {
                 return (
                   <motion.article
                     key={v.slug}
-                    layout
                     initial={{ opacity: 0, y: 24 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-60px" }}
@@ -121,6 +120,8 @@ export default function ExploreVenues() {
                       <img
                         src={v.image || "/placeholder.svg"}
                         alt={v.name}
+                        loading="lazy"
+                        decoding="async"
                         className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <span className="absolute left-3 top-3 rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-foreground backdrop-blur-sm">

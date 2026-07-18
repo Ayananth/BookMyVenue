@@ -14,7 +14,6 @@ import {
   User,
   X,
 } from "lucide-react"
-import MainLayout from "../layouts/MainLayout"
 import { useAuth } from "../contexts/AuthContext"
 import { parseAuthError } from "../apis/auth"
 import {
@@ -482,6 +481,8 @@ function FavouriteVenueCard({ venue, onRemove }) {
         <img
           src={venue.image || "/placeholder.svg"}
           alt={venue.name}
+          loading="lazy"
+          decoding="async"
           className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-card/90 px-3 py-1 text-sm font-semibold text-foreground backdrop-blur-sm">
@@ -762,7 +763,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <MainLayout>
+    <>
       <main className="px-4 pt-32 pb-20 sm:pt-36">
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 lg:hidden">
@@ -810,6 +811,6 @@ export default function ProfilePage() {
         onCancel={() => setLogoutOpen(false)}
         onLogout={handleLogout}
       />
-    </MainLayout>
+    </>
   )
 }

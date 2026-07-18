@@ -55,6 +55,8 @@ function VenueCard({ venue }) {
           <img
             src={venue.cover_image}
             alt={venue.name}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover"
           />
         ) : (

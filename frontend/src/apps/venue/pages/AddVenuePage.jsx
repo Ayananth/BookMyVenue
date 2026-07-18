@@ -1000,6 +1000,8 @@ const uploadFiles = async (files) => {
                   <img
                     src={images[0]?.image_url}
                     alt="Venue Preview"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -1214,6 +1216,8 @@ const uploadFiles = async (files) => {
                         <img
                           src={image.image_url}
                           alt={`Upload ${idx}`}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                         />
 

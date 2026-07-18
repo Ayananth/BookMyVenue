@@ -1,13 +1,25 @@
-import { useEffect } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { useLocation } from "react-router-dom"
 import Categories from "../components/sections/Categories"
-import Contact from "../components/sections/Contact"
 import ExploreVenues from "../components/sections/ExploreVenues"
-import Features from "../components/sections/Features"
-import ForOwners from "../components/sections/ForOwners"
 import Hero from "../components/sections/Hero"
-import HowItWorks from "../components/sections/HowItWorks"
-import MainLayout from "../layouts/MainLayout"
+
+const Features = lazy(() => import("../components/sections/Features"))
+const ForOwners = lazy(() => import("../components/sections/ForOwners"))
+const HowItWorks = lazy(() => import("../components/sections/HowItWorks"))
+const Contact = lazy(() => import("../components/sections/Contact"))
+
+function SectionFallback() {
+  return (
+    <div className="px-4 py-24" aria-hidden="true">
+      <div className="mx-auto max-w-6xl">
+        <div className="h-10 w-64 animate-pulse rounded bg-muted" />
+        <div className="mt-4 h-4 w-full max-w-xl animate-pulse rounded bg-muted" />
+        <div className="mt-10 h-48 animate-pulse rounded-2xl bg-muted" />
+      </div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   const location = useLocation()
@@ -37,16 +49,16 @@ export default function HomePage() {
   }, [location.hash, location.key])
 
   return (
-    <MainLayout>
-      <main>
-        <Hero />
-        <Categories />
-        <ExploreVenues />
+    <main>
+      <Hero />
+      <Categories />
+      <ExploreVenues />
+      <Suspense fallback={<SectionFallback />}>
         <Features />
         <ForOwners />
         <HowItWorks />
         <Contact />
-      </main>
-    </MainLayout>
+      </Suspense>
+    </main>
   )
 }

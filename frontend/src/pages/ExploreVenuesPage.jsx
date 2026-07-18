@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Heart, MapPin, Search, SlidersHorizontal, Star, Users, X } from "lucide-react"
 import Reveal from "../components/common/Reveal"
 import LocationPickerModal from "../components/venues/LocationPickerModal"
-import MainLayout from "../layouts/MainLayout"
 import { fetchVenueCategories, fetchVenueLocationGroups } from "../apis/venues"
 import {
   clearSavedLocationPreference,
@@ -130,6 +129,8 @@ function VenueCard({ venue, liked, onToggleLike }) {
         <img
           src={venue.image || "/placeholder.svg"}
           alt={venue.name}
+          loading="lazy"
+          decoding="async"
           className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <span className="absolute left-3 top-3 rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-foreground backdrop-blur-sm">
@@ -400,9 +401,8 @@ export default function ExploreVenuesPage() {
   }
 
   return (
-    <MainLayout>
-      <main className="px-4 pt-32 pb-20 sm:pt-36">
-        <div className="mx-auto max-w-6xl">
+    <main className="px-4 pt-32 pb-20 sm:pt-36">
+      <div className="mx-auto max-w-6xl">
           <Reveal>
             <div className="max-w-3xl">
               <span className="text-sm font-semibold uppercase tracking-wider text-accent">
@@ -570,6 +570,5 @@ export default function ExploreVenuesPage() {
           </section>
         </div>
       </main>
-    </MainLayout>
   )
 }
