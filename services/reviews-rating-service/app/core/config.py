@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
 
+    # Backend internal API (service-to-service rating sync).
+    BACKEND_BASE_URL: str = "http://backend:8000"
+    INTERNAL_API_KEY: str = ""
+    BACKEND_HTTP_TIMEOUT: float = 5.0
+
     class Config:
         env_file = ".env"
 

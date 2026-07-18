@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clients.venue_rating import VenueRatingClient
 from app.models.rating import Rating
 from app.repositories.review import ReviewRepository
 from app.schemas.review import (
@@ -18,6 +19,7 @@ class ReviewService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
         self.repo = ReviewRepository(db)
+        self.venue_rating_client = VenueRatingClient()
 
     def _to_item(self, rating: Rating) -> VenueReviewItem:
         review = rating.review
@@ -70,6 +72,20 @@ class ReviewService:
                 detail="You can only modify your own rating.",
             )
         return rating
+
+    async def _sync_venue_rating(self, venue_id: int) -> None:
+        """Recalculate venue stats and push them to the backend (best-effort)."""
+        review_count = await self.repo.count_by_venue(venue_id)
+        average_rating = await self.repo.average_rating_by_venue(venue_id)
+        # Backend stores one decimal place; default to 0.0 when no ratings remain.
+        synced_average = (
+            round(average_rating, 1) if average_rating is not None else 0.0
+        )
+        await self.venue_rating_client.update_venue_rating(
+            venue_id,
+            average_rating=synced_average,
+            review_count=review_count,
+        )
 
     async def list_venue_reviews(
         self,
@@ -132,6 +148,7 @@ class ReviewService:
                 detail="You have already rated this venue.",
             ) from exc
 
+        await self._sync_venue_rating(venue_id)
         return self._to_item(rating)
 
     async def update_venue_review(
@@ -196,6 +213,7 @@ class ReviewService:
 
             await self.db.refresh(rating, attribute_names=["review"])
 
+        await self._sync_venue_rating(venue_id)
         return self._to_item(rating)
 
     async def delete_venue_review(
@@ -211,3 +229,4 @@ class ReviewService:
             user_id=user_id,
         )
         await self.repo.delete_rating(rating)
+        await self._sync_venue_rating(venue_id)
