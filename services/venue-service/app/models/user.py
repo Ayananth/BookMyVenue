@@ -1,11 +1,11 @@
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.database import Base
+from app.core.auth_database import AuthBase
 
 
-class User(Base):
-    """Minimal mapping of Django ``users`` for auth checks in this service."""
+class User(AuthBase):
+    """Read-only mapping of Django ``users`` in the backend database."""
 
     __tablename__ = "users"
 

@@ -1,14 +1,15 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env")
+
     DATABASE_URL: str
+    # Django ``bookmyvenue`` DB — used only to resolve JWT user roles.
+    AUTH_DATABASE_URL: str
     # Must match Django backend SECRET_KEY so login tokens validate here.
     SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
-
-    class Config:
-        env_file = ".env"
 
 
 settings = Settings()

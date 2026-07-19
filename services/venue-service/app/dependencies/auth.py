@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.auth_database import get_auth_db
 from app.core.security import decode_access_token
 from app.models.user import User
 
@@ -54,7 +54,7 @@ async def get_current_user_id(
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_auth_db),
 ) -> AuthUser:
     user_id = decode_access_token(credentials.credentials)
     if user_id is None:
@@ -68,7 +68,7 @@ async def get_current_user(
 
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_auth_db),
 ) -> AuthUser | None:
     if credentials is None:
         return None

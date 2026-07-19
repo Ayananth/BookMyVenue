@@ -59,8 +59,8 @@ class Venue(Base):
 
     owner_id: Mapped[int] = mapped_column(
         Integer,
-        ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
+        doc="Owner user id from the auth/backend service (no cross-DB FK).",
     )
 
     category_id: Mapped[int] = mapped_column(

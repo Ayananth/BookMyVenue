@@ -9,7 +9,8 @@ services:
       - "5435:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/docker/init-postgis.sql:/docker-entrypoint-initdb.d/init-postgis.sql
+      - ./backend/docker/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh
+      - ./backend/docker/ensure-service-databases.sh:/ensure-service-databases.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bookmyvenue"]
       interval: 5s
