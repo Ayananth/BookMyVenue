@@ -19,6 +19,7 @@ function toExplorePageVenue(venue) {
         : { name: venue.city, district: { name: venue.district } }
 
   const price = venue.min_price ?? venue.price
+  const averageRating = venue.average_rating ?? venue.rating
 
   return {
     slug: venue.slug ?? venue.id?.toString(),
@@ -27,7 +28,8 @@ function toExplorePageVenue(venue) {
     city,
     capacity: venue.capacity,
     price: price != null ? Number(price) : 0,
-    rating: venue.rating ?? 0,
+    rating: averageRating != null ? Number(averageRating) : 0,
+    reviewCount: venue.review_count ?? 0,
     image: venue.cover_image ?? venue.image ?? "/placeholder.svg",
   }
 }

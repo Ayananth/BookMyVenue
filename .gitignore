@@ -8,10 +8,19 @@ Thumbs.db
 *.swp
 *.swo
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.venv/
+venv/
 # Environment (keep examples tracked)
 .env
 .env.local
 !.env.example
+.fastapiEnv
+env
 
 # Docker local overrides
 compose.override.yml

@@ -16,10 +16,15 @@ export default defineConfig({
     },
   },
   build: {
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          "framer-motion": ["framer-motion"],
+        codeSplitting: {
+          groups: [
+            {
+              name: "framer-motion",
+              test: /node_modules\/framer-motion/,
+            },
+          ],
         },
       },
     },
