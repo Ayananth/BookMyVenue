@@ -217,7 +217,7 @@ class RefreshView(APIView):
 
         return Response(
             {
-                "access_token": create_access_token(user.id),
+                "access_token": create_access_token(user),
                 "token_type": "bearer",
             },
         )

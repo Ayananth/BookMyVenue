@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import jwt
+from django.conf import settings
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -285,6 +287,24 @@ class RefreshTokenTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("refresh_token", response.data)
         self.assertIn("access_token", response.data)
+
+    def test_access_token_includes_role_and_is_active_claims(self):
+        response = self.client.post(
+            "/users/login",
+            {"email": self.user.email, "password": "SecurePass123!"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        payload = jwt.decode(
+            response.data["access_token"],
+            settings.SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        self.assertEqual(payload["sub"], str(self.user.id))
+        self.assertEqual(payload["role"], UserRole.USER)
+        self.assertTrue(payload["is_active"])
+        self.assertEqual(payload["type"], "access")
 
     def test_refresh_returns_new_access_token(self):
         login_response = self.client.post(

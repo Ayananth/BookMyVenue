@@ -2,12 +2,8 @@ from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth_database import get_auth_db
-from app.core.security import decode_access_token
-from app.models.user import User
+from app.core.security import AccessTokenClaims, decode_access_token
 
 bearer_scheme = HTTPBearer()
 optional_bearer_scheme = HTTPBearer(auto_error=False)
@@ -21,64 +17,44 @@ class AuthUser:
     role: str
 
 
-async def _load_user(db: AsyncSession, user_id: int) -> AuthUser:
-    result = await db.execute(
-        select(User).where(
-            User.id == user_id,
-            User.is_active.is_(True),
-            User.is_blocked.is_(False),
+def _claims_to_user(claims: AccessTokenClaims | None) -> AuthUser | None:
+    if claims is None:
+        return None
+    return AuthUser(id=claims.user_id, role=claims.role)
+
+
+async def get_current_user_id(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> int:
+    claims = decode_access_token(credentials.credentials)
+    if claims is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token.",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    )
-    user = result.scalar_one_or_none()
+    return claims.user_id
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> AuthUser:
+    user = _claims_to_user(decode_access_token(credentials.credentials))
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return AuthUser(id=user.id, role=user.role)
-
-
-async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-) -> int:
-    user_id = decode_access_token(credentials.credentials)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user_id
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_auth_db),
-) -> AuthUser:
-    user_id = decode_access_token(credentials.credentials)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return await _load_user(db, user_id)
+    return user
 
 
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
-    db: AsyncSession = Depends(get_auth_db),
 ) -> AuthUser | None:
     if credentials is None:
         return None
-    user_id = decode_access_token(credentials.credentials)
-    if user_id is None:
-        return None
-    try:
-        return await _load_user(db, user_id)
-    except HTTPException:
-        return None
+    return _claims_to_user(decode_access_token(credentials.credentials))
 
 
 async def require_venue_manager(

@@ -153,7 +153,7 @@ class RefreshSerializer(serializers.Serializer):
 
 def build_token_response(user: User) -> dict:
     return {
-        "access_token": create_access_token(user.id),
+        "access_token": create_access_token(user),
         "refresh_token": create_refresh_token(user.id),
         "token_type": "bearer",
         "user": UserSerializer(user).data,
