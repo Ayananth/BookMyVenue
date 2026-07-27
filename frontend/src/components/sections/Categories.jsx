@@ -1,10 +1,33 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { motion } from "framer-motion"
 import { ArrowRight, ChevronDown } from "lucide-react"
 import { fetchVenueCategories } from "../../apis/venues"
-import Reveal from "../common/Reveal"
 
 const CATEGORY_PREVIEW_LIMIT = 6
+
+/** In-memory cache so remounts (StrictMode, route revisits) don't flash skeletons. */
+let categoriesCache = null
+let categoriesRequest = null
+
+function loadCategories() {
+  if (categoriesCache) {
+    return Promise.resolve(categoriesCache)
+  }
+
+  if (!categoriesRequest) {
+    categoriesRequest = fetchVenueCategories()
+      .then((categoryData) => {
+        categoriesCache = categoryData.filter((category) => category.id != null)
+        return categoriesCache
+      })
+      .finally(() => {
+        categoriesRequest = null
+      })
+  }
+
+  return categoriesRequest
+}
 
 function CategoryCardSkeleton() {
   return (
@@ -28,7 +51,7 @@ function CategoryCard({ category, onClick }) {
           <img
             src={category.icon_url}
             alt={category.name}
-            loading="lazy"
+            loading="eager"
             decoding="async"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
@@ -50,19 +73,26 @@ function CategoryCard({ category, onClick }) {
 
 export default function Categories() {
   const navigate = useNavigate()
-  const [categories, setCategories] = useState([])
+  const [categories, setCategories] = useState(() => categoriesCache ?? [])
   const [showAll, setShowAll] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !categoriesCache)
+  // Skip enter animation when hydrating from cache so scroll/remount doesn't flash.
+  const skipEnterAnimation = useRef(Boolean(categoriesCache))
 
   useEffect(() => {
     let active = true
+
+    if (categoriesCache) {
+      setCategories(categoriesCache)
+      setLoading(false)
+      return undefined
+    }
+
     setLoading(true)
 
-    fetchVenueCategories()
+    loadCategories()
       .then((categoryData) => {
-        if (active) {
-          setCategories(categoryData.filter((category) => category.id != null))
-        }
+        if (active) setCategories(categoryData)
       })
       .catch((error) => console.error("Failed to fetch categories:", error))
       .finally(() => {
@@ -92,7 +122,8 @@ export default function Categories() {
   return (
     <section id="categories" className="px-4 py-24">
       <div className="mx-auto max-w-6xl">
-        <Reveal className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+        {/* Near-fold content stays visible — Reveal opacity:0 caused a blank loading state. */}
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
           <div className="max-w-xl">
             <span className="text-sm font-semibold uppercase tracking-wider text-accent">
               Browse by category
@@ -112,9 +143,9 @@ export default function Categories() {
             View all venues
             <ArrowRight className="h-4 w-4" />
           </button>
-        </Reveal>
+        </div>
 
-        <Reveal delay={0.1} className="mt-10">
+        <div className="mt-10">
           <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 sm:pb-0">
             <div className="flex snap-x snap-mandatory gap-4 sm:grid sm:grid-cols-3 lg:grid-cols-3">
               {loading
@@ -126,16 +157,27 @@ export default function Categories() {
                       <CategoryCardSkeleton />
                     </div>
                   ))
-                : visibleCategories.map((category) => (
-                    <div
+                : visibleCategories.map((category, index) => (
+                    <motion.div
                       key={category.id}
+                      initial={
+                        skipEnterAnimation.current
+                          ? false
+                          : { opacity: 0, y: 16 }
+                      }
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.4,
+                        delay: Math.min(index, 5) * 0.05,
+                        ease: [0.22, 1, 0.36, 1],
+                      }}
                       className="min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink"
                     >
                       <CategoryCard
                         category={category}
                         onClick={() => goToCategory(category.id)}
                       />
-                    </div>
+                    </motion.div>
                   ))}
             </div>
           </div>
@@ -158,7 +200,7 @@ export default function Categories() {
               </button>
             </div>
           )}
-        </Reveal>
+        </div>
       </div>
     </section>
   )
