@@ -1,7 +1,7 @@
 import api from "../lib/axios"
 
 const REVIEWS_API_BASE_URL =
-  import.meta.env.VITE_REVIEWS_API_BASE_URL || "http://127.0.0.1:8006"
+  import.meta.env.VITE_REVIEWS_API_BASE_URL || "https://bmv.ayananth.xyz"
 
 const reviewsConfig = { baseURL: REVIEWS_API_BASE_URL }
 
