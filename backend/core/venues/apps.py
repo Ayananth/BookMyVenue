@@ -8,6 +8,7 @@ class VenuesConfig(AppConfig):
     def ready(self):
         from django.contrib import admin
 
+        import venues.signals  # noqa: F401
         from core.admin_dashboard import get_dashboard_stats
 
         original_index = admin.site.index

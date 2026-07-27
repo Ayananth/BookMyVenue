@@ -22,7 +22,6 @@ from venues.models import (
     City,
     District,
     Venue,
-    VenueCategory,
     VenueSchedule,
     VenueScheduleGroup,
     VenueScheduleGroupDay,
@@ -30,13 +29,13 @@ from venues.models import (
     VenueStatus,
 )
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
+from venues.services.category_cache_service import CategoryCacheService
 from venues.services.image_upload_service import ImageUploadError, ImageUploadService
 from venues.serializers import (
     CityDropdownSerializer,
     DistrictSerializer,
     DistrictCityGroupSerializer,
     VenueActiveStatusSerializer,
-    VenueCategorySerializer,
     VenueDetailSerializer,
     VenueListSerializer,
     VenueScheduleGroupReadSerializer,
@@ -130,9 +129,7 @@ class VenueCategoryListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        categories = VenueCategory.objects.filter(is_active=True).order_by("name")
-        serializer = VenueCategorySerializer(categories, many=True)
-        return Response(serializer.data)
+        return Response(CategoryCacheService.get_active_categories())
 
 
 class VenueDistrictListView(APIView):
