@@ -31,10 +31,10 @@ from venues.models import (
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
 from venues.services.category_cache_service import CategoryCacheService
 from venues.services.image_upload_service import ImageUploadError, ImageUploadService
+from venues.services.location_group_cache_service import LocationGroupCacheService
 from venues.serializers import (
     CityDropdownSerializer,
     DistrictSerializer,
-    DistrictCityGroupSerializer,
     VenueActiveStatusSerializer,
     VenueDetailSerializer,
     VenueListSerializer,
@@ -160,15 +160,7 @@ class VenueLocationGroupListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        city_queryset = City.objects.order_by("name")
-        districts = (
-            District.objects.filter(cities__isnull=False)
-            .prefetch_related(Prefetch("cities", queryset=city_queryset))
-            .order_by("name")
-            .distinct()
-        )
-        serializer = DistrictCityGroupSerializer(districts, many=True)
-        return Response(serializer.data)
+        return Response(LocationGroupCacheService.get_location_groups())
 
 
 class ImageUploadView(APIView):
