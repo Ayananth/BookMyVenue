@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from accounts.models import User
 from bookings.models import Booking, BookingStatus, Payment
+from venues.cloudinary_url import CloudinaryImagePreset, transform_cloudinary_url
 from venues.models import Venue, VenueSchedule
 from venues.serializers import CitySerializer
 
@@ -127,7 +128,10 @@ class VenueSummarySerializer(serializers.ModelSerializer):
             return None
         cover = next((image for image in images if image.is_cover), None)
         image = cover or min(images, key=lambda item: item.sort_order)
-        return image.image_url
+        return transform_cloudinary_url(
+            image.image_url,
+            CloudinaryImagePreset.LIST_COVER,
+        )
 
 
 class ScheduleSummarySerializer(serializers.ModelSerializer):

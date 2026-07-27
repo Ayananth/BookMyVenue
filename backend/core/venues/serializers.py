@@ -16,6 +16,7 @@ from venues.models import (
     VenueScheduleOverride,
     VenueStatus,
 )
+from venues.cloudinary_url import CloudinaryImagePreset, transform_cloudinary_url
 from venues.utils import generate_unique_venue_slug
 
 WEEKDAY_LABELS = {
@@ -66,16 +67,32 @@ class DistrictCityGroupSerializer(serializers.ModelSerializer):
 
 
 class VenueCategorySerializer(serializers.ModelSerializer):
+    icon_url = serializers.SerializerMethodField()
+
     class Meta:
         model = VenueCategory
         fields = ("id", "name", "icon_url")
 
+    def get_icon_url(self, obj) -> str | None:
+        return transform_cloudinary_url(
+            obj.icon_url,
+            CloudinaryImagePreset.CATEGORY_ICON,
+        )
+
 
 class VenueImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = VenueImage
         fields = ("id", "image_url", "is_cover", "sort_order", "uploaded_at")
         read_only_fields = fields
+
+    def get_image_url(self, obj) -> str:
+        return transform_cloudinary_url(
+            obj.image_url,
+            CloudinaryImagePreset.DETAIL_HERO,
+        )
 
 
 class VenueImageCreateSerializer(serializers.ModelSerializer):
@@ -122,7 +139,10 @@ class VenueListSerializer(serializers.ModelSerializer):
             return None
         cover = next((image for image in images if image.is_cover), None)
         image = cover or min(images, key=lambda item: item.sort_order)
-        return image.image_url
+        return transform_cloudinary_url(
+            image.image_url,
+            CloudinaryImagePreset.LIST_COVER,
+        )
 
 
 class VenueDetailSerializer(serializers.ModelSerializer):
