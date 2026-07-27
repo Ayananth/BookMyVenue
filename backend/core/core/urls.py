@@ -31,6 +31,7 @@ urlpatterns = [
     path("bookings/", include("bookings.urls")),
     path("payments/", include("payments.urls")),
     path("contact/", include("contact.urls")),
+    path("internal/", include("venues.internal.urls")),
     path("uploads/image", ImageUploadView.as_view(), name="image-upload"),
 ]
 

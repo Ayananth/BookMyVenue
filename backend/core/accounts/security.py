@@ -45,12 +45,15 @@ def verify_password(password: str, password_hash: str) -> bool:
     return secrets.compare_digest(derived_key.hex(), stored_key)
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user) -> str:
+    """Issue an access JWT with identity claims for FastAPI services."""
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
     )
     payload = {
-        "sub": str(user_id),
+        "sub": str(user.id),
+        "role": user.role,
+        "is_active": bool(user.is_active),
         "exp": expire,
         "type": "access",
     }

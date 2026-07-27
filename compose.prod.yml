@@ -7,7 +7,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-bookmyvenue}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/docker/init-postgis.sql:/docker-entrypoint-initdb.d/init-postgis.sql
+      - ./backend/docker/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh
+      - ./backend/docker/ensure-service-databases.sh:/ensure-service-databases.sh
     ports:
       - "${POSTGRES_PORT:-5436}:5432"
     healthcheck:
