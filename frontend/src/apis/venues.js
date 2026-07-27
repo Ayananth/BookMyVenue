@@ -309,7 +309,7 @@ function toExploreVenue(venue) {
 }
 
 export async function fetchExploreVenues({ categoryId, cityId, search } = {}) {
-  const params = { limit: 12 }
+  const params = { limit: 12, home: true }
   if (categoryId != null) {
     params.category_id = categoryId
   }

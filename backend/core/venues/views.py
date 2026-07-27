@@ -30,6 +30,7 @@ from venues.models import (
 )
 from venues.permissions import CanManageVenues, IsVenueOwnerOrAdmin
 from venues.services.category_cache_service import CategoryCacheService
+from venues.services.home_venue_service import HomeVenueService
 from venues.services.image_upload_service import ImageUploadError, ImageUploadService
 from venues.services.location_group_cache_service import LocationGroupCacheService
 from venues.serializers import (
@@ -199,6 +200,22 @@ class VenueListCreateView(APIView):
         return [AllowAny()]
 
     def get(self, request):
+        home = request.query_params.get("home") == "true"
+        mine = request.query_params.get("mine") == "true"
+
+        if home and not mine:
+            limit = request.query_params.get("limit", HomeVenueService.DEFAULT_LIMIT)
+            venues = HomeVenueService.list_venues(limit=limit)
+            serializer = VenueListSerializer(venues, many=True)
+            return Response(
+                {
+                    "count": len(serializer.data),
+                    "next": None,
+                    "previous": None,
+                    "results": serializer.data,
+                },
+            )
+
         queryset = _list_queryset(request)
         paginator = VenuePagination()
         page = paginator.paginate_queryset(queryset, request)
