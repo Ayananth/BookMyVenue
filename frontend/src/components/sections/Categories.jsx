@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { ArrowRight, ChevronDown } from "lucide-react"
@@ -104,10 +104,7 @@ export default function Categories() {
     }
   }, [])
 
-  const visibleCategories = useMemo(
-    () => (showAll ? categories : categories.slice(0, CATEGORY_PREVIEW_LIMIT)),
-    [categories, showAll],
-  )
+  const hiddenCount = Math.max(0, categories.length - CATEGORY_PREVIEW_LIMIT)
 
   const goToCategory = (categoryId) => {
     navigate("/venues", categoryId != null ? { state: { categoryId } } : undefined)
@@ -146,7 +143,7 @@ export default function Categories() {
         </div>
 
         <div className="mt-10">
-          <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 sm:pb-0">
+          <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
             <div className="flex snap-x snap-mandatory gap-4 sm:grid sm:grid-cols-3 lg:grid-cols-3">
               {loading
                 ? Array.from({ length: CATEGORY_PREVIEW_LIMIT }).map((_, index) => (
@@ -157,33 +154,41 @@ export default function Categories() {
                       <CategoryCardSkeleton />
                     </div>
                   ))
-                : visibleCategories.map((category, index) => (
-                    <motion.div
-                      key={category.id}
-                      initial={
-                        skipEnterAnimation.current
-                          ? false
-                          : { opacity: 0, y: 16 }
-                      }
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.4,
-                        delay: Math.min(index, 5) * 0.05,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                      className="min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink"
-                    >
-                      <CategoryCard
-                        category={category}
-                        onClick={() => goToCategory(category.id)}
-                      />
-                    </motion.div>
-                  ))}
+                : categories.map((category, index) => {
+                    const hideOnDesktop =
+                      !showAll && index >= CATEGORY_PREVIEW_LIMIT
+
+                    return (
+                      <motion.div
+                        key={category.id}
+                        initial={
+                          skipEnterAnimation.current
+                            ? false
+                            : { opacity: 0, y: 16 }
+                        }
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.4,
+                          delay: Math.min(index, 5) * 0.05,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        className={`min-w-[220px] shrink-0 snap-start sm:min-w-0 sm:shrink ${
+                          hideOnDesktop ? "sm:hidden" : ""
+                        }`}
+                      >
+                        <CategoryCard
+                          category={category}
+                          onClick={() => goToCategory(category.id)}
+                        />
+                      </motion.div>
+                    )
+                  })}
             </div>
           </div>
 
-          {categories.length > CATEGORY_PREVIEW_LIMIT && (
-            <div className="mt-6 flex justify-center sm:justify-start">
+          {/* Show more is desktop-only; mobile keeps a full horizontal scroll. */}
+          {hiddenCount > 0 && (
+            <div className="mt-6 hidden sm:flex sm:justify-start">
               <button
                 type="button"
                 onClick={() => setShowAll((current) => !current)}
@@ -191,7 +196,7 @@ export default function Categories() {
               >
                 {showAll
                   ? "Show fewer categories"
-                  : `Show ${categories.length - visibleCategories.length} more`}
+                  : `Show ${hiddenCount} more`}
                 <ChevronDown
                   className={`h-4 w-4 transition-transform ${
                     showAll ? "rotate-180" : ""
