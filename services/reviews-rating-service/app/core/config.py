@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     INTERNAL_API_KEY: str = ""
     BACKEND_HTTP_TIMEOUT: float = 5.0
 
+    # Comma-separated browser origins allowed to call this API.
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     class Config:
         env_file = ".env"
 
